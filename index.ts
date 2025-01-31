@@ -1,9 +1,6 @@
 import "dotenv/config";
 
 import { Client, GatewayIntentBits } from "discord.js";
-import { DisTube } from "distube";
-import { SoundCloudPlugin } from "@distube/soundcloud";
-import { YtDlpPlugin } from "@distube/yt-dlp";
 import { Logger } from "./src/utils/logger";
 import { CommandHandler } from "./src/handlers/commandHandler";
 
@@ -16,18 +13,6 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildPresences,
   ],
-});
-
-client.distube = new DisTube(client, {
-  plugins: [new SoundCloudPlugin(), new YtDlpPlugin()],
-});
-
-client.distube.on("playSong", (queue, song) => {
-  Logger.info(`Playing: ${song.name}`);
-});
-
-client.distube.on("error", (channel, error) => {
-  Logger.error(`DisTube error: ${error.message}`);
 });
 
 const commandHandler = new CommandHandler(client);

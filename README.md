@@ -1,4 +1,4 @@
-# jamlisten
+# jamutilities
 
 To install dependencies:
 
@@ -9,7 +9,7 @@ bun install
 To run:
 
 ```bash
-bun run index.ts
+bun start
 ```
 
-This project was created using `bun init` in bun v1.1.34. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+For some reasons, we use bun to speed up the process of installing and starting the app, unlike nodejs and npm/yarn.
