@@ -1,5 +1,5 @@
 {
-  "name": "discord-bot",
+  "name": "jamutilities",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
@@ -13,15 +13,10 @@
   },
   "dependencies": {
     "@discordjs/voice": "^0.18.0",
-    "@distube/soundcloud": "^2.0.4",
-    "@distube/spotify": "^2.0.2",
-    "@distube/youtube": "^1.0.4",
-    "@distube/yt-dlp": "^2.0.1",
     "@types/node": "^22.12.0",
     "ansi-to-html": "^0.7.2",
     "chalk": "^5.4.1",
     "discord.js": "^14.17.3",
-    "distube": "^5.0.4",
     "dotenv": "^16.4.7",
     "fast-average-color-node": "^3.1.0",
     "ffmpeg-static": "^5.2.0",
@@ -35,7 +30,6 @@
     "ytdl-core": "^4.11.5"
   },
   "trustedDependencies": [
-    "@distube/yt-dlp",
     "ffmpeg-static",
     "node-pty",
     "sharp",
