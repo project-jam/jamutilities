@@ -4,10 +4,7 @@ export type GifType =
   | "kiss"
   | "hug"
   | "airkiss"
-  | "pat"
-  | "slap"
-  | "punch"
-  | "cry"
+  | "wave"
   | "tickle"
   | "evillaugh"
   | "dance";
