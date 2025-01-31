@@ -82,39 +82,6 @@ export const command: Command = {
         return;
       }
 
-      // Check for unsupported platforms
-      if (
-        mediaUrl.includes("youtube.com") ||
-        mediaUrl.includes("youtu.be") ||
-        mediaUrl.includes("tiktok.com")
-      ) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ffd700")
-              .setTitle("⚠️ Coming Soon!")
-              .setDescription(
-                "YouTube and TikTok downloads are currently under development.",
-              )
-              .addFields(
-                {
-                  name: "Supported Platforms",
-                  value:
-                    "• Tenor GIFs\n• Giphy GIFs\n• Discord Attachments\n• Direct Media Links",
-                },
-                {
-                  name: "Coming Soon",
-                  value:
-                    "• YouTube Videos\n• TikTok Videos\n• More platforms...",
-                },
-              )
-              .setFooter({ text: "Stay tuned for updates!" })
-              .setTimestamp(),
-          ],
-        });
-        return;
-      }
-
       // Handle Tenor links
       if (mediaUrl.includes("tenor.com")) {
         await interaction.editReply(mediaUrl);
