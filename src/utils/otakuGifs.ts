@@ -8,6 +8,7 @@ export type GifType =
   | "slap"
   | "punch"
   | "cry"
+  | "tickle"
   | "evillaugh"
   | "dance";
 
