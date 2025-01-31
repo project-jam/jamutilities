@@ -1,7 +1,7 @@
-import { Command } from "../types/Command";
+import { Command } from "../../types/Command";
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { spawn } from "child_process";
-import { Logger } from "../utils/logger";
+import { Logger } from "../../utils/logger";
 import ansi from "ansi-to-html";
 
 const converter = new ansi({
