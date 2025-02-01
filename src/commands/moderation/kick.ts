@@ -59,22 +59,26 @@ export const command: Command = {
         return;
       }
 
+      // Get both members for hierarchy check
       const targetMember = await interaction.guild?.members.fetch(
         targetUser.id,
       );
+      const executorMember = await interaction.guild?.members.fetch(
+        interaction.user.id,
+      );
 
-      if (!targetMember) {
+      if (!targetMember || !executorMember) {
         await interaction.editReply({
           embeds: [
             new EmbedBuilder()
               .setColor("#ff3838")
-              .setDescription("❌ This user is not in the server!"),
+              .setDescription("❌ Failed to fetch member information!"),
           ],
         });
         return;
       }
 
-      // Check if the target user is kickable
+      // Check if the target user is kickable by the bot
       if (!targetMember.kickable) {
         await interaction.editReply({
           embeds: [
@@ -100,18 +104,17 @@ export const command: Command = {
         return;
       }
 
-      // Check if the target user has a higher role
+      // Check role hierarchy
       if (
-        interaction.member instanceof GuildMember &&
         targetMember.roles.highest.position >=
-          interaction.member.roles.highest.position
+        executorMember.roles.highest.position
       ) {
         await interaction.editReply({
           embeds: [
             new EmbedBuilder()
               .setColor("#ff3838")
               .setDescription(
-                "❌ You cannot kick someone with an equal or higher role!",
+                "❌ You cannot kick someone with an equal or higher role than you!",
               ),
           ],
         });

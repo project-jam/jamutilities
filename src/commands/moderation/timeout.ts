@@ -22,19 +22,19 @@ export const command: Command = {
       option
         .setName("user")
         .setDescription("The user to timeout")
-        .setRequired(true)
+        .setRequired(true),
     )
     .addStringOption((option) =>
       option
         .setName("duration")
         .setDescription("Timeout duration (1m, 1h, 1d, 1w)")
-        .setRequired(true)
+        .setRequired(true),
     )
     .addStringOption((option) =>
       option
         .setName("reason")
         .setDescription("The reason for the timeout")
-        .setRequired(false)
+        .setRequired(false),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
@@ -43,20 +43,27 @@ export const command: Command = {
 
     try {
       // Check if the user has permission to timeout
-      if (!interaction.memberPermissions?.has(PermissionFlagsBits.ModerateMembers)) {
+      if (
+        !interaction.memberPermissions?.has(PermissionFlagsBits.ModerateMembers)
+      ) {
         await interaction.editReply({
           embeds: [
             new EmbedBuilder()
               .setColor("#ff3838")
-              .setDescription("❌ You don't have permission to timeout members!"),
+              .setDescription(
+                "❌ You don't have permission to timeout members!",
+              ),
           ],
         });
         return;
       }
 
       const targetUser = interaction.options.getUser("user");
-      const durationString = interaction.options.getString("duration")?.toLowerCase();
-      const reason = interaction.options.getString("reason") || "No reason provided";
+      const durationString = interaction.options
+        .getString("duration")
+        ?.toLowerCase();
+      const reason =
+        interaction.options.getString("reason") || "No reason provided";
 
       if (!targetUser || !durationString) {
         await interaction.editReply({
@@ -64,6 +71,25 @@ export const command: Command = {
             new EmbedBuilder()
               .setColor("#ff3838")
               .setDescription("❌ Please provide both a user and duration!"),
+          ],
+        });
+        return;
+      }
+
+      // Get both members for hierarchy check
+      const targetMember = await interaction.guild?.members.fetch(
+        targetUser.id,
+      );
+      const executorMember = await interaction.guild?.members.fetch(
+        interaction.user.id,
+      );
+
+      if (!targetMember || !executorMember) {
+        await interaction.editReply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor("#ff3838")
+              .setDescription("❌ Failed to fetch member information!"),
           ],
         });
         return;
@@ -78,11 +104,16 @@ export const command: Command = {
         const value = parseInt(amount);
 
         switch (unit) {
-          case 'm': return value * MINUTE;
-          case 'h': return value * HOUR;
-          case 'd': return value * DAY;
-          case 'w': return value * WEEK;
-          default: return null;
+          case "m":
+            return value * MINUTE;
+          case "h":
+            return value * HOUR;
+          case "d":
+            return value * DAY;
+          case "w":
+            return value * WEEK;
+          default:
+            return null;
         }
       };
 
@@ -93,7 +124,9 @@ export const command: Command = {
           embeds: [
             new EmbedBuilder()
               .setColor("#ff3838")
-              .setDescription("❌ Invalid duration format! Use: 1m, 1h, 1d, or 1w"),
+              .setDescription(
+                "❌ Invalid duration format! Use: 1m, 1h, 1d, or 1w",
+              ),
           ],
         });
         return;
@@ -111,26 +144,15 @@ export const command: Command = {
         return;
       }
 
-      const targetMember = await interaction.guild?.members.fetch(targetUser.id);
-
-      if (!targetMember) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription("❌ This user is not in the server!"),
-          ],
-        });
-        return;
-      }
-
-      // Check if the user is moderatable
+      // Check if the target can be timed out
       if (!targetMember.moderatable) {
         await interaction.editReply({
           embeds: [
             new EmbedBuilder()
               .setColor("#ff3838")
-              .setDescription("❌ I cannot timeout this user! They may have higher permissions than me."),
+              .setDescription(
+                "❌ I cannot timeout this user! They may have higher permissions than me.",
+              ),
           ],
         });
         return;
@@ -150,14 +172,16 @@ export const command: Command = {
 
       // Check role hierarchy
       if (
-        interaction.member instanceof GuildMember &&
-        targetMember.roles.highest.position >= interaction.member.roles.highest.position
+        targetMember.roles.highest.position >=
+        executorMember.roles.highest.position
       ) {
         await interaction.editReply({
           embeds: [
             new EmbedBuilder()
               .setColor("#ff3838")
-              .setDescription("❌ You cannot timeout someone with an equal or higher role!"),
+              .setDescription(
+                "❌ You cannot timeout someone with an equal or higher role than you!",
+              ),
           ],
         });
         return;
@@ -171,11 +195,13 @@ export const command: Command = {
         const dmEmbed = new EmbedBuilder()
           .setColor("#ffa500")
           .setTitle("You've Been Timed Out")
-          .setDescription(`You have been timed out in ${interaction.guild?.name}`)
+          .setDescription(
+            `You have been timed out in ${interaction.guild?.name}`,
+          )
           .addFields(
             { name: "Duration", value: durationString },
             { name: "Reason", value: reason },
-            { name: "Timed out By", value: interaction.user.tag }
+            { name: "Timed out By", value: interaction.user.tag },
           )
           .setTimestamp();
 
@@ -184,7 +210,7 @@ export const command: Command = {
         Logger.warn(`Could not DM timed out user ${targetUser.tag}`);
       }
 
-      // Apply the timeout
+      // Apply the timeout using the correct method
       await targetMember.timeout(duration, formattedReason);
 
       // Calculate when the timeout will end
@@ -196,23 +222,40 @@ export const command: Command = {
         .setTitle("⏰ User Timed Out")
         .setDescription(`Successfully timed out **${targetUser.tag}**`)
         .addFields(
-          { name: "Timed Out User", value: `${targetUser.tag} (${targetUser.id})`, inline: true },
-          { name: "Timed Out By", value: interaction.user.tag, inline: true },
-          { name: "Duration", value: durationString, inline: true },
-          { name: "Expires", value: `<t:${Math.floor(timeoutEnd.getTime() / 1000)}:R>`, inline: true },
-          { name: "Reason", value: reason }
+          {
+            name: "Timed Out User",
+            value: `${targetUser.tag} (${targetUser.id})`,
+            inline: true,
+          },
+          {
+            name: "Timed Out By",
+            value: interaction.user.tag,
+            inline: true,
+          },
+          {
+            name: "Duration",
+            value: durationString,
+            inline: true,
+          },
+          {
+            name: "Expires",
+            value: `<t:${Math.floor(timeoutEnd.getTime() / 1000)}:R>`,
+            inline: true,
+          },
+          { name: "Reason", value: reason },
         )
         .setTimestamp();
 
       await interaction.editReply({ embeds: [timeoutEmbed] });
-
     } catch (error) {
       Logger.error("Timeout command failed:", error);
       await interaction.editReply({
         embeds: [
           new EmbedBuilder()
             .setColor("#ff3838")
-            .setDescription("❌ An error occurred while trying to timeout the user."),
+            .setDescription(
+              "❌ An error occurred while trying to timeout the user.",
+            ),
         ],
       });
     }
