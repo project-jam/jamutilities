@@ -5,12 +5,13 @@ import {
   version as discordVersion,
   PresenceStatus,
 } from "discord.js";
-import { execSync } from "child_process";
+import { execSync, exec } from "child_process";
 import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
 import os from "os";
 import process from "process";
-import { statSync } from "fs";
+import { promisify } from "util";
+const execAsync = promisify(exec);
 
 function formatBytes(bytes: number): string {
   const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
@@ -32,8 +33,9 @@ function getCPUUsage(): number {
   let totalIdle = 0,
     totalTick = 0;
   cpus.forEach((cpu) => {
-    for (const type in cpu.times)
+    for (const type in cpu.times) {
       totalTick += cpu.times[type as keyof typeof cpu.times];
+    }
     totalIdle += cpu.times.idle;
   });
   return ((1 - totalIdle / totalTick) * 100).toFixed(1) as unknown as number;
@@ -57,13 +59,48 @@ function getStatusEmoji(status: PresenceStatus): string {
         : "⚫";
 }
 
-function getDiskInfo(): string {
+async function getDiskInfo(): Promise<string[]> {
+  const info: string[] = [];
+
   try {
-    const { size, free } = statSync("/");
-    return `Used: ${formatBytes(size - free)} / ${formatBytes(size)}`;
-  } catch {
-    return "Unavailable";
+    if (process.platform === "linux") {
+      // For Linux systems
+      const { stdout } = await execAsync(
+        'df -h --output=source,size,used,avail,pcent,target | grep "^/dev"',
+      );
+      const lines = stdout.trim().split("\n");
+
+      for (const line of lines) {
+        const parts = line.split(/\s+/);
+        if (parts.length >= 6) {
+          const [device, size, used, avail, usage, mountpoint] = parts;
+          info.push(`💽 ${mountpoint}: ${used}/${size} (${usage} used)`);
+        }
+      }
+    } else if (process.platform === "win32") {
+      // For Windows systems
+      const { stdout } = await execAsync(
+        "wmic logicaldisk get caption,size,freespace",
+      );
+      const lines = stdout.trim().split("\n").slice(1);
+
+      for (const line of lines) {
+        const parts = line.trim().split(/\s+/);
+        if (parts.length >= 3) {
+          const [drive, freeSpace, totalSize] = parts;
+          const used = Number(totalSize) - Number(freeSpace);
+          const usagePercent = ((used / Number(totalSize)) * 100).toFixed(1);
+          info.push(
+            `💽 ${drive}: ${formatBytes(used)}/${formatBytes(Number(totalSize))} (${usagePercent}% used)`,
+          );
+        }
+      }
+    }
+  } catch (error) {
+    info.push("💽 Disk info unavailable");
   }
+
+  return info;
 }
 
 export const command: Command = {
@@ -82,6 +119,10 @@ export const command: Command = {
     await interaction.deferReply();
     const client = interaction.client;
 
+    // Get disk info using the new async function
+    const diskInfoLines = await getDiskInfo();
+    const diskInfo = diskInfoLines.join("\n");
+
     const embed = new EmbedBuilder()
       .setColor("#2b2d31")
       .setTitle(`${client.user?.username}'s Status`)
@@ -89,33 +130,66 @@ export const command: Command = {
       .addFields(
         {
           name: "🔧 Versions",
-          value: `**Discord.js:** v${discordVersion}\n**Node.js:** ${process.version}\n**Bun:** ${execSync("bun --version").toString().trim() || "Not Installed"}`,
+          value: [
+            `**Discord.js:** v${discordVersion}`,
+            `**Node.js:** ${process.version}`,
+            `**Bun:** ${(() => {
+              try {
+                return execSync("bun --version").toString().trim();
+              } catch (error) {
+                Logger.warn("Bun is not installed or not accessible");
+                return "Not Installed";
+              }
+            })()}`,
+            `**Platform:** ${os.type()} (${os.platform()} ${os.release()})`,
+            `**Architecture:** ${os.arch()}`,
+          ].join("\n"),
           inline: true,
         },
         {
           name: "💻 System",
-          value: `**OS:** ${getOSEmoji(os.platform())} ${os.type()}\n**Arch:** ${os.arch()}\n**CPU:** ${os.cpus()[0].model}\n**Cores:** ${os.cpus().length}\n**Usage:** ${getCPUUsage()}%`,
+          value: [
+            `**OS:** ${getOSEmoji(os.platform())} ${os.type()}`,
+            `**Architecture:** ${os.arch()}`,
+            `**CPU:** ${os.cpus()[0].model}`,
+            `**Cores:** ${os.cpus().length}`,
+            `**Usage:** ${getCPUUsage()}%`,
+          ].join("\n"),
           inline: true,
         },
         {
           name: "📊 Memory",
-          value: `**Total:** ${formatBytes(os.totalmem())}\n**Used:** ${formatBytes(os.totalmem() - os.freemem())}\n**Free:** ${formatBytes(os.freemem())}`,
+          value: [
+            `**Total:** ${formatBytes(os.totalmem())}`,
+            `**Used:** ${formatBytes(os.totalmem() - os.freemem())}`,
+            `**Free:** ${formatBytes(os.freemem())}`,
+          ].join("\n"),
           inline: true,
         },
-        { name: "🖴 Disk", value: getDiskInfo(), inline: true },
+        { name: "🖴 Disk", value: diskInfo, inline: true },
         {
           name: "⏰ Uptime",
-          value: `**Bot:** ${formatUptime(process.uptime())}\n**System:** ${formatUptime(os.uptime())}`,
+          value: [
+            `**Bot:** ${formatUptime(process.uptime())}`,
+            `**System:** ${formatUptime(os.uptime())}`,
+          ].join("\n"),
           inline: true,
         },
         {
           name: "🤖 Bot Stats",
-          value: `**Status:** ${getStatusEmoji(client.presence.status)} ${client.presence.status}\n**Guilds:** ${client.guilds.cache.size}\n**Users:** ${client.guilds.cache.reduce((a, g) => a + g.memberCount, 0)}`,
+          value: [
+            `**Status:** ${getStatusEmoji(client.presence.status)} ${client.presence.status}`,
+            `**Guilds:** ${client.guilds.cache.size}`,
+            `**Users:** ${client.guilds.cache.reduce((a, g) => a + g.memberCount, 0)}`,
+          ].join("\n"),
           inline: true,
         },
         {
           name: "🌐 Connection",
-          value: `**Ping:** ${client.ws.ping}ms\n**Shards:** ${client.shard?.count || 1}`,
+          value: [
+            `**Ping:** ${client.ws.ping}ms`,
+            `**Shards:** ${client.shard?.count || 1}`,
+          ].join("\n"),
           inline: true,
         },
       )
