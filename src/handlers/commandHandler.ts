@@ -14,11 +14,12 @@ export class CommandHandler {
 
   async loadCommands() {
     const commandsPath = join(__dirname, "..", "commands");
-
-    // Get all subdirectories in commands folder
     const commandFolders = readdirSync(commandsPath, { withFileTypes: true })
       .filter((dirent) => dirent.isDirectory())
       .map((dirent) => dirent.name);
+
+    // Create a map to store commands by folder
+    const commandsByFolder = new Map<string, string[]>();
 
     for (const folder of commandFolders) {
       const folderPath = join(commandsPath, folder);
@@ -26,16 +27,24 @@ export class CommandHandler {
         file.endsWith(".ts"),
       );
 
+      const loadedCommands: string[] = [];
+
       for (const file of commandFiles) {
         const filePath = join(folderPath, file);
         const { command } = await import(filePath);
 
         if ("data" in command && "execute" in command) {
           this.commands.set(command.data.name, command);
-          Logger.info(`Loaded command: ${command.data.name} (${folder})`);
+          loadedCommands.push(command.data.name);
         } else {
           Logger.warn(`Invalid command file: ${folder}/${file}`);
         }
+      }
+
+      if (loadedCommands.length > 0) {
+        // Format the command list nicely
+        const commandList = loadedCommands.join(", ");
+        Logger.info(`Loaded command: ${commandList} (${folder})`);
       }
     }
   }

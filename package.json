@@ -6,7 +6,8 @@
     "start": "bun index.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/gradient-string": "^1.1.6"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
@@ -19,6 +20,7 @@
     "dotenv": "^16.4.7",
     "fast-average-color-node": "^3.1.0",
     "ffmpeg-static": "^5.2.0",
+    "gradient-string": "^3.0.0",
     "libsodium-wrappers": "^0.7.15",
     "miniget": "^4.2.3",
     "moment": "^2.30.1",
