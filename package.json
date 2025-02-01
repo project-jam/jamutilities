@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "bun index.ts"
+    "start": "SHARDING_MANAGER=true bun index.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
