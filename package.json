@@ -16,6 +16,7 @@
     "@types/node": "^22.12.0",
     "ansi-to-html": "^0.7.2",
     "chalk": "^5.4.1",
+    "discord-hybrid-sharding": "^2.2.4",
     "discord.js": "^14.17.3",
     "dotenv": "^16.4.7",
     "fast-average-color-node": "^3.1.0",

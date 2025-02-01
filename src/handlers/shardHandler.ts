@@ -1,109 +1,61 @@
+///// WARNING: This file is not being used in the project.     /////
+///// If you want to use it, you need to import it in index.ts /////
+///// As this file is not being used, it is not being tested.  /////
+///// It may or may not work as expected.                      /////
+///// And it may crash the bot.                                /////
+///// You have been warned.                                    /////
+
 import { ShardingManager } from "discord.js";
-import { join } from "path";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 import { Logger } from "../utils/logger";
+
+// For ESM: obtain __dirname.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export class ShardHandler {
   private manager: ShardingManager;
 
   constructor() {
+    // Remove the SHARDING_MANAGER flag for child processes.
+    const env = { ...process.env };
+    delete env.SHARDING_MANAGER;
+
+    // Adjust the path to your main file.
     this.manager = new ShardingManager(
-      join(__dirname, "..", "..", "index.js"),
+      join(__dirname, "..", "..", "index.ts"),
       {
         token: process.env.DISCORD_TOKEN,
-        totalShards: "auto",
+        totalShards: "auto", // or a specific number if desired.
+        mode: "process",
         respawn: true,
-        mode: "worker",
+        env,
       },
     );
 
     this.registerEvents();
   }
 
-  private registerEvents() {
-    // Shard creation event
+  private registerEvents(): void {
     this.manager.on("shardCreate", (shard) => {
-      Logger.info(`Launched Shard ${shard.id}`);
-
-      // Individual shard events
-      shard.on("ready", () => {
-        Logger.success(`Shard ${shard.id} connected to Discord's Gateway`);
+      Logger.info(`🚀 Launching Shard #${shard.id}...`);
+      // Log once the shard process spawns.
+      shard.on("spawn", () => {
+        Logger.info(`🌟 Shard #${shard.id} spawned successfully!`);
       });
-
-      shard.on("disconnect", () => {
-        Logger.warn(`Shard ${shard.id} disconnected from Discord's Gateway`);
-      });
-
-      shard.on("reconnecting", () => {
-        Logger.info(`Shard ${shard.id} reconnecting to Discord's Gateway`);
-      });
-
-      shard.on("death", () => {
-        Logger.error(`Shard ${shard.id} died unexpectedly`);
-      });
-
-      shard.on("error", (error) => {
-        Logger.error(`Shard ${shard.id} encountered an error:`, error);
-      });
-    });
-
-    // Global shard events
-    this.manager.on("shardDisconnect", (closedEvent, shardId) => {
-      Logger.warn(
-        `Shard ${shardId} disconnected with code ${closedEvent.code}`,
-      );
-    });
-
-    this.manager.on("shardReconnecting", (shardId) => {
-      Logger.info(`Shard ${shardId} is reconnecting...`);
-    });
-
-    this.manager.on("shardResume", (shardId, replayedEvents) => {
-      Logger.success(
-        `Shard ${shardId} resumed. Replayed ${replayedEvents} events.`,
-      );
-    });
-
-    this.manager.on("shardError", (error, shardId) => {
-      Logger.error(`Shard ${shardId} encountered an error:`, error);
+      Logger.info(`🔄 Loading Shard #${shard.id}...`);
     });
   }
 
-  public async spawn() {
+  public async spawn(): Promise<void> {
     try {
       Logger.info("Starting shard spawning process...");
       await this.manager.spawn();
-      Logger.success("All shards spawned successfully!");
+      Logger.info("All shards spawned successfully!");
     } catch (error) {
       Logger.fatal("Failed to spawn shards:", error);
       process.exit(1);
     }
-  }
-
-  // Method to get total guild count across all shards
-  public async getTotalGuilds(): Promise<number> {
-    try {
-      const guildCounts = (await this.manager.fetchClientValues(
-        "guilds.cache.size",
-      )) as number[];
-      return guildCounts.reduce((acc, count) => acc + count, 0);
-    } catch (error) {
-      Logger.error("Failed to fetch total guild count:", error);
-      return 0;
-    }
-  }
-
-  // Method to broadcast an evaluation to all shards
-  public async broadcastEval<T>(fn: () => T): Promise<T[]> {
-    try {
-      return await this.manager.broadcastEval(fn);
-    } catch (error) {
-      Logger.error("Failed to broadcast eval:", error);
-      return [];
-    }
-  }
-
-  // Get the ShardingManager instance
-  public getManager(): ShardingManager {
-    return this.manager;
   }
 }
