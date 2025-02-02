@@ -1,9 +1,9 @@
 {
   "name": "jamutilities",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "SHARDING_MANAGER=true bun index.ts"
+    "start": "bun index.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
