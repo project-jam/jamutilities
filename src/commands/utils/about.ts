@@ -23,7 +23,7 @@ export const command: Command = {
         iconURL: client.user?.displayAvatarURL(),
       })
       .setDescription(
-        "JamListen is a feature-rich Discord bot focused on bringing fun interactions and moderation tools to your server! ",
+        "JamUtilities is a feature-rich Discord bot focused on bringing fun interactions and moderation tools to your server! ",
       )
       .addFields(
         {
