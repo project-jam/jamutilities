@@ -44,6 +44,7 @@ export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("translate")
     .setDescription("Translate text to different languages")
+    .setDMPermission(true)
     .addSubcommand((subcommand) =>
       subcommand
         .setName("en")

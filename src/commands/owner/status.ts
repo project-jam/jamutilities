@@ -106,7 +106,8 @@ async function getDiskInfo(): Promise<string[]> {
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("status")
-    .setDescription("Shows detailed bot status and system information"),
+    .setDMPermission(true)
+    .setDescription("Shows detailed bot status and system information (Owner only!)"),
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.user.id !== process.env.OWNER_ID) {

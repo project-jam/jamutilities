@@ -16,6 +16,7 @@ export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("shell")
     .setDescription("Executes a shell command (Owner only)")
+    .setDMPermission(true)
     .addStringOption((option) =>
       option
         .setName("command")

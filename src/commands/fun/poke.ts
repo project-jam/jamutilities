@@ -29,6 +29,7 @@ export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("poke")
     .setDescription("Poke someone! 👉")
+    .setDMPermission(true)
     .addUserOption((option) =>
       option
         .setName("user")

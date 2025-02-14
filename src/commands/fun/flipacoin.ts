@@ -8,6 +8,7 @@ import type { Command } from "../../types/Command";
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("flip-a-coin")
+    .setDMPermission(true)
     .setDescription("Flip a coin and get your result!"),
 
   async execute(interaction: ChatInputCommandInteraction) {

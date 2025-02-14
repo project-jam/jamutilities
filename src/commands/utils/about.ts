@@ -9,6 +9,7 @@ import type { Command } from "../../types/Command";
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("about")
+    .setDMPermission(true)
     .setDescription("Shows information about the bot"),
 
   async execute(interaction: ChatInputCommandInteraction) {

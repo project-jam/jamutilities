@@ -35,6 +35,7 @@ export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("wave")
     .setDescription("Wave at someone! 👋")
+    .setDMPermission(true)
     .addUserOption((option) =>
       option
         .setName("user")

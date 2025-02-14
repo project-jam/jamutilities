@@ -72,8 +72,8 @@ class Logger {
     output = output.padEnd(BOX.top.length - 2) + BOX.side;
 
     if (error) {
-      const errorMessage =
-        `${BOX.side} ${chalk.red(error)}`.padEnd(BOX.top.length - 2) + BOX.side;
+      // Display the full stack trace for errors and capture the message
+      const errorMessage = `${BOX.side} ${chalk.red(error.stack || error.message)}`.padEnd(BOX.top.length - 2) + BOX.side;
       return `${BOX.top}\n${output}\n${BOX.separator}\n${errorMessage}\n${BOX.bottom}`;
     }
 
@@ -169,3 +169,4 @@ class Logger {
 Logger.setLevel(LogLevel.DEBUG);
 
 export { Logger, LogLevel };
+

@@ -34,6 +34,7 @@ export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("hug")
     .setDescription("Give someone a warm hug! 🤗")
+    .setDMPermission(true)
     .addUserOption((option) =>
       option
         .setName("user")

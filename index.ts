@@ -1,7 +1,14 @@
 import "dotenv/config";
-import { Client, GatewayIntentBits, ActivityType } from "discord.js";
+import {
+  Client,
+  GatewayIntentBits,
+  ActivityType,
+  EmbedBuilder,
+  MessageFlags,
+} from "discord.js";
 import { Logger } from "./src/utils/logger";
 import { CommandHandler } from "./src/handlers/commandHandler";
+import { BlacklistManager } from "./src/handlers/blacklistMembers";
 
 const client = new Client({
   intents: [
@@ -40,7 +47,6 @@ const statusMessages = [
   { text: "the chat flow 💭", type: ActivityType.Watching },
 ];
 
-// Function to update status randomly
 function updateStatus() {
   const randomStatus =
     statusMessages[Math.floor(Math.random() * statusMessages.length)];
@@ -48,10 +54,11 @@ function updateStatus() {
 }
 
 client.once("ready", async (c) => {
-  // Display fancy startup banner
   Logger.startupBanner("JamListen", "2.0.0");
 
-  // Log initial statistics
+  BlacklistManager.getInstance();
+  Logger.info("Blacklist manager initialized");
+
   Logger.ready("BOT STATISTICS", [
     `🤖 Logged in as ${c.user.tag}`,
     `🌍 Spreading chaos in ${c.guilds.cache.size} guilds`,
@@ -61,14 +68,11 @@ client.once("ready", async (c) => {
     `🎮 ${commandHandler.getCommands().size} commands loaded`,
   ]);
 
-  // Initial status update
   updateStatus();
   Logger.info(`Initial status set - Let the games begin!`);
 
-  // Update status every 3 minutes
   setInterval(updateStatus, 3 * 60 * 1000);
 
-  // Load and register commands
   try {
     await commandHandler.loadCommands();
     Logger.success(`Commands loaded successfully!`);
@@ -79,7 +83,6 @@ client.once("ready", async (c) => {
     Logger.error(`Failed to initialize commands:`, error);
   }
 
-  // System information
   Logger.ready("SYSTEM INFO", [
     `🖥️ Platform: ${process.platform}`,
     `⚙️ Architecture: ${process.arch}`,
@@ -88,7 +91,6 @@ client.once("ready", async (c) => {
     `🎯 Discord.js Version: ${require("discord.js").version}`,
   ]);
 
-  // Ready to cause chaos!
   const chaosMessages = [
     "🤖 Beep boop, time to ruin someone's day!",
     "💀 Ready to cause psychological damage!",
@@ -108,6 +110,47 @@ client.once("ready", async (c) => {
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
+  if (interaction.user.id !== process.env.OWNER_ID) {
+    const blacklistManager = BlacklistManager.getInstance();
+    if (blacklistManager.isBlacklisted(interaction.user.id)) {
+      const blacklistInfo = blacklistManager.getBlacklistInfo(
+        interaction.user.id,
+      );
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("#ff3838")
+            .setTitle("Access Denied")
+            .setDescription("You are blacklisted from using this bot.")
+            .addFields(
+              {
+                name: "Username",
+                value: blacklistInfo?.username || "Unknown",
+                inline: true,
+              },
+              {
+                name: "Reason",
+                value: blacklistInfo?.reason || "No reason provided",
+                inline: true,
+              },
+              {
+                name: "Blacklisted Since",
+                value: blacklistInfo
+                  ? `<t:${Math.floor(blacklistInfo.timestamp / 1000)}:R>`
+                  : "Unknown",
+                inline: true,
+              },
+            )
+            .setFooter({
+              text: "Contact the bot owner if you think this is a mistake",
+            }),
+        ],
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+  }
+
   const command = commandHandler.getCommands().get(interaction.commandName);
   if (!command) return;
 
@@ -121,12 +164,11 @@ client.on("interactionCreate", async (interaction) => {
     await interaction.reply({
       content:
         "🎭 Oops! The command failed successfully! (Task failed successfully!)",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 });
 
-// Guild events logging
 client.on("guildCreate", (guild) => {
   Logger.event(
     `🎉 New guild joined: ${guild.name} (Total: ${client.guilds.cache.size})`,
@@ -145,7 +187,6 @@ client.on("guildDelete", (guild) => {
   );
 });
 
-// Error handling with style
 client.on("error", (error) => {
   Logger.error("Discord client error occurred:", error);
 });
@@ -158,20 +199,20 @@ process.on("uncaughtException", (error) => {
   Logger.fatal("🔥 Uncaught Exception (Bot will restart):", error);
 });
 
-// Clean shutdown handling
 process.on("SIGINT", () => {
   Logger.warn("Received SIGINT signal. Cleaning up...");
+  BlacklistManager.getInstance().cleanup();
   client.destroy();
   process.exit(0);
 });
 
 process.on("SIGTERM", () => {
   Logger.warn("Received SIGTERM signal. Cleaning up...");
+  BlacklistManager.getInstance().cleanup();
   client.destroy();
   process.exit(0);
 });
 
-// Initialize bot
 Logger.info("Initializing bot...");
 client
   .login(process.env.DISCORD_TOKEN)

@@ -23,6 +23,7 @@ const blushMessages = [
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("blush")
+    .setDMPermission(true)
     .setDescription("Show your embarrassed side! 😊"),
 
   async execute(interaction: ChatInputCommandInteraction) {

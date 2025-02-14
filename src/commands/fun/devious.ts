@@ -34,6 +34,7 @@ export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("devious")
     .setDescription("Laugh deviously at someone! 😈")
+    .setDMPermission(true)
     .addUserOption((option) =>
       option
         .setName("user")

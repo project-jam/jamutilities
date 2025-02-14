@@ -34,6 +34,7 @@ export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("evil")
     .setDescription("Show your evil side! 😈")
+    .setDMPermission(true)
     .addSubcommand((subcommand) =>
       subcommand
         .setName("laugh")

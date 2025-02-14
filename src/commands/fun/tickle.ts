@@ -34,6 +34,7 @@ export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("tickle")
     .setDescription("Tickle someone? (you better not be ticklish!)")
+    .setDMPermission(true)
     .addUserOption((option) =>
       option
         .setName("user")

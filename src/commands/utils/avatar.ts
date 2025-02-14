@@ -10,6 +10,7 @@ export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("avatar")
     .setDescription("Shows user's profile picture")
+    .setDMPermission(true)
     .addUserOption((option) =>
       option
         .setName("user")

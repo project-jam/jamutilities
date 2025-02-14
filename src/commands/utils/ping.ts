@@ -8,6 +8,7 @@ import type { Command } from "../../types/Command";
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("ping")
+    .setDMPermission(true)
     .setDescription("Shows bot latency and API response time"),
 
   async execute(interaction: ChatInputCommandInteraction) {
