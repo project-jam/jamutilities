@@ -9,6 +9,7 @@ export type GifType =
   | "evillaugh"
   | "pat"
   | "poke"
+  | "slap"
   | "blush";
 
 // Function to get a GIF from the API
