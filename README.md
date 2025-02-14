@@ -23,6 +23,7 @@ Currently, we have those options:
 
 It gets created on a file called `blacklist.env` and it's ignored on git by default.
 To manually create one, create the file, and look at this template:
+
 `useridhere=usernamehere=reason`
 
 like:
