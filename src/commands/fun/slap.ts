@@ -47,8 +47,8 @@ export const command: Command = {
     try {
       const target = interaction.options.getUser("target");
 
-      // Check if target is the specific user ID
-      if (target?.id === "559838292678410249") {
+      // Check if target is the ignored user ID from environment variables
+      if (target?.id === process.env.IGNORED_USER_ID) {
         await interaction.editReply("ignore her");
         return;
       }
