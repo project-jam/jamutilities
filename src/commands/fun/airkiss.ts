@@ -34,6 +34,7 @@ export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("airkiss")
     .setDescription("Blow a kiss to someone! 💋💨")
+    .setDMPermission(true)
     .addUserOption((option) =>
       option
         .setName("user")
