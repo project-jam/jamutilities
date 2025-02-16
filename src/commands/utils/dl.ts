@@ -1,7 +1,5 @@
 ///////////////////////////////////////////////
-
 ///// The command is in beta, be careful! /////
-
 ///////////////////////////////////////////////
 
 import {
@@ -137,7 +135,7 @@ export const command: Command = {
             .setColor("#ff3838")
             .setTitle("Service Unavailable")
             .setDescription(
-              "The requested service is currently not supported or could not be found. Please try a different platform."
+              "The requested service is currently not supported or could not be found. Please try a different platform.",
             );
           await interaction.editReply({ embeds: [embed] });
         } else {
