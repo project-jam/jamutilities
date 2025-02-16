@@ -14,6 +14,8 @@ bun start
 
 For some reasons, we use bun to speed up the process of installing and starting the app, unlike nodejs and npm/yarn.
 
+# Blacklist
+
 You can also blacklist discord users with `/blacklist` with bunch of selections
 
 Currently, we have those options:
