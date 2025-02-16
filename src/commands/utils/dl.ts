@@ -1,3 +1,7 @@
+///////////////////////////////////////////////
+///// The command is in beta, be careful! /////
+///////////////////////////////////////////////
+
 import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
@@ -13,7 +17,7 @@ import {
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("dl")
-    .setDescription("Generates a download link (hidden URL in Markdown)")
+    .setDescription("Generates a download link")
     .setDMPermission(true)
     .addStringOption((option) =>
       option
@@ -42,7 +46,9 @@ export const command: Command = {
     .addStringOption((option) =>
       option
         .setName("filenamestyle")
-        .setDescription("Filename style (classic, pretty, basic, nerdy)")
+        .setDescription(
+          "Filename style (classic, pretty, basic, nerdy) (ONLY if you download it",
+        )
         .setRequired(false),
     )
     .addStringOption((option) =>
@@ -54,13 +60,17 @@ export const command: Command = {
     .addStringOption((option) =>
       option
         .setName("youtubevideocodec")
-        .setDescription("YouTube video codec (h264, av1, vp9)")
+        .setDescription(
+          "YouTube video codec (h264, av1, vp9) (h264 is recommended) (This will not work, because we're working on adding the Youtube functions)",
+        )
         .setRequired(false),
     )
     .addStringOption((option) =>
       option
         .setName("youtubedublang")
-        .setDescription("YouTube dub language code (e.g., en, ru)")
+        .setDescription(
+          "YouTube dub language code (e.g., en, ru) (This will not work, because we're working on adding the Youtube functions)",
+        )
         .setRequired(false),
     )
     .addBooleanOption((option) =>
@@ -72,13 +82,13 @@ export const command: Command = {
     .addBooleanOption((option) =>
       option
         .setName("disablemetadata")
-        .setDescription("Disable file metadata")
+        .setDescription("Disable file metadata (eg. Artist, MP3 Info)")
         .setRequired(false),
     )
     .addBooleanOption((option) =>
       option
         .setName("tiktokfullaudio")
-        .setDescription("Download original TikTok audio")
+        .setDescription("Download original TikTok audio (Only for TikTok)")
         .setRequired(false),
     )
     .addBooleanOption((option) =>
@@ -89,14 +99,16 @@ export const command: Command = {
     )
     .addBooleanOption((option) =>
       option
-        .setName("twittergif")
-        .setDescription("Convert Twitter GIFs to .gif format")
+        .setName("twitterbskygif")
+        .setDescription("Convert Twitter/Bluesky GIFs to .gif format")
         .setRequired(false),
     )
     .addBooleanOption((option) =>
       option
         .setName("youtubehls")
-        .setDescription("Use HLS for YouTube downloads")
+        .setDescription(
+          "Use HLS for YouTube downloads (This will not work, because we're working on adding the Youtube functions)",
+        )
         .setRequired(false),
     ),
 
@@ -130,7 +142,7 @@ export const command: Command = {
     if (tiktokfullaudio !== null) apiOptions.tiktokfullaudio = tiktokfullaudio;
     const tiktokh265 = interaction.options.getBoolean("tiktokh265");
     if (tiktokh265 !== null) apiOptions.tiktokh265 = tiktokh265;
-    const twittergif = interaction.options.getBoolean("twittergif");
+    const twittergif = interaction.options.getBoolean("twitterbskygif");
     if (twittergif !== null) apiOptions.twittergif = twittergif;
     const youtubehls = interaction.options.getBoolean("youtubehls");
     if (youtubehls !== null) apiOptions.youtubehls = youtubehls;
@@ -145,7 +157,7 @@ export const command: Command = {
 
       if (data && (data.status === "redirect" || data.status === "tunnel")) {
         const downloadUrl = data.url;
-        const markdownLink = `-# [Download here! (also the link expires, run the command again to regenerate the link)](${downloadUrl})`;
+        const markdownLink = `-# [👋 Download here!](${downloadUrl}) (also the link expires, run the command again to regenerate the link)`;
         await interaction.editReply({ content: markdownLink });
       } else if (data && data.status === "error") {
         const errorCode = data.error?.code || "Unknown Error Code";
