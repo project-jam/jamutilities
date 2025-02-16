@@ -1,5 +1,7 @@
 ///////////////////////////////////////////////
+
 ///// The command is in beta, be careful! /////
+
 ///////////////////////////////////////////////
 
 import {
@@ -85,12 +87,9 @@ export const command: Command = {
         .setDescription("Convert Twitter/Bluesky GIFs to .gif format")
         .setRequired(false),
     ),
-
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
-
     const mediaUrl = interaction.options.getString("url", true);
-
     // Collect API options dynamically
     const apiOptions: Record<string, any> = {};
     for (const optionName of [
@@ -103,7 +102,6 @@ export const command: Command = {
       const value = interaction.options.getString(optionName);
       if (value) apiOptions[optionName] = value;
     }
-
     for (const optionName of [
       "alwaysproxy",
       "disablemetadata",
@@ -114,18 +112,14 @@ export const command: Command = {
       const value = interaction.options.getBoolean(optionName);
       if (value !== null) apiOptions[optionName] = value;
     }
-
     try {
       const apiResponse = await callJambaltApi(mediaUrl, apiOptions);
       const data = apiResponse?.data;
-
       if (!data) {
         throw new Error("No response data from API.");
       }
-
       Logger.debug(`API Response Status: ${apiResponse.response?.status}`);
       Logger.debug(`API Data Status: ${data.status}`);
-
       if (data.status === "redirect" || data.status === "tunnel") {
         const downloadUrl = data.url;
         await interaction.editReply({
@@ -134,18 +128,18 @@ export const command: Command = {
       } else if (data.status === "error") {
         const errorCode = data.error?.code || "Unknown Error";
         Logger.warn(`API Error: ${errorCode}`, data.error);
-
-        if (errorCode === "error.api.service.disabled") {
-          await interaction.editReply({
-            embeds: [
-              new EmbedBuilder()
-                .setColor("#ff3838")
-                .setTitle("Service Not Supported")
-                .setDescription(
-                  "The requested service is currently not supported. Please try a different platform.",
-                ),
-            ],
-          });
+        // Check for disabled or not found services, and respond with an embed.
+        if (
+          errorCode === "error.api.service.disabled" ||
+          errorCode === "error.api.service.notfound"
+        ) {
+          const embed = new EmbedBuilder()
+            .setColor("#ff3838")
+            .setTitle("Service Unavailable")
+            .setDescription(
+              "The requested service is currently not supported or could not be found. Please try a different platform."
+            );
+          await interaction.editReply({ embeds: [embed] });
         } else {
           await interaction.editReply({
             content: `❌ Download failed! API returned error: ${errorCode}`,
