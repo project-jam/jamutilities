@@ -43,6 +43,10 @@ The `/dl` command is a download command that downloads videos/images/gifs from o
 
 The reason why is because our server isn't secure and we have only low RAM usage, so yeah, you can use https://cobalt.tools source code.
 
+## Hint:
+
+Try to use the api folder to save much time, also the YouTube stuff could and couldn't work, depending on your IP address, even cookies, OR EVEN AUTH won't work, because YouTube killed them.
+
 # Invite
 
 But yeah, it's still on progress (currently probably 25%), but you can inv it using the [global inv](https://discord.com/oauth2/authorize?client_id=1299803479308767355) or the [guild one as we call it, it's the server one](https://discord.com/oauth2/authorize?client_id=1299803479308767355&permissions=8&integration_type=0&scope=bot+applications.commands)
