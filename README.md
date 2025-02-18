@@ -1,22 +1,24 @@
 # jamutilities
 
-To install dependencies:
+JamUtilities is a discord ALMOST multipurpose discord bot, that has fun commands, moderation commands, utility commands, and your own owner section commands!
+
+To install dependencies, install Bun, and then run:
 
 ```bash
 bun install
 ```
 
-To run:
+To run the bot, type:
 
 ```bash
 bun start
 ```
 
-For some reasons, we use bun to speed up the process of installing and starting the app, unlike nodejs and npm/yarn.
+For some reasons, we use Bun (https://bun.sh) to speed up the process of installing and starting the app, unlike nodejs and npm/yarn, they're soo slow!
 
 # Blacklist
 
-You can also blacklist discord users with `/blacklist` with bunch of selections
+You can also blacklist discord users with `/blacklist` with bunch of selections.
 
 Currently, we have those options:
 `add`
@@ -34,6 +36,12 @@ like:
 
 > [!WARNING]  
 > Do NOT delete your `blacklist.env` file, otherwise it'll just be gone... very VERY gone...
+
+# Download command 
+
+The `/dl` command is a download command that downloads videos/images/gifs from our server BUT we added it on an env file for safety.
+
+The reason why is because our server isn't secure and we have only low RAM usage, so yeah, you can use https://cobalt.tools source code.
 
 # Invite
 
