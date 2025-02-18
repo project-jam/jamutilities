@@ -1,6 +1,6 @@
 # jamutilities
 
-JamUtilities is a discord ALMOST multipurpose discord bot, that has fun commands, moderation commands, utility commands, and your own owner section commands!
+JamUtilities is a discord ALMOST multipurpose discord bot (not finished YET, but the updates will show on our official discord bot), that has fun commands, moderation commands, utility commands, and your own owner section commands!
 
 To install dependencies, install Bun, and then run:
 
