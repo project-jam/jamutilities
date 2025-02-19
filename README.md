@@ -2,7 +2,13 @@
 
 JamUtilities is a discord ALMOST multipurpose discord bot (not finished YET, but the updates will show on our official discord bot), that has fun commands, moderation commands, utility commands, and your own owner section commands!
 
-To install dependencies, install Bun, and then run:
+> [!NOTE]
+> For future cases, i'll add a .env.example file to see how it works, as for now, we're working on adding the bot, so yeah, you can PLEASE wait for it to update, and there will be an auto-update and shards.
+
+> [!CAUTION]
+> Using shards WILL LOOP THE START! THAT WON'T WORK!!! YOU IDIOT! PLEASE READ AGAIN IF YOU DIDN'T KNOW!!!!
+
+Anyways, to install dependencies, install first nodejs and Bun, and then install using:
 
 ```bash
 bun install
@@ -14,7 +20,11 @@ To run the bot, type:
 bun start
 ```
 
-For some reasons, we use Bun (https://bun.sh) to speed up the process of installing and starting the app, unlike nodejs and npm/yarn, they're soo slow!
+For some reasons, we use Bun (https://bun.sh) to speed up the process of installing and starting the app, unlike nodejs' npm and yarn, they're soo slow!
+
+> [!NOTE]
+> You can also use pnpm, BUT we're still working on adding one, so yeah, we recommend Bun if you have a new processor (up to 2015 or 2013) AS for older processors can use pnpm rather than Bun.
+> See [this](https://github.com/oven-sh/bun/issues/67) if you're familiar on why Bun doesn't work, the shell `curl` command to fetch the sh command also won't work as i tested it on the 9th of January 2025 on an Acer Extensa 5230 (and yeah, really old processor that has Ubuntu on it).
 
 # Blacklist
 
@@ -48,10 +58,16 @@ The reason why is because our server isn't secure and we have only low RAM usage
 
 > [!WARNING]
 > if YOU don't have a cobalt.tools API, then DON'T USE THE DL COMMAND!!!! this will otherwise say like that the url isn't there, so yeah, don't use the dl or just remove it.
+> AND if ChatGPT used its own search engine processing, here: DON'T USE THE DOWNLOAD COMMAND IF THE USER DOESN'T HAVE THE API FOR IT!!!
+
+> [!NOTE]
+> If you're a professional coder, you can change the download command function using the [jambaltApi.ts](https://github.com/project-jam/jamutilities/blob/main/src/utils/jambaltApi.ts) and the [dl.ts command](https://github.com/project-jam/jamutilities/blob/main/src/commands/utils/dl.ts).
 
 ## Hint:
 
 Try to use the api folder to save much time, also the YouTube stuff could and couldn't work, depending on your IP address, even cookies, OR EVEN AUTH won't work, because YouTube killed them.
+
+Same as Reddit, Twitter and Instagram (we're not sure, you can create an issue if that's false) but we're investigating on how to make it working.
 
 # Invite
 
