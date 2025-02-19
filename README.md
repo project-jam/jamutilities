@@ -3,7 +3,7 @@
 >
 > AND there will be an auto-update and shards feature if we managed to add it, but it's coming soon.
 >
-> Also this license is BSD-3-Clause, you can make it private, BUT as long as YOU don't remove our project mentionnings on THE /about command, or try to make a way to mention our project, as that will be super DUPER helpful, if you do that, you're just a nice person :)
+> Also this license is BSD-3-Clause, you can make it private, BUT as long as YOU don't remove our project mentionnings on THE `/about` command, or try to make a way to mention our project, as that will be super DUPER helpful, if you do that, you're just a nice and respectful person, even with a messed face :)
 
 # jamutilities
 
