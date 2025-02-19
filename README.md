@@ -8,7 +8,11 @@
 JamUtilities is a Discord ALMOST multipurpose discord bot (not finished YET, but the updates will show on our official discord bot), that has fun commands, moderation commands, utility commands, and your own owner section commands!
 
 > [!CAUTION]
-> Using shards WILL LOOP THE START! THAT WON'T WORK!!! YOU IDIOT! PLEASE READ AGAIN IF YOU DON'T KNOW WHAT YOU'RE DOING!!!!
+> - Using shards WILL LOOP THE START! THAT WON'T WORK!!! YOU IDIOT! PLEASE READ AGAIN IF YOU DON'T KNOW WHAT YOU'RE DOING!!!!
+>
+> - Removing the .env ON the `.gitignore` file will result in discord sending you some messages by Safety Jim, so yeah, EVEN ON PRIVATE REPOSITORIES, BE CAREFUL!!!
+>
+> - If you're a below intermediate coder, please, and PLEASE don't start coding RIGHT NOW, OR USE CHATGPT!! We added some explanations if you don't know WHAT YOU'RE DOING!!!!
 
 > [!NOTE]
 > This is only for professionnal coders, if you want to be a contributor to this repository, tysm! [but try to email us](mailto:contact@project-jam.is-a.dev), we're happy to receive the emails :).
