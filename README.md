@@ -10,9 +10,11 @@ JamUtilities is a Discord ALMOST multipurpose discord bot (not finished YET, but
 > [!CAUTION]
 > - Using shards WILL LOOP THE START! THAT WON'T WORK!!! YOU IDIOT! PLEASE READ AGAIN IF YOU DON'T KNOW WHAT YOU'RE DOING!!!!
 >
-> - Removing the `.env` ON the `.gitignore` file will result in discord sending you some messages by Safety Jim, so yeah, EVEN ON PRIVATE REPOSITORIES, AND EVEN ON REPLIT INSTANCES!!! BE CAREFUL ON WHAT YOU'RE DOING!!!
+> - Removing the `.env` ON the `.gitignore` file will result in Discord sending you some messages by Safety Jim, complaining about the bot's safety, as the result, it will reset the token, so yeah, EVEN ON PRIVATE REPOSITORIES, AND EVEN ON REPLIT INSTANCES!!! BE CAREFUL ON WHAT YOU'RE DOING!!!
 >
-> - If you're a below intermediate coder, please, and PLEASE don't start coding RIGHT NOW, OR USE CHATGPT!! We added some explanations if you don't know WHAT YOU'RE DOING!!!!
+>   If you don't know on what you're doing, please we consider looking [right here](https://github.com/IMarkoMC/Tokens/) on what you should DO to keep your token safe and hidden from spammers, bots and hackers.
+>
+> - If you're a "below intermediate coder", please, and **PLEASE** don't start coding this bot RIGHT NOW, OR USE CHATGPT!! We added some explanations if you don't know WHAT YOU'RE DOING!!!!
 
 > [!NOTE]
 > This note is only for professionnal coders, if you want to be a contributor to this repository, tysm! [But try to email us](mailto:contact@project-jam.is-a.dev), we're happy to receive the emails that y'all have sent to us :)
