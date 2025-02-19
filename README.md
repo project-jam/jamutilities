@@ -37,6 +37,9 @@ like:
 > [!WARNING]  
 > Do NOT delete your `blacklist.env` file, otherwise it'll just be gone... very VERY gone...
 
+> [!NOTE]
+> We added the blacklist command, as a way to prevent spammers, bots and EVEN some of the members you hate to use your bot, otherwise it'll be a disaster on your server usage.
+
 # Download command 
 
 The `/dl` command is a download command that downloads videos/images/gifs from our server BUT we added it on an env file for safety.
