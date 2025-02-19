@@ -14,6 +14,8 @@ JamUtilities is a Discord ALMOST multipurpose discord bot (not finished YET, but
 >
 >   If you don't know on what you're doing, please we consider looking [right here](https://github.com/IMarkoMC/Tokens/) on what you should DO to keep your token safe and hidden from spammers, bots and hackers. (note from the CEO: don't use the bash file, ts pmo sometimes when it comes into mistakently forgetting to add that on the `.gitignore` file, so yeah, stay safe!)
 >
+>   Again, note from the CEO: Shoutout to IMarkoMC and tobycm for that Auto-Token-Invalidation system, that will help the stupid users know what they're doing, as for it, be careful.
+>
 > - If you're a "below intermediate coder", please, and **PLEASE** don't start coding this bot RIGHT NOW, OR USE CHATGPT!! We added some explanations if you don't know WHAT YOU'RE DOING!!!!
 
 > [!NOTE]
