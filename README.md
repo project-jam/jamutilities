@@ -1,9 +1,9 @@
+> [!NOTE]
+> For future cases, i'll add a .env.example file to see how it works, as for now, we're working on adding the bot, so yeah, you can PLEASE wait for it to update, and there will be an auto-update and shards.
+
 # jamutilities
 
 JamUtilities is a Discord ALMOST multipurpose discord bot (not finished YET, but the updates will show on our official discord bot), that has fun commands, moderation commands, utility commands, and your own owner section commands!
-
-> [!NOTE]
-> For future cases, i'll add a .env.example file to see how it works, as for now, we're working on adding the bot, so yeah, you can PLEASE wait for it to update, and there will be an auto-update and shards.
 
 > [!CAUTION]
 > Using shards WILL LOOP THE START! THAT WON'T WORK!!! YOU IDIOT! PLEASE READ AGAIN IF YOU DON'T KNOW WHAT YOU'RE DOING!!!!
