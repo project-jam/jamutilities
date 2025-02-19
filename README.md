@@ -11,7 +11,9 @@ JamUtilities is a Discord ALMOST multipurpose discord bot (not finished YET, but
 > [!NOTE]
 > This is only for professionnal coders, if you want to be a contributor to this repository, tysm! [but try to email us](mailto:contact@project-jam.is-a.dev), we're happy to receive the emails :).
 
-Anyways, to install dependencies, install first nodejs and Bun, and then install using:
+# Installation
+
+Anyways, if you don't know how to install dependencies, install first nodejs and Bun, and then run the install install command using:
 
 ```bash
 bun install
@@ -27,6 +29,7 @@ For some reasons, we use Bun (https://bun.sh) to speed up the process of install
 
 > [!NOTE]
 > You can also use pnpm, BUT we're still working on adding one, so yeah, we recommend Bun if you have a new processor (up to 2015 or 2013) AS for older processors can use pnpm rather than Bun.
+>
 > See [this](https://github.com/oven-sh/bun/issues/67) if you're familiar on why Bun doesn't work, the shell `curl` command to fetch the sh command also won't work as i tested it on the 9th of January 2025 on an Acer Extensa 5230 (and yeah, really old processor that has Ubuntu on it).
 
 # Blacklist
