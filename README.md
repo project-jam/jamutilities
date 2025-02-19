@@ -19,7 +19,7 @@ JamUtilities is a Discord ALMOST multipurpose discord bot (not finished YET, but
 
 # Installation
 
-Anyways, if you don't know how to install dependencies, install first nodejs and Bun, and then run the install install command using:
+Anyways, if you don't know how to install dependencies, install first nodejs and Bun, and then run the install command using:
 
 ```bash
 bun install
