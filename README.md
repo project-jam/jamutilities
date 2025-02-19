@@ -85,7 +85,7 @@ The reason why is because our server isn't secure and we have only low RAM and C
 
 Try to use the api folder to save much time (we also use it, so yeah, ignore that our bot is slow that you expect it to be, as we are just a small project), also the YouTube stuff could and couldn't work, depending on your IP address, even cookies, OR EVEN AUTH won't work, because YouTube killed them.
 
-Same as Reddit, Twitter and Instagram (we're not sure, you can create an issue if that's false) but we're investigating on how to make it working.
+Same as Reddit, Twitter and Instagram (we're not sure, you can create a discussion on Github if that's false) but we're investigating on how to make it working.
 
 # Invite
 
