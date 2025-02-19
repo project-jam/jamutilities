@@ -1,5 +1,5 @@
 > [!NOTE]
-> For future cases, i'll add a .env.example file to see how it works, as for now, we're working on adding the bot, so yeah, you can try to WAIT for it to update.
+> For future cases, i'll add a .env.example file to see how it works, as for now, we're working on adding the bot, so yeah, you can try to WAIT for it to update everytime.
 >
 > AND there will be an auto-update and shards feature if we managed to add it, but it's coming soon.
 
