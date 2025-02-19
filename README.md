@@ -64,9 +64,9 @@ like:
 
 # Download command 
 
-The `/dl` command is a download command that downloads videos/images/gifs from our server BUT we added it on an env file for safety.
+The `/dl` command is a download command that downloads videos/images/gifs from various social medias, using our server BUT we've added it on an env file for safety.
 
-The reason why is because our server isn't secure and we have only low RAM usage, so yeah, you can use https://cobalt.tools source code API from now on, and add the `JAMBALT_API_URL` env and add the url, SO it can work.
+The reason why is because our server isn't secure and we have only low RAM and CPU usage, so yeah, you can use https://cobalt.tools source code API from now on, and add the `JAMBALT_API_URL` env and add the url, SO it can work.
 
 > [!WARNING]
 > if YOU don't have a cobalt.tools API, then DON'T USE THE DL COMMAND!!!! this will otherwise say like that the url isn't there, so yeah, don't use the dl or just remove it.
