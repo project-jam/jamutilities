@@ -15,7 +15,7 @@ JamUtilities is a Discord ALMOST multipurpose discord bot (not finished YET, but
 > - If you're a below intermediate coder, please, and PLEASE don't start coding RIGHT NOW, OR USE CHATGPT!! We added some explanations if you don't know WHAT YOU'RE DOING!!!!
 
 > [!NOTE]
-> This is only for professionnal coders, if you want to be a contributor to this repository, tysm! [but try to email us](mailto:contact@project-jam.is-a.dev), we're happy to receive the emails :).
+> This is only for professionnal coders, if you want to be a contributor to this repository, tysm! [But try to email us](mailto:contact@project-jam.is-a.dev), we're happy to receive the emails :).
 
 # Installation
 
