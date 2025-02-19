@@ -8,6 +8,9 @@ JamUtilities is a Discord ALMOST multipurpose discord bot (not finished YET, but
 > [!CAUTION]
 > Using shards WILL LOOP THE START! THAT WON'T WORK!!! YOU IDIOT! PLEASE READ AGAIN IF YOU DON'T KNOW WHAT YOU'RE DOING!!!!
 
+> [!NOTE]
+> This is only for professionnal coders, if you want to be a contributor to this repository, tysm! [but try to email us](mailto:contact@project-jam.is-a.dev), we're happy to receive the emails :).
+
 Anyways, to install dependencies, install first nodejs and Bun, and then install using:
 
 ```bash
