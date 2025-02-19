@@ -49,7 +49,7 @@ Currently, we have those options:
 `remove`
 `search`
 
-It gets created on a file called `blacklist.env` and it's _**ignored**_ on git by default.
+It gets created on a file called `blacklist.env` and it's __**ignored**__ on git by default.
 To manually create one, create the file, and look at this template:
 
 `useridhere=usernamehere=reason`
