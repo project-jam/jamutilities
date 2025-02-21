@@ -1,7 +1,9 @@
-// Shutdpwn the bot
-// This command will shutdown the bot. If the bot is running in production, it will perform a graceful shutdown. If the bot is running in development, it will perform a force shutdown.
 import { SlashCommandBuilder } from "@discordjs/builders";
-import { ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
+import {
+  ChatInputCommandInteraction,
+  EmbedBuilder,
+  MessageFlags,
+} from "discord.js";
 import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
 import { promises as fs } from "fs";
@@ -9,11 +11,9 @@ import { join } from "path";
 
 async function cleanupFiles(basePath: string): Promise<string[]> {
   const keptFiles = ["blacklist.env", ".env", "start.sh"];
-
   const preservedFiles: string[] = [];
 
   try {
-    // Recursively remove all files and directories except those in keptFiles
     async function removeContents(path: string) {
       const entries = await fs.readdir(path, { withFileTypes: true });
 
@@ -21,12 +21,10 @@ async function cleanupFiles(basePath: string): Promise<string[]> {
         const fullPath = join(path, entry.name);
 
         if (entry.isDirectory()) {
-          // Skip node_modules and .git directories
           if (entry.name === "node_modules" || entry.name === ".git") continue;
           await removeContents(fullPath);
           await fs.rmdir(fullPath);
         } else {
-          // Check if file should be kept
           if (keptFiles.includes(entry.name)) {
             preservedFiles.push(entry.name);
             continue;
@@ -57,33 +55,77 @@ export const command: Command = {
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+    // Check if the user is the bot owner
+    if (interaction.user.id !== process.env.OWNER_ID) {
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("#ff3838")
+            .setDescription(
+              "❌ This command is restricted to the bot owner only!",
+            ),
+        ],
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
 
+    await interaction.deferReply();
     const force = interaction.options.getBoolean("force") ?? false;
 
-    if (force) {
-      Logger.warn("Force stopping the bot...");
-      process.exit(1);
-    } else {
-      Logger.warn("Stopping the bot...");
+    try {
+      if (force) {
+        await interaction.editReply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor("#ff3838")
+              .setDescription("⚠️ Force stopping the bot..."),
+          ],
+        });
+        Logger.warn("Force stopping the bot...");
+        process.exit(1);
+      } else {
+        await interaction.editReply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor("#ff3838")
+              .setTitle("🛑 Bot Shutdown Initiated")
+              .setDescription("Stopping the bot and cleaning up files..."),
+          ],
+        });
+
+        // Perform cleanup
+        const preservedFiles = await cleanupFiles(process.cwd());
+
+        // Send final message
+        await interaction.followUp({
+          embeds: [
+            new EmbedBuilder()
+              .setColor("#ff3838")
+              .setTitle("✅ Shutdown Complete")
+              .setDescription(
+                "The following files have been preserved:\n" +
+                  preservedFiles.map((file) => `• ${file}`).join("\n"),
+              )
+              .setFooter({ text: "Bot is shutting down..." }),
+          ],
+        });
+
+        Logger.info(
+          `Preserved files: ${preservedFiles.join(", ")}\nBot shutdown complete.`,
+        );
+
+        process.exit(0);
+      }
+    } catch (error) {
+      Logger.error("Error during shutdown:", error);
       await interaction.editReply({
         embeds: [
           new EmbedBuilder()
             .setColor("#ff3838")
-            .setDescription("🛑 Stopping the bot..."),
+            .setDescription("❌ An error occurred during shutdown."),
         ],
       });
-
-      // Perform cleanup
-      const preservedFiles = await cleanupFiles(__dirname);
-
-      Logger.info(
-        "Preserved files:",
-        preservedFiles,
-        "\nand yeah, the bot's turned off, so you can turn it back on now if needed.",
-      );
-
-      process.exit(0);
     }
   },
 };
