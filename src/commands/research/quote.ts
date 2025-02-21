@@ -6,10 +6,21 @@ import {
 import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
 
-interface QuoteResponse {
+interface VercelQuoteResponse {
   quote: string;
   author: string;
 }
+
+interface DummyJsonQuoteResponse {
+  id: number;
+  quote: string;
+  author: string;
+}
+
+const QUOTE_APIS = {
+  VERCEL_QUOTES_API: "https://quotes-api-self.vercel.app/quote",
+  DUMMY_JSON: "https://dummyjson.com/quotes/random",
+};
 
 export const command: Command = {
   data: new SlashCommandBuilder()
@@ -21,13 +32,23 @@ export const command: Command = {
     await interaction.deferReply();
 
     try {
-      const response = await fetch("https://quotes-api-self.vercel.app/quote");
+      // Randomly select an API
+      const apiUrl = Object.values(QUOTE_APIS)[
+        Math.floor(Math.random() * Object.keys(QUOTE_APIS).length)
+      ];
+
+      const response = await fetch(apiUrl);
 
       if (!response.ok) {
         throw new Error(`API returned ${response.status}`);
       }
 
-      const data: QuoteResponse = await response.json();
+      const data = await response.json();
+
+      // Handle different API response formats
+      const quoteText = data.quote;
+      const authorName = data.author;
+      const quoteId = 'id' in data ? `#${data.id}` : '';
 
       // Random colors for variety
       const colors = [
@@ -45,11 +66,38 @@ export const command: Command = {
 
       const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
+      // Random quote decorations
+      const quoteDecorations = [
+        "「」", "『』", "❝❞", "«»", "‹›", """ "", "❮❯", "〝〞", "﹂﹁", "⟨⟩"
+      ];
+      const [openQuote, closeQuote] = quoteDecorations[
+        Math.floor(Math.random() * quoteDecorations.length)
+      ].split('');
+
       const embed = new EmbedBuilder()
         .setColor(randomColor)
-        .setDescription(`> *"${data.quote}"*`)
-        .setFooter({ text: `― ${data.author}` })
+        .setDescription(`${openQuote}${quoteText}${closeQuote}`)
+        .setFooter({
+          text: `― ${authorName}${quoteId ? ` | Quote ${quoteId}` : ''} | ${
+            apiUrl.includes("dummyjson") ? "Dummy JSON" : "Vercel Quotes API"
+          }`
+        })
         .setTimestamp();
+
+      // Random chance to add a decorative header
+      if (Math.random() > 0.5) {
+        const headers = [
+          "✨ Quote of the Moment",
+          "💭 Random Thoughts",
+          "📖 Words of Wisdom",
+          "🌟 Inspirational Quote",
+          "💫 Thought for Today",
+          "🎯 Food for Thought",
+          "🌈 Daily Inspiration",
+          "💡 Wisdom Spark",
+        ];
+        embed.setTitle(headers[Math.floor(Math.random() * headers.length)]);
+      }
 
       await interaction.editReply({ embeds: [embed] });
     } catch (error) {
