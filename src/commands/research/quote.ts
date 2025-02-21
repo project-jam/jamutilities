@@ -26,7 +26,7 @@ export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("quote")
     .setDescription("Get an inspirational quote")
-    .setDMPermission(true),
+    .setDMPermission(true), // Check your Discord.js version for this
 
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
@@ -68,7 +68,7 @@ export const command: Command = {
 
       // Random quote decorations
       const quoteDecorations = [
-        "「」", "『』", "❝❞", "«»", "‹›", """ "", "❮❯", "〝〞", "﹂﹁", "⟨⟩"
+        "「」", "『』", "❝❞", "«»", "‹›", "“”", "❮❯", "〝〞", "﹂﹁", "⟨⟩"
       ];
       const [openQuote, closeQuote] = quoteDecorations[
         Math.floor(Math.random() * quoteDecorations.length)
