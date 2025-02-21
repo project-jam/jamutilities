@@ -81,9 +81,7 @@ export const command: Command = {
         .setColor(randomColor)
         .setDescription(`${openQuote}${quoteText}${closeQuote}`)
         .setFooter({
-          text: `― ${authorName}${quoteId ? ` | Quote ${quoteId}` : ""} | ${
-            apiUrl.includes("dummyjson") ? "Dummy JSON" : "Vercel Quotes API"
-          }`,
+          text: `― ${authorName}${quoteId ? ` | Quote ${quoteId}` : ""}`,
         })
         .setTimestamp();
 
