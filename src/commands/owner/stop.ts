@@ -12,10 +12,31 @@ import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
 import { promises as fs } from "fs";
 import { join } from "path";
+import { homedir } from "os";
 
-async function cleanupFiles(basePath: string): Promise<string[]> {
+async function cleanupFiles(): Promise<string[]> {
   const keptFiles = ["blacklist.env", ".env", "start.sh"];
   const preservedFiles: string[] = [];
+
+  // Get the appropriate base path based on the platform
+  const getBasePath = () => {
+    // For pterodactyl containers
+    if (process.env.CONTAINER_PATH) {
+      return process.env.CONTAINER_PATH;
+    }
+
+    // For different operating systems
+    switch (process.platform) {
+      case "win32":
+        return process.env.LOCALAPPDATA || join(homedir(), "AppData", "Local");
+      case "darwin":
+        return join(homedir(), "Library", "Application Support");
+      default: // linux and others
+        return process.env.HOME || homedir();
+    }
+  };
+
+  const basePath = getBasePath();
 
   try {
     async function removeContents(path: string) {
@@ -24,16 +45,41 @@ async function cleanupFiles(basePath: string): Promise<string[]> {
       for (const entry of entries) {
         const fullPath = join(path, entry.name);
 
+        // Skip protected directories
         if (entry.isDirectory()) {
-          if (entry.name === "node_modules" || entry.name === ".git") continue;
-          await removeContents(fullPath);
-          await fs.rmdir(fullPath);
+          if (
+            entry.name === "node_modules" ||
+            entry.name === ".git" ||
+            entry.name === ".github" ||
+            entry.name === "jamutilities"
+          ) {
+            continue;
+          }
+
+          try {
+            await removeContents(fullPath);
+            await fs.rmdir(fullPath).catch((error) => {
+              if (error.code !== "ENOTEMPTY") {
+                Logger.error(`Failed to remove directory ${fullPath}:`, error);
+              }
+            });
+          } catch (error) {
+            Logger.error(`Error processing directory ${fullPath}:`, error);
+          }
         } else {
+          // Keep specified files
           if (keptFiles.includes(entry.name)) {
             preservedFiles.push(entry.name);
             continue;
           }
-          await fs.unlink(fullPath);
+
+          try {
+            await fs.unlink(fullPath).catch((error) => {
+              Logger.error(`Failed to remove file ${fullPath}:`, error);
+            });
+          } catch (error) {
+            Logger.error(`Error removing file ${fullPath}:`, error);
+          }
         }
       }
     }
@@ -90,8 +136,11 @@ export const command: Command = {
         .setEmoji("✖️"),
     );
 
+    // Send confirmation message with platform-specific info
+    const platformInfo = `Platform: ${process.platform}\nBase Path: ${getBasePath()}`;
+
     // Send confirmation message
-    const confirmMessage = await interaction.reply({
+    const response = await interaction.reply({
       embeds: [
         new EmbedBuilder()
           .setColor("#ff3838")
@@ -102,12 +151,14 @@ export const command: Command = {
               "2️⃣ Stop all processes\n" +
               "3️⃣ Remove bot-related files\n" +
               "4️⃣ Keep only: blacklist.env, .env, and start.sh\n\n" +
-              `Shutdown Type: ${force ? "⚠️ Forced" : "🛑 Graceful"}`,
+              `Shutdown Type: ${force ? "⚠️ Forced" : "🛑 Graceful"}\n\n` +
+              `System Info:\n${platformInfo}`,
           ),
       ],
       components: [buttons],
-      fetchReply: true,
     });
+
+    const confirmMessage = await response.fetch();
 
     try {
       // Wait for button interaction
@@ -152,7 +203,7 @@ export const command: Command = {
         });
 
         // Perform cleanup
-        const preservedFiles = await cleanupFiles(process.cwd());
+        const preservedFiles = await cleanupFiles();
 
         // Send final message
         await interaction.followUp({
@@ -172,6 +223,9 @@ export const command: Command = {
           `Preserved files: ${preservedFiles.join(", ")}\nBot shutdown complete.`,
         );
 
+        // Graceful shutdown
+        await interaction.client.user?.setStatus("invisible");
+        await interaction.client.destroy();
         process.exit(0);
       }
     } catch (error) {
@@ -198,3 +252,19 @@ export const command: Command = {
     }
   },
 };
+
+// Helper function to get base path (used in the confirmation message)
+function getBasePath(): string {
+  if (process.env.CONTAINER_PATH) {
+    return process.env.CONTAINER_PATH;
+  }
+
+  switch (process.platform) {
+    case "win32":
+      return process.env.LOCALAPPDATA || join(homedir(), "AppData", "Local");
+    case "darwin":
+      return join(homedir(), "Library", "Application Support");
+    default:
+      return process.env.HOME || homedir();
+  }
+}
