@@ -1,6 +1,7 @@
-> [!CAUTION]
-> The `/stop` command is intended to be used by the bot owner, and it's not recommended to use it on a public server, as it will stop the bot, and it will not be able to start again. If you want to stop the bot, you can use the `/shutdown` command, oh wait wha, the stop command can remove THE root directory, so yeah, don't use it, as it will remove the root directory, and it will not be able to start again. If you want to stop the bot, you can use the `/shutdown` command, as it will stop the bot, and it will be able to start again. If you have any questions, you can ask us on our [email](mailto:
-> Be careful when using the bot. Don't try and use the bot on a public server, as it's still in development, and it's not ready for public use. If you want to use the bot, you can use it on your own server, but be careful when using it. If you have any questions, you can ask us on our [email](mailto:contact@project-jam.is-a.dev].
+[!CAUTION]
+The `/stop` command is intended for use by the bot owner only and should not be used on a public server. Executing this command will stop the bot and may prevent it from restarting. If you need to stop the bot, you can use the `/shutdown` command, which will safely stop the bot and allow it to be restarted later.
+
+Exercise caution when using the bot. It is still in development and not yet suitable for public use. For best results, please use it on your own server. If you have any questions, feel free to reach out to us via [email](mailto:contact@project-jam.is-a.dev).
 
 > [!NOTE]
 > For future cases, i'll add a .env.example file to see how it works, as for now, we're working on adding the bot, so yeah, you can try to WAIT for it to update everytime.
