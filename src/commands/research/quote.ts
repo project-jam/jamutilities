@@ -33,9 +33,10 @@ export const command: Command = {
 
     try {
       // Randomly select an API
-      const apiUrl = Object.values(QUOTE_APIS)[
-        Math.floor(Math.random() * Object.keys(QUOTE_APIS).length)
-      ];
+      const apiUrl =
+        Object.values(QUOTE_APIS)[
+          Math.floor(Math.random() * Object.keys(QUOTE_APIS).length)
+        ];
 
       const response = await fetch(apiUrl);
 
@@ -48,7 +49,7 @@ export const command: Command = {
       // Handle different API response formats
       const quoteText = data.quote;
       const authorName = data.author;
-      const quoteId = 'id' in data ? `#${data.id}` : '';
+      const quoteId = "id" in data ? `#${data.id}` : "";
 
       // Random colors for variety
       const colors = [
@@ -68,19 +69,29 @@ export const command: Command = {
 
       // Random quote decorations
       const quoteDecorations = [
-        "「」", "『』", "❝❞", "«»", "‹›", "“”", "❮❯", "〝〞", "﹂﹁", "⟨⟩"
+        "「」",
+        "『』",
+        "❝❞",
+        "«»",
+        "‹›",
+        "“”",
+        "❮❯",
+        "〝〞",
+        "﹂﹁",
+        "⟨⟩",
       ];
-      const [openQuote, closeQuote] = quoteDecorations[
-        Math.floor(Math.random() * quoteDecorations.length)
-      ].split('');
+      const [openQuote, closeQuote] =
+        quoteDecorations[
+          Math.floor(Math.random() * quoteDecorations.length)
+        ].split("");
 
       const embed = new EmbedBuilder()
         .setColor(randomColor)
         .setDescription(`${openQuote}${quoteText}${closeQuote}`)
         .setFooter({
-          text: `― ${authorName}${quoteId ? ` | Quote ${quoteId}` : ''} | ${
+          text: `― ${authorName}${quoteId ? ` | Quote ${quoteId}` : ""} | ${
             apiUrl.includes("dummyjson") ? "Dummy JSON" : "Vercel Quotes API"
-          }`
+          }`,
         })
         .setTimestamp();
 
