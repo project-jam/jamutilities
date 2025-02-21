@@ -22,22 +22,46 @@ const QUOTE_APIS = {
   DUMMY_JSON: "https://dummyjson.com/quotes/random",
 };
 
+const getRandomElement = (arr: any[]) =>
+  arr[Math.floor(Math.random() * arr.length)];
+
+const colors = [
+  "#FF6B6B", // Coral Red
+  "#4ECDC4", // Turquoise
+  "#45B7D1", // Sky Blue
+  "#96CEB4", // Sage Green
+  "#FFEEAD", // Cream Yellow
+  "#D4A5A5", // Dusty Rose
+  "#9B59B6", // Purple
+  "#3498DB", // Blue
+  "#E67E22", // Orange
+  "#2ECC71", // Green
+];
+
+const quoteDecorations = [
+  "「」",
+  "『』",
+  "❝❞",
+  "«»",
+  "‹›",
+  "“”",
+  "❮❯",
+  "〝〞",
+  "﹂﹁",
+  "⟨⟩",
+];
+
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("quote")
     .setDescription("Get an inspirational quote")
-    .setDMPermission(true), // Check your Discord.js version for this
+    .setDMPermission(true),
 
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
 
     try {
-      // Randomly select an API
-      const apiUrl =
-        Object.values(QUOTE_APIS)[
-          Math.floor(Math.random() * Object.keys(QUOTE_APIS).length)
-        ];
-
+      const apiUrl = getRandomElement(Object.values(QUOTE_APIS));
       const response = await fetch(apiUrl);
 
       if (!response.ok) {
@@ -45,45 +69,13 @@ export const command: Command = {
       }
 
       const data = await response.json();
-
-      // Handle different API response formats
       const quoteText = data.quote;
       const authorName = data.author;
       const quoteId = "id" in data ? `#${data.id}` : "";
 
-      // Random colors for variety
-      const colors = [
-        "#FF6B6B", // Coral Red
-        "#4ECDC4", // Turquoise
-        "#45B7D1", // Sky Blue
-        "#96CEB4", // Sage Green
-        "#FFEEAD", // Cream Yellow
-        "#D4A5A5", // Dusty Rose
-        "#9B59B6", // Purple
-        "#3498DB", // Blue
-        "#E67E22", // Orange
-        "#2ECC71", // Green
-      ];
-
-      const randomColor = colors[Math.floor(Math.random() * colors.length)];
-
-      // Random quote decorations
-      const quoteDecorations = [
-        "「」",
-        "『』",
-        "❝❞",
-        "«»",
-        "‹›",
-        "“”",
-        "❮❯",
-        "〝〞",
-        "﹂﹁",
-        "⟨⟩",
-      ];
+      const randomColor = getRandomElement(colors);
       const [openQuote, closeQuote] =
-        quoteDecorations[
-          Math.floor(Math.random() * quoteDecorations.length)
-        ].split("");
+        getRandomElement(quoteDecorations).split("");
 
       const embed = new EmbedBuilder()
         .setColor(randomColor)
@@ -95,7 +87,6 @@ export const command: Command = {
         })
         .setTimestamp();
 
-      // Random chance to add a decorative header
       if (Math.random() > 0.5) {
         const headers = [
           "✨ Quote of the Moment",
@@ -107,7 +98,7 @@ export const command: Command = {
           "🌈 Daily Inspiration",
           "💡 Wisdom Spark",
         ];
-        embed.setTitle(headers[Math.floor(Math.random() * headers.length)]);
+        embed.setTitle(getRandomElement(headers));
       }
 
       await interaction.editReply({ embeds: [embed] });
