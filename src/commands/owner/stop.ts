@@ -7,15 +7,64 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ComponentType,
-  ButtonInteraction,
 } from "discord.js";
 import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
+import { promises as fs } from "fs";
+import { join } from "path";
+
+async function cleanupFiles(basePath: string): Promise<string[]> {
+  const keptFiles = [
+    "blacklist.env",
+    ".env",
+    "start.sh",
+    ".gitignore",
+    "package.json",
+    "package-lock.json",
+    "bun.lockb",
+    "tsconfig.json",
+    "README.md",
+    "LICENSE",
+  ];
+
+  const preservedFiles: string[] = [];
+
+  try {
+    // Recursively remove all files and directories except those in keptFiles
+    async function removeContents(path: string) {
+      const entries = await fs.readdir(path, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = join(path, entry.name);
+
+        if (entry.isDirectory()) {
+          // Skip node_modules and .git directories
+          if (entry.name === "node_modules" || entry.name === ".git") continue;
+          await removeContents(fullPath);
+          await fs.rmdir(fullPath);
+        } else {
+          // Check if file should be kept
+          if (keptFiles.includes(entry.name)) {
+            preservedFiles.push(entry.name);
+            continue;
+          }
+          await fs.unlink(fullPath);
+        }
+      }
+    }
+
+    await removeContents(basePath);
+    return preservedFiles;
+  } catch (error) {
+    Logger.error("Error during cleanup:", error);
+    throw error;
+  }
+}
 
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("stop")
-    .setDescription("Safely stops the bot (Owner only)")
+    .setDescription("Safely stops the bot and cleans up files (Owner only)")
     .setDMPermission(true)
     .addBooleanOption((option) =>
       option
@@ -25,7 +74,6 @@ export const command: Command = {
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
-    // Check if the user is the bot owner
     if (interaction.user.id !== process.env.OWNER_ID) {
       await interaction.reply({
         embeds: [
@@ -42,31 +90,32 @@ export const command: Command = {
 
     const force = interaction.options.getBoolean("force") ?? false;
 
-    // Create confirmation embed
     const confirmEmbed = new EmbedBuilder()
       .setColor("#ff3838")
-      .setTitle("⚠️ Confirm Bot Shutdown")
+      .setTitle("⚠️ Confirm Bot Shutdown and Cleanup")
       .setDescription(
-        force
-          ? "Are you sure you want to force stop the bot? This will immediately disconnect the bot from Discord and terminate all processes without cleanup."
-          : "Are you sure you want to stop the bot? This will disconnect the bot from Discord and stop all processes gracefully.",
+        "Are you sure you want to stop the bot? This will:\n\n" +
+          "1️⃣ Disconnect the bot from Discord\n" +
+          "2️⃣ Stop all processes\n" +
+          "3️⃣ Remove bot-related files\n" +
+          "4️⃣ Preserve configuration files\n\n" +
+          "The following files will be kept:\n" +
+          "• blacklist.env\n" +
+          "• .env\n" +
+          "• start.sh\n" +
+          "• Configuration files (package.json, etc.)\n\n" +
+          `Shutdown Type: ${force ? "⚠️ Forced" : "🛑 Graceful"}`,
       )
-      .addFields({
-        name: "Shutdown Type",
-        value: force ? "⚠️ Forced Shutdown" : "🛑 Graceful Shutdown",
-        inline: true,
-      })
       .setFooter({
         text: "This action cannot be undone!",
         iconURL: interaction.client.user?.displayAvatarURL(),
       })
       .setTimestamp();
 
-    // Create confirmation buttons
     const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId("stop_confirm")
-        .setLabel("Yes, stop the bot")
+        .setLabel("Yes, stop and clean")
         .setStyle(ButtonStyle.Danger)
         .setEmoji("🛑"),
       new ButtonBuilder()
@@ -76,7 +125,6 @@ export const command: Command = {
         .setEmoji("✖️"),
     );
 
-    // Send confirmation message with buttons
     const confirmMessage = await interaction.reply({
       embeds: [confirmEmbed],
       components: [buttons],
@@ -84,7 +132,6 @@ export const command: Command = {
     });
 
     try {
-      // Wait for button interaction
       const confirmation = await confirmMessage.awaitMessageComponent({
         filter: (i) => i.user.id === interaction.user.id,
         time: 30000,
@@ -92,27 +139,53 @@ export const command: Command = {
       });
 
       if (confirmation.customId === "stop_cancel") {
-        // User cancelled the shutdown
-        const cancelEmbed = new EmbedBuilder()
-          .setColor("#00ff00")
-          .setDescription("✅ Bot shutdown cancelled.")
-          .setTimestamp();
-
         await confirmation.update({
-          embeds: [cancelEmbed],
+          embeds: [
+            new EmbedBuilder()
+              .setColor("#00ff00")
+              .setDescription("✅ Bot shutdown and cleanup cancelled.")
+              .setTimestamp(),
+          ],
           components: [],
         });
         return;
       }
 
-      // User confirmed the shutdown
-      const stopEmbed = new EmbedBuilder()
+      // Start cleanup process
+      await confirmation.update({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("#ff3838")
+            .setTitle("🚧 Cleanup and Shutdown in Progress")
+            .setDescription("Cleaning up files and preparing for shutdown...")
+            .setTimestamp(),
+        ],
+        components: [],
+      });
+
+      // Perform file cleanup
+      const preservedFiles = await cleanupFiles(process.cwd());
+
+      const farewells = [
+        "Goodbye, cruel world! 👋",
+        "I'll be back... 🤖",
+        "Time for a nap... 😴",
+        "Shutting down systems... 🔌",
+        "See you space cowboy... 🚀",
+        "Hasta la vista, baby! 🕶️",
+        "Power level critical... shutting down... 🪫",
+        "Memory purge in progress... 💾",
+        "Alt + F4 pressed... ⌨️",
+        "rm -rf /* (just kidding!) 💀",
+      ];
+
+      const finalEmbed = new EmbedBuilder()
         .setColor("#ff3838")
-        .setTitle("🛑 Bot Shutdown Initiated")
+        .setTitle("🛑 Bot Shutdown Complete")
         .setDescription(
-          force
-            ? "⚠️ Force stopping the bot..."
-            : "💤 Gracefully shutting down the bot...",
+          "Bot has been stopped and files have been cleaned up.\n\n" +
+            "**Preserved Files:**\n" +
+            preservedFiles.map((file) => `• ${file}`).join("\n"),
         )
         .addFields(
           {
@@ -128,31 +201,13 @@ export const command: Command = {
         )
         .setTimestamp();
 
-      // Random farewell messages
-      const farewells = [
-        "Goodbye, cruel world! 👋",
-        "I'll be back... 🤖",
-        "Time for a nap... 😴",
-        "Shutting down systems... 🔌",
-        "See you space cowboy... 🚀",
-        "Hasta la vista, baby! 🕶️",
-        "Power level critical... shutting down... 🪫",
-        "Memory purge in progress... 💾",
-        "Alt + F4 pressed... ⌨️",
-        "rm -rf /* (just kidding!) 💀",
-      ];
-
-      await confirmation.update({
-        embeds: [stopEmbed],
-        components: [],
+      await interaction.followUp({
+        embeds: [finalEmbed],
         content: farewells[Math.floor(Math.random() * farewells.length)],
       });
 
-      // Log the shutdown
       Logger.warn(
-        `Bot shutdown initiated by ${interaction.user.tag} (${
-          force ? "forced" : "graceful"
-        })`,
+        `Bot shutdown and cleanup initiated by ${interaction.user.tag} (${force ? "forced" : "graceful"})`,
       );
 
       if (!force) {
@@ -169,14 +224,13 @@ export const command: Command = {
       process.exit(force ? 1 : 0);
     } catch (error) {
       if (error instanceof Error && error.message.includes("time")) {
-        // Timeout occurred
-        const timeoutEmbed = new EmbedBuilder()
-          .setColor("#ff3838")
-          .setDescription("❌ Shutdown confirmation timed out.")
-          .setTimestamp();
-
         await interaction.editReply({
-          embeds: [timeoutEmbed],
+          embeds: [
+            new EmbedBuilder()
+              .setColor("#ff3838")
+              .setDescription("❌ Shutdown confirmation timed out.")
+              .setTimestamp(),
+          ],
           components: [],
         });
       } else {
@@ -186,7 +240,7 @@ export const command: Command = {
             new EmbedBuilder()
               .setColor("#ff3838")
               .setDescription(
-                "❌ An error occurred while trying to stop the bot.",
+                "❌ An error occurred while trying to stop the bot and clean up files.",
               ),
           ],
           components: [],

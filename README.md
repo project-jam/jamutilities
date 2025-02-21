@@ -1,3 +1,6 @@
+> [!CAUTION]
+> Be careful when using the bot. Don't try and use the bot on a public server, as it's still in development, and it's not ready for public use. If you want to use the bot, you can use it on your own server, but be careful when using it. If you have any questions, you can ask us on our [email](mailto:contact@project-jam.is-a.dev].
+
 > [!NOTE]
 > For future cases, i'll add a .env.example file to see how it works, as for now, we're working on adding the bot, so yeah, you can try to WAIT for it to update everytime.
 >
@@ -62,13 +65,13 @@ like:
 
 `756529025719074846=omarplayz.=example reason`
 
-> [!WARNING]  
+> [!WARNING]
 > Do NOT delete your `blacklist.env` file, otherwise it'll just be gone... very VERY gone...
 
 > [!NOTE]
 > We added the blacklist command, as a way to prevent spammers, bots and EVEN some of the members you hate to use your bot, otherwise it'll be a disaster on your server usage.
 
-# Download command 
+# Download command
 
 The `/dl` command is a download command that downloads videos/images/gifs from various social medias, using our server BUT we've added it on an env file for safety.
 
