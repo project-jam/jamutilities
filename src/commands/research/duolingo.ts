@@ -68,7 +68,7 @@ const languageEmojis: { [key: string]: string } = {
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("duolingo")
-    .setDescription("Get Duolingo user statistics")
+    .setDescription("Get Duolingo (rip) user statistics")
     .setDMPermission(true)
     .addStringOption((option) =>
       option
