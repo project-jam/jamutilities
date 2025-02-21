@@ -3,7 +3,10 @@
   "version": "2.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "bun index.ts"
+    "start": "bun run shard.ts",
+    "dev": "bun --watch run index.ts",
+    "build": "bun build ./index.ts ./shard.ts --outdir=dist",
+    "lint": "eslint . --ext .ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
