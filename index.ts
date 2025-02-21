@@ -10,6 +10,12 @@ import { Logger } from "./src/utils/logger";
 import { CommandHandler } from "./src/handlers/commandHandler";
 import { BlacklistManager } from "./src/handlers/blacklistMembers";
 
+// Check for required environment variables
+if (!process.env.DISCORD_TOKEN) {
+  Logger.fatal("$ Missing DISCORD_TOKEN in environment variables");
+  process.exit(1);
+}
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -23,28 +29,23 @@ const client = new Client({
 
 const commandHandler = new CommandHandler(client);
 
-// Fun status messages with emojis
+// Fun status messages with dev-friendly themes
 const statusMessages = [
-  { text: "for new members 👋", type: ActivityType.Watching },
-  { text: "git push --force 💻", type: ActivityType.Watching },
-  { text: "hugs being shared 🤗", type: ActivityType.Watching },
-  { text: "kisses being blown 💋", type: ActivityType.Watching },
-  { text: "air kisses flying ✨", type: ActivityType.Watching },
-  { text: "waves to members 👋", type: ActivityType.Watching },
-  { text: "the server grow 📈", type: ActivityType.Watching },
-  { text: "commit messages 🖥️", type: ActivityType.Watching },
-  { text: "devious plans 😈", type: ActivityType.Watching },
-  { text: "evil laughs 🦹", type: ActivityType.Listening },
-  { text: "coins being flipped 🪙", type: ActivityType.Watching },
-  { text: "tickets being made ✉️", type: ActivityType.Watching },
-  { text: "with moderation ⚔️", type: ActivityType.Playing },
-  { text: "server stats 📊", type: ActivityType.Watching },
-  { text: "git pull origin main", type: ActivityType.Playing },
-  { text: "npm install success ✅", type: ActivityType.Watching },
-  { text: "bun install --force", type: ActivityType.Playing },
-  { text: "moderators at work 🛡️", type: ActivityType.Watching },
-  { text: "members having fun 🎮", type: ActivityType.Watching },
-  { text: "the chat flow 💭", type: ActivityType.Watching },
+  { text: "$ git checkout happiness", type: ActivityType.Playing },
+  { text: "$ npm run chaos", type: ActivityType.Playing },
+  { text: "$ docker compose up love", type: ActivityType.Playing },
+  { text: "$ sudo make friends", type: ActivityType.Playing },
+  { text: "$ ping -t happiness", type: ActivityType.Playing },
+  { text: "$ git push --force hugs", type: ActivityType.Playing },
+  { text: "$ yarn add @friends/love", type: ActivityType.Playing },
+  { text: "$ bun install happiness", type: ActivityType.Playing },
+  { text: "./chaos_script.sh", type: ActivityType.Playing },
+  { text: "$ systemctl start fun", type: ActivityType.Playing },
+  { text: "SELECT * FROM friends;", type: ActivityType.Playing },
+  { text: "$ echo 'Hello World!'", type: ActivityType.Playing },
+  { text: "import { happiness }", type: ActivityType.Playing },
+  { text: "while true; do love;", type: ActivityType.Playing },
+  { text: "$ chmod +x fun.sh", type: ActivityType.Playing },
 ];
 
 function updateStatus() {
@@ -54,57 +55,96 @@ function updateStatus() {
 }
 
 client.once("ready", async (c) => {
-  Logger.startupBanner("JamListen", "2.0.0");
+  const shardId = client.shard?.ids[0] ?? 0;
+  const totalShards = client.shard?.count ?? 1;
+
+  let [guildsCount, usersCount] = [0, 0];
+
+  if (client.shard) {
+    try {
+      const promises = [
+        client.shard.fetchClientValues("guilds.cache.size"),
+        client.shard.broadcastEval((c) =>
+          c.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0),
+        ),
+      ];
+
+      const results = await Promise.all(promises);
+      guildsCount = (results[0] as number[]).reduce(
+        (acc, guildCount) => acc + guildCount,
+        0,
+      );
+      usersCount = (results[1] as number[]).reduce(
+        (acc, memberCount) => acc + memberCount,
+        0,
+      );
+    } catch (error) {
+      Logger.error("$ ERROR: Failed to fetch shard statistics", error);
+      guildsCount = client.guilds.cache.size;
+      usersCount = client.users.cache.size;
+    }
+  } else {
+    guildsCount = client.guilds.cache.size;
+    usersCount = client.users.cache.size;
+  }
+
+  Logger.startupBanner(`JamListen v2.0.0 [Shard ${shardId}]`, [
+    "$ initializing systems...",
+    "$ loading modules...",
+    "$ importing chaos...",
+    "$ deployment successful!",
+  ]);
 
   BlacklistManager.getInstance();
-  Logger.info("Blacklist manager initialized");
+  Logger.info("$ blacklist.service started successfully");
 
-  Logger.ready("BOT STATISTICS", [
-    `🤖 Logged in as ${c.user.tag}`,
-    `🌍 Spreading chaos in ${c.guilds.cache.size} guilds`,
-    `👥 Tormenting ${c.users.cache.size} users`,
-    `💾 Consuming ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB of RAM`,
-    `⚡ Powered by Node ${process.version}`,
-    `🎮 ${commandHandler.getCommands().size} commands loaded`,
+  Logger.ready("SYSTEM STATUS", [
+    `$ whoami: ${c.user.tag}`,
+    `$ shard: ${shardId + 1}/${totalShards}`,
+    `$ guilds: ${guildsCount}`,
+    `$ users: ${usersCount}`,
+    `$ memory: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB`,
+    `$ runtime: Node ${process.version}`,
+    `$ modules: ${commandHandler.getCommands().size} loaded`,
   ]);
 
   updateStatus();
-  Logger.info(`Initial status set - Let the games begin!`);
+  Logger.info(`$ status.service initialized`);
 
   setInterval(updateStatus, 3 * 60 * 1000);
 
   try {
     await commandHandler.loadCommands();
-    Logger.success(`Commands loaded successfully!`);
+    Logger.success(`$ commands.service: All modules imported successfully`);
 
     await commandHandler.registerCommands();
-    Logger.success(`Commands registered with Discord API!`);
+    Logger.success(`$ api.service: Command registration complete`);
   } catch (error) {
-    Logger.error(`Failed to initialize commands:`, error);
+    Logger.error(`$ ERROR: Command initialization failed:`, error);
   }
 
-  Logger.ready("SYSTEM INFO", [
-    `🖥️ Platform: ${process.platform}`,
-    `⚙️ Architecture: ${process.arch}`,
-    `🏃 PID: ${process.pid}`,
-    `🕒 Process Uptime: ${Math.floor(process.uptime())}s`,
-    `🎯 Discord.js Version: ${require("discord.js").version}`,
+  Logger.ready("ENVIRONMENT", [
+    `$ OS: ${process.platform}`,
+    `$ ARCH: ${process.arch}`,
+    `$ PID: ${process.pid}`,
+    `$ UPTIME: ${Math.floor(process.uptime())}s`,
+    `$ DISCORD.JS: v${require("discord.js").version}`,
   ]);
 
-  const chaosMessages = [
-    "🤖 Beep boop, time to ruin someone's day!",
-    "💀 Ready to cause psychological damage!",
-    "🎭 Time to play with human emotions!",
-    "🌪️ Chaos mode activated successfully!",
-    "🔥 Ready to set the world on fire!",
-    "🎪 Let the circus begin!",
-    "🃏 The Joker has entered the chat!",
-    "🎮 Game on, prepare for trouble!",
-    "💫 Chaos generator initialized!",
-    "🌈 Ready to spread colorful destruction!",
+  const bootMessages = [
+    "$ chaos.service started successfully",
+    "$ fun.service is now active",
+    "$ initialized primary chaos generators",
+    "$ deployment completed with 0 errors",
+    "$ system is ready for some trolling",
+    "$ sudo systemctl start happiness",
+    "$ imported all necessary chaos modules",
+    "$ git checkout main --force",
+    "$ npm run start:chaos",
+    "$ docker compose up friendship",
   ];
 
-  Logger.event(chaosMessages[Math.floor(Math.random() * chaosMessages.length)]);
+  Logger.event(bootMessages[Math.floor(Math.random() * bootMessages.length)]);
 });
 
 client.on("interactionCreate", async (interaction) => {
@@ -120,21 +160,21 @@ client.on("interactionCreate", async (interaction) => {
         embeds: [
           new EmbedBuilder()
             .setColor("#ff3838")
-            .setTitle("Access Denied")
-            .setDescription("You are blacklisted from using this bot.")
+            .setTitle("$ Access Denied")
+            .setDescription("```diff\n- Error: User is blacklisted\n```")
             .addFields(
               {
-                name: "Username",
+                name: "$ whoami",
                 value: blacklistInfo?.username || "Unknown",
                 inline: true,
               },
               {
-                name: "Reason",
+                name: "$ reason",
                 value: blacklistInfo?.reason || "No reason provided",
                 inline: true,
               },
               {
-                name: "Blacklisted Since",
+                name: "$ date",
                 value: blacklistInfo
                   ? `<t:${Math.floor(blacklistInfo.timestamp / 1000)}:R>`
                   : "Unknown",
@@ -142,7 +182,7 @@ client.on("interactionCreate", async (interaction) => {
               },
             )
             .setFooter({
-              text: "Contact the bot owner if you think this is a mistake",
+              text: "$ contact admin for support",
             }),
         ],
         flags: MessageFlags.Ephemeral,
@@ -157,13 +197,15 @@ client.on("interactionCreate", async (interaction) => {
   try {
     await command.execute(interaction);
     Logger.command(
-      `${interaction.user.tag} used /${interaction.commandName} in ${interaction.guild?.name}`,
+      `$ ${interaction.user.tag} executed /${interaction.commandName} in ${interaction.guild?.name}`,
     );
   } catch (error) {
-    Logger.error(`Command execution failed: ${interaction.commandName}`, error);
+    Logger.error(
+      `$ command.service: Execution failed: ${interaction.commandName}`,
+      error,
+    );
     await interaction.reply({
-      content:
-        "🎭 Oops! The command failed successfully! (Task failed successfully!)",
+      content: "```diff\n- Error: Task failed successfully!\n```",
       flags: MessageFlags.Ephemeral,
     });
   }
@@ -171,53 +213,53 @@ client.on("interactionCreate", async (interaction) => {
 
 client.on("guildCreate", (guild) => {
   Logger.event(
-    `🎉 New guild joined: ${guild.name} (Total: ${client.guilds.cache.size})`,
+    `$ guild.service: New server joined: ${guild.name} (Total: ${client.guilds.cache.size})`,
   );
-  Logger.ready("NEW GUILD INFO", [
-    `📋 Name: ${guild.name}`,
-    `👑 Owner: ${guild.ownerId}`,
-    `👥 Members: ${guild.memberCount}`,
-    `🆔 ID: ${guild.id}`,
+  Logger.ready("GUILD INFO", [
+    `$ name: ${guild.name}`,
+    `$ owner: ${guild.ownerId}`,
+    `$ members: ${guild.memberCount}`,
+    `$ id: ${guild.id}`,
   ]);
 });
 
 client.on("guildDelete", (guild) => {
   Logger.event(
-    `💔 Removed from guild: ${guild.name} (Total: ${client.guilds.cache.size})`,
+    `$ guild.service: Server removed: ${guild.name} (Total: ${client.guilds.cache.size})`,
   );
 });
 
 client.on("error", (error) => {
-  Logger.error("Discord client error occurred:", error);
+  Logger.error("$ discord.service: Client error occurred:", error);
 });
 
 process.on("unhandledRejection", (error) => {
-  Logger.error("💀 Unhandled Promise Rejection:", error);
+  Logger.error("$ process: Unhandled Promise Rejection:", error);
 });
 
 process.on("uncaughtException", (error) => {
-  Logger.fatal("🔥 Uncaught Exception (Bot will restart):", error);
+  Logger.fatal("$ process: Fatal Exception (Restarting):", error);
 });
 
 process.on("SIGINT", () => {
-  Logger.warn("Received SIGINT signal. Cleaning up...");
+  Logger.warn("$ process: Received SIGINT. Cleaning up...");
   BlacklistManager.getInstance().cleanup();
   client.destroy();
   process.exit(0);
 });
 
 process.on("SIGTERM", () => {
-  Logger.warn("Received SIGTERM signal. Cleaning up...");
+  Logger.warn("$ process: Received SIGTERM. Cleaning up...");
   BlacklistManager.getInstance().cleanup();
   client.destroy();
   process.exit(0);
 });
 
-Logger.info("Initializing bot...");
+Logger.info("$ system: Initializing main process...");
 client
   .login(process.env.DISCORD_TOKEN)
-  .then(() => Logger.info("Discord connection established!"))
+  .then(() => Logger.info("$ discord.service: Connection established"))
   .catch((error) => {
-    Logger.fatal("Failed to start the chaos engine:", error);
+    Logger.fatal("$ system: Failed to initialize:", error);
     process.exit(1);
   });
