@@ -14,18 +14,7 @@ import { promises as fs } from "fs";
 import { join } from "path";
 
 async function cleanupFiles(basePath: string): Promise<string[]> {
-  const keptFiles = [
-    "blacklist.env",
-    ".env",
-    "start.sh",
-    ".gitignore",
-    "package.json",
-    "package-lock.json",
-    "bun.lockb",
-    "tsconfig.json",
-    "README.md",
-    "LICENSE",
-  ];
+  const keptFiles = ["blacklist.env", ".env", "start.sh"];
 
   const preservedFiles: string[] = [];
 
