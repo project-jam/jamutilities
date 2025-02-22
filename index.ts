@@ -54,13 +54,17 @@ function updateStatus() {
 }
 
 client.once("ready", async (c) => {
+  // Log shard info if available
+  const shardInfo = client.shard
+    ? ` on shard [${client.shard.ids.join(", ")}]`
+    : "";
   Logger.startupBanner("JamListen", "2.0.0");
 
   BlacklistManager.getInstance();
   Logger.info("Blacklist manager initialized");
 
   Logger.ready("BOT STATISTICS", [
-    `🤖 Logged in as ${c.user.tag}`,
+    `🤖 Logged in as ${c.user.tag}${shardInfo}`,
     `🌍 Spreading chaos in ${c.guilds.cache.size} guilds`,
     `👥 Tormenting ${c.users.cache.size} users`,
     `💾 Consuming ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB of RAM`,
