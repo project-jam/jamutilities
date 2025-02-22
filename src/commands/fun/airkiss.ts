@@ -7,38 +7,69 @@ import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
 import { getGif, getRandomMessage } from "../../utils/otakuGifs";
 
-// Array of possible airkiss messages
-const airkissMessages = [
-  (user: string, target: string) => `**${user}** blows a kiss to **${target}**`,
-  (user: string, target: string) =>
-    `**${user}** sends flying kisses to **${target}**`,
-  (user: string, target: string) =>
-    `**${target}** catches an air kiss from **${user}**`,
-  (user: string, target: string) =>
-    `**${user}** sends their love through the air to **${target}**`,
-  (user: string, target: string) =>
-    `a wild air kiss appears from **${user}** to **${target}**`,
-  (user: string, target: string) =>
-    `**${user}** throws a kiss, hope **${target}** catches it!`,
-  (user: string, target: string) =>
-    `**${user}** sends virtual kisses to **${target}**`,
-  (user: string, target: string) =>
-    `look out **${target}**! An air kiss from **${user}** is coming your way!`,
-  (user: string, target: string) =>
-    `**${user}** sends their affection through the air to **${target}**`,
-  (user: string, target: string) =>
-    `**${target}** receives a long-distance kiss from **${user}**`,
+// Cute heart emoticons for variety
+const heartEmotes = [
+  "♡",
+  "💖",
+  "💝",
+  "💕",
+  "💗",
+  "💓",
+  "💞",
+  "💘",
+  "💟",
+  "♥️",
+  "💌",
+  "💫",
+  "✨",
+  "🌟",
+  "⭐",
+  "🎀",
+  "🌸",
+  "🌺",
 ];
+
+// Array of possible airkiss messages with enhanced formatting
+const airkissMessages = [
+  (user: string, target: string) =>
+    `**${user}** blows a magical kiss through the air to **${target}**`,
+  (user: string, target: string) =>
+    `**${user}** sends sparkling kisses floating towards **${target}**`,
+  (user: string, target: string) =>
+    `**${target}** catches a shimmering air kiss from **${user}**`,
+  (user: string, target: string) =>
+    `**${user}** sends their love dancing through the air to **${target}**`,
+  (user: string, target: string) =>
+    `a wild enchanted air kiss appears from **${user}** to **${target}**`,
+  (user: string, target: string) =>
+    `**${user}** throws a glittering kiss, hope **${target}** catches it!`,
+  (user: string, target: string) =>
+    `**${user}** sends virtual kisses floating like butterflies to **${target}**`,
+  (user: string, target: string) =>
+    `look out **${target}**! A shower of sparkly kisses from **${user}** is coming your way!`,
+  (user: string, target: string) =>
+    `**${user}** sends their affection soaring through the air to **${target}**`,
+  (user: string, target: string) =>
+    `**${target}** receives a magical long-distance kiss from **${user}**`,
+];
+
+// Get random heart decorations
+function getHeartDecorations(count: number): string {
+  return Array(count)
+    .fill(0)
+    .map(() => heartEmotes[Math.floor(Math.random() * heartEmotes.length)])
+    .join(" ");
+}
 
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("airkiss")
-    .setDescription("Blow a kiss to someone! 💋💨")
+    .setDescription("Blow a magical kiss to someone! 💋💫")
     .setDMPermission(true)
     .addUserOption((option) =>
       option
         .setName("user")
-        .setDescription("The user to send an air kiss to")
+        .setDescription("The user to send an enchanted air kiss to")
         .setRequired(true),
     ),
 
@@ -55,8 +86,11 @@ export const command: Command = {
             new EmbedBuilder()
               .setColor("#ff3838")
               .setDescription(
-                "❌ Sending air kisses to yourself? That's just weird!",
-              ),
+                "❌ Sending air kisses to yourself? Save them for someone special!",
+              )
+              .setFooter({
+                text: "Try sharing your affection with others instead! 💝",
+              }),
           ],
         });
         return;
@@ -74,10 +108,19 @@ export const command: Command = {
         ),
       ]);
 
+      // Create decorative borders with hearts
+      const topHearts = getHeartDecorations(3);
+      const bottomHearts = getHeartDecorations(3);
+
       const embed = new EmbedBuilder()
         .setColor("#ffb6c1") // Light pink for air kisses!
-        .setDescription(message)
+        .setTitle(`${topHearts} Magical Air Kiss ${topHearts}`)
+        .setDescription(`${message}\n\n${bottomHearts}`)
         .setImage(gifUrl)
+        .setFooter({
+          text: `Spreading love and affection! 💫`,
+          iconURL: interaction.user.displayAvatarURL(),
+        })
         .setTimestamp();
 
       await interaction.editReply({ embeds: [embed] });
@@ -87,7 +130,9 @@ export const command: Command = {
         embeds: [
           new EmbedBuilder()
             .setColor("#ff3838")
-            .setDescription("❌ Oops! Your air kiss got lost in the wind..."),
+            .setDescription(
+              "❌ Oops! Your magical air kiss got lost in a sparkly whirlwind... Try again! ✨",
+            ),
         ],
       });
     }

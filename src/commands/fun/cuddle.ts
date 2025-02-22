@@ -7,32 +7,8 @@ import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
 import { getGif, getRandomMessage } from "../../utils/otakuGifs";
 
-// Wholesome decorative elements
-const hugDecorations = [
-  "🤗",
-  "💝",
-  "💖",
-  "💕",
-  "💗",
-  "💓",
-  "💞",
-  "💘",
-  "💟",
-  "♥️",
-  "🌸",
-  "✨",
-  "💫",
-  "🌟",
-  "⭐",
-  "🎀",
-  "🌺",
-  "🌷",
-  "🌹",
-  "🍀",
-];
-
-// Cute kaomoji for hugs
-const hugKaomoji = [
+// Cozy emoticons and symbols
+const cozyEmotes = [
   "(っ◕‿◕)っ",
   "(づ｡◕‿‿◕｡)づ",
   "(⊃｡•́‿•̀｡)⊃",
@@ -47,53 +23,76 @@ const hugKaomoji = [
   "(⊃｡•́‿•̀｡)⊃",
 ];
 
-// Enhanced hug messages with more warmth
-const hugMessages = [
+// Warm and cozy decorative elements
+const warmDecorations = [
+  "🌸",
+  "💕",
+  "💗",
+  "💖",
+  "💝",
+  "🌺",
+  "✨",
+  "💫",
+  "🌟",
+  "⭐",
+  "🧸",
+  "🎀",
+  "🌙",
+  "☁️",
+  "🌿",
+  "🍃",
+  "🪴",
+  "🤍",
+  "💭",
+];
+
+// Enhanced cuddle messages with cozy themes
+const cuddleMessages = [
   (user: string, target: string) =>
-    `aww, **${user}** gives **${target}** the warmest, coziest hug ever!`,
+    `**${user}** wraps **${target}** in the warmest, coziest cuddle ${getRandomEmote()}`,
   (user: string, target: string) =>
-    `**${user}** wraps **${target}** in the most heartwarming embrace!`,
+    `**${user}** snuggles up to **${target}** like a warm blanket ${getRandomEmote()}`,
   (user: string, target: string) =>
-    `**${user}** pulls **${target}** in for a big, loving hug!`,
+    `**${user}** gives **${target}** the most comforting cuddles ${getRandomEmote()}`,
   (user: string, target: string) =>
-    `**${target}** receives the most wholesome hug from **${user}**!`,
+    `**${target}** receives the softest, warmest cuddles from **${user}** ${getRandomEmote()}`,
   (user: string, target: string) =>
-    `**${user}** shares pure happiness with **${target}** through a hug!`,
+    `**${user}** envelops **${target}** in a cozy cuddle cocoon ${getRandomEmote()}`,
   (user: string, target: string) =>
-    `look how precious! **${user}** gives **${target}** the sweetest hug!`,
+    `**${user}** shares the most tender cuddles with **${target}** ${getRandomEmote()}`,
   (user: string, target: string) =>
-    `**${user}** spreads love and joy by hugging **${target}**!`,
+    `**${target}** gets wrapped in **${user}**'s warm, fluffy cuddle ${getRandomEmote()}`,
   (user: string, target: string) =>
-    `**${target}** gets enveloped in the most wonderful hug from **${user}**!`,
+    `aww, **${user}** gives **${target}** the gentlest cuddles ${getRandomEmote()}`,
   (user: string, target: string) =>
-    `**${user}** shares a magical moment of pure affection with **${target}**!`,
+    `**${user}** and **${target}** share the most heartwarming cuddle ${getRandomEmote()}`,
   (user: string, target: string) =>
-    `**${user}** embraces **${target}** with all the warmth in the world!`,
+    `**${user}** surrounds **${target}** with pure wholesome cuddles ${getRandomEmote()}`,
 ];
 
 // Helper functions for random elements
+function getRandomEmote(): string {
+  return cozyEmotes[Math.floor(Math.random() * cozyEmotes.length)];
+}
+
 function getRandomDecorations(count: number): string {
   return Array(count)
     .fill(0)
     .map(
-      () => hugDecorations[Math.floor(Math.random() * hugDecorations.length)],
+      () => warmDecorations[Math.floor(Math.random() * warmDecorations.length)],
     )
     .join(" ");
 }
 
-function getRandomKaomoji(): string {
-  return hugKaomoji[Math.floor(Math.random() * hugKaomoji.length)];
-}
-
 export const command: Command = {
   data: new SlashCommandBuilder()
-    .setName("hug")
-    .setDescription("Share some heartwarming hugs! 🤗💝")
+    .setName("cuddle")
+    .setDescription("Share warm and cozy cuddles! (っ◕‿◕)っ 💝")
     .setDMPermission(true)
     .addUserOption((option) =>
       option
         .setName("user")
-        .setDescription("The person to share warm hugs with")
+        .setDescription("The person to share cozy cuddles with")
         .setRequired(true),
     ),
 
@@ -103,28 +102,29 @@ export const command: Command = {
     try {
       const target = interaction.options.getUser("user");
 
-      // Don't allow hugging yourself
+      // Don't allow cuddling yourself
       if (target?.id === interaction.user.id) {
         await interaction.editReply({
           embeds: [
             new EmbedBuilder()
               .setColor("#ff3838")
               .setDescription(
-                `❌ Aww, need a hug? Share your warmth with others instead! ${getRandomKaomoji()}`,
+                `❌ Aww, need cuddles? Let someone else wrap you in warmth instead! ${getRandomEmote()}`,
               )
               .setFooter({
-                text: "Hugs are meant to be shared with friends! 💝",
+                text: "Cuddles are better when shared with others! 💝",
               }),
           ],
         });
         return;
       }
 
+      // Get GIF and random message using utility functions
       const [gifUrl, message] = await Promise.all([
-        getGif("hug"),
+        getGif("cuddle"),
         Promise.resolve(
           getRandomMessage(
-            hugMessages,
+            cuddleMessages,
             interaction.user.toString(),
             target.toString(),
           ),
@@ -136,27 +136,25 @@ export const command: Command = {
       const bottomDecorations = getRandomDecorations(3);
 
       const embed = new EmbedBuilder()
-        .setColor("#ffd1dc") // Light pink for wholesome hugs!
-        .setTitle(`${topDecorations} Warm Hugs Time! ${topDecorations}`)
-        .setDescription(
-          `${message} ${getRandomKaomoji()}\n\n${bottomDecorations}`,
-        )
+        .setColor("#FFB6C1") // Light pink for wholesome cuddles!
+        .setTitle(`${topDecorations} Cozy Cuddle Time! ${topDecorations}`)
+        .setDescription(`${message}\n\n${bottomDecorations}`)
         .setImage(gifUrl)
         .setFooter({
-          text: `Spreading warmth and happiness! ${getRandomKaomoji()}`,
+          text: `Spreading warmth and comfort! ${getRandomEmote()}`,
           iconURL: interaction.user.displayAvatarURL(),
         })
         .setTimestamp();
 
       await interaction.editReply({ embeds: [embed] });
     } catch (error) {
-      Logger.error("Hug command failed:", error);
+      Logger.error("Cuddle command failed:", error);
       await interaction.editReply({
         embeds: [
           new EmbedBuilder()
             .setColor("#ff3838")
             .setDescription(
-              `❌ The hug got lost in a cloud of sparkles... Try again! ${getRandomKaomoji()}`,
+              `❌ The cuddles got lost in a cloud of coziness... Try again! ${getRandomEmote()}`,
             ),
         ],
       });

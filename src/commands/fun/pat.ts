@@ -7,38 +7,93 @@ import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
 import { getGif, getRandomMessage } from "../../utils/otakuGifs";
 
-// Array of possible pat messages
+// Cute decorative elements
+const patDecorations = [
+  "✨",
+  "💝",
+  "💫",
+  "🌟",
+  "⭐",
+  "🎀",
+  "🌸",
+  "💕",
+  "🤗",
+  "💖",
+  "🍀",
+  "🌺",
+  "🌼",
+  "🎇",
+  "💫",
+  "🌷",
+  "🪷",
+  "🫰",
+  "☘️",
+  "🌱",
+];
+
+// Adorable kaomoji
+const patKaomoji = [
+  "(｡･ω･｡)ﾉ♡",
+  "(´｡• ᵕ •｡`)",
+  "(*￣▽￣)ノ",
+  "(・∀・)ノ",
+  "(๑˃ᴗ˂)ﻭ",
+  "(｀・ω・´)",
+  "(๑>◡<๑)",
+  "(≧◡≦)",
+  "(⌒▽⌒)☆",
+  "｡◕‿◕｡",
+  "(◠‿◠✿)",
+  "(｡♥‿♥｡)",
+];
+
+// Enhanced pat messages with more cuteness
 const patMessages = [
   (user: string, target: string) =>
-    `**${user}** gently pats **${target}**'s head`,
+    `**${user}** gives **${target}** the gentlest, most caring headpats!`,
   (user: string, target: string) =>
-    `**${user}** gives **${target}** a comforting pat`,
-  (user: string, target: string) => `**${user}** pats **${target}** lovingly`,
+    `**${user}** showers **${target}** with the sweetest pats!`,
   (user: string, target: string) =>
-    `**${target}** receives headpats from **${user}**`,
+    `**${user}** shares their affection through soft pats for **${target}**!`,
   (user: string, target: string) =>
-    `**${user}** shows affection by patting **${target}**`,
+    `**${target}** receives the most wholesome headpats from **${user}**!`,
   (user: string, target: string) =>
-    `**${user}** couldn't resist patting **${target}**`,
+    `**${user}** spreads happiness by patting **${target}**'s head!`,
   (user: string, target: string) =>
-    `**${target}** enjoys being patted by **${user}**`,
+    `**${user}** couldn't resist giving **${target}** all the precious pats!`,
   (user: string, target: string) =>
-    `aww, **${user}** pats **${target}** softly`,
+    `**${target}** melts under **${user}**'s tender headpats!`,
   (user: string, target: string) =>
-    `**${user}** gives **${target}** encouraging headpats`,
+    `aww, **${user}** comforts **${target}** with gentle pats!`,
   (user: string, target: string) =>
-    `**${target}** gets showered with pats from **${user}**`,
+    `**${user}** shares encouraging headpats with **${target}**!`,
+  (user: string, target: string) =>
+    `the world becomes brighter as **${user}** pats **${target}**!`,
 ];
+
+// Helper functions for random elements
+function getRandomDecorations(count: number): string {
+  return Array(count)
+    .fill(0)
+    .map(
+      () => patDecorations[Math.floor(Math.random() * patDecorations.length)],
+    )
+    .join(" ");
+}
+
+function getRandomKaomoji(): string {
+  return patKaomoji[Math.floor(Math.random() * patKaomoji.length)];
+}
 
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("pat")
-    .setDescription("Pat someone's head! 🤗")
+    .setDescription("Share gentle headpats! (｡･ω･｡)ﾉ♡")
     .setDMPermission(true)
     .addUserOption((option) =>
       option
         .setName("user")
-        .setDescription("The user to pat")
+        .setDescription("The person to shower with sweet pats")
         .setRequired(true),
     ),
 
@@ -55,14 +110,16 @@ export const command: Command = {
             new EmbedBuilder()
               .setColor("#ff3838")
               .setDescription(
-                "❌ Need headpats? Let someone else pat you instead!",
-              ),
+                `❌ Aww, need headpats? Let others share their affection with you! ${getRandomKaomoji()}`,
+              )
+              .setFooter({
+                text: "Headpats are better when shared! 💝",
+              }),
           ],
         });
         return;
       }
 
-      // Get GIF and random message using utility functions
       const [gifUrl, message] = await Promise.all([
         getGif("pat"),
         Promise.resolve(
@@ -74,10 +131,21 @@ export const command: Command = {
         ),
       ]);
 
+      // Create decorative borders
+      const topDecorations = getRandomDecorations(3);
+      const bottomDecorations = getRandomDecorations(3);
+
       const embed = new EmbedBuilder()
         .setColor("#FFB6C1") // Light pink for wholesome pats!
-        .setDescription(message)
+        .setTitle(`${topDecorations} Headpat Time! ${topDecorations}`)
+        .setDescription(
+          `${message} ${getRandomKaomoji()}\n\n${bottomDecorations}`,
+        )
         .setImage(gifUrl)
+        .setFooter({
+          text: `Spreading comfort and care! ${getRandomKaomoji()}`,
+          iconURL: interaction.user.displayAvatarURL(),
+        })
         .setTimestamp();
 
       await interaction.editReply({ embeds: [embed] });
@@ -88,7 +156,7 @@ export const command: Command = {
           new EmbedBuilder()
             .setColor("#ff3838")
             .setDescription(
-              "❌ Couldn't give those headpats... Maybe next time!",
+              `❌ The headpats got lost in a cloud of fluff... Try again! ${getRandomKaomoji()}`,
             ),
         ],
       });

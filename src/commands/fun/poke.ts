@@ -7,33 +7,93 @@ import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
 import { getGif, getRandomMessage } from "../../utils/otakuGifs";
 
-const pokeMessages = [
-  (user: string, target: string) => `**${user}** pokes **${target}** playfully`,
-  (user: string, target: string) => `**${user}** keeps poking **${target}**`,
-  (user: string, target: string) =>
-    `hey **${target}**! **${user}** is poking you!`,
-  (user: string, target: string) =>
-    `**${user}** can't stop poking **${target}**`,
-  (user: string, target: string) =>
-    `poke poke! **${user}** bothers **${target}**`,
-  (user: string, target: string) => `**${target}** gets poked by **${user}**`,
-  (user: string, target: string) => `**${user}** sneakily pokes **${target}**`,
-  (user: string, target: string) =>
-    `**${target}** feels a poke from **${user}**`,
-  (user: string, target: string) => `*poke poke* **${user}** → **${target}**`,
-  (user: string, target: string) =>
-    `**${user}** demands **${target}**'s attention with a poke`,
+// Playful decorative elements
+const pokeDecorations = [
+  "👉",
+  "👆",
+  "✨",
+  "💫",
+  "⭐",
+  "💢",
+  "💭",
+  "❗",
+  "❕",
+  "💨",
+  "🌟",
+  "☆",
+  "⚡",
+  "💫",
+  "✌️",
+  "🫵",
+  "🎯",
+  "🎪",
+  "🎭",
+  "🎡",
 ];
+
+// Mischievous kaomoji
+const pokeKaomoji = [
+  "(･ω<)☆",
+  "(｀∀´)Ψ",
+  "(づ｡◕‿‿◕｡)づ",
+  "(｀∀´)ノ",
+  "(´･ω･`)つ",
+  "(｀⌒´メ)",
+  "(・∀・)ノ",
+  "(｀▽´)-σ",
+  "(σ･∀･)σ",
+  "(っ´ω`)ﾉ",
+  "(^・ω・^)",
+  "( ´∀｀)ノ",
+];
+
+// Enhanced poke messages with more playfulness
+const pokeMessages = [
+  (user: string, target: string) =>
+    `**${user}** pokes **${target}** with mischievous intent!`,
+  (user: string, target: string) =>
+    `**${user}** just can't stop poking **${target}**! Poke poke!`,
+  (user: string, target: string) =>
+    `hey **${target}**! **${user}** demands attention with endless pokes!`,
+  (user: string, target: string) =>
+    `**${user}** unleashes a barrage of pokes on **${target}**!`,
+  (user: string, target: string) =>
+    `poke poke poke! **${user}** won't leave **${target}** alone!`,
+  (user: string, target: string) =>
+    `**${target}** becomes **${user}**'s poking target!`,
+  (user: string, target: string) =>
+    `**${user}** sneakily approaches **${target}** for a surprise poke!`,
+  (user: string, target: string) =>
+    `a wild poke appears! **${user}** strikes **${target}**!`,
+  (user: string, target: string) =>
+    `*poke poke poke* **${user}** launches Operation: Annoy **${target}**!`,
+  (user: string, target: string) =>
+    `**${user}** initiates tactical poking maneuvers on **${target}**!`,
+];
+
+// Helper functions for random elements
+function getRandomDecorations(count: number): string {
+  return Array(count)
+    .fill(0)
+    .map(
+      () => pokeDecorations[Math.floor(Math.random() * pokeDecorations.length)],
+    )
+    .join(" ");
+}
+
+function getRandomKaomoji(): string {
+  return pokeKaomoji[Math.floor(Math.random() * pokeKaomoji.length)];
+}
 
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("poke")
-    .setDescription("Poke someone! 👉")
+    .setDescription("Initiate tactical poking! (｀∀´)ノ")
     .setDMPermission(true)
     .addUserOption((option) =>
       option
         .setName("user")
-        .setDescription("The user to poke")
+        .setDescription("Your unsuspecting poke target")
         .setRequired(true),
     ),
 
@@ -49,7 +109,12 @@ export const command: Command = {
           embeds: [
             new EmbedBuilder()
               .setColor("#ff3838")
-              .setDescription("❌ Poking yourself? That's just weird!"),
+              .setDescription(
+                `❌ Poking yourself? That's not how this works! ${getRandomKaomoji()}`,
+              )
+              .setFooter({
+                text: "Find someone else to bother! 👉",
+              }),
           ],
         });
         return;
@@ -66,10 +131,21 @@ export const command: Command = {
         ),
       ]);
 
+      // Create decorative borders
+      const topDecorations = getRandomDecorations(3);
+      const bottomDecorations = getRandomDecorations(3);
+
       const embed = new EmbedBuilder()
         .setColor("#87CEEB") // Sky blue for playful pokes!
-        .setDescription(message)
+        .setTitle(`${topDecorations} POKE ATTACK! ${topDecorations}`)
+        .setDescription(
+          `${message} ${getRandomKaomoji()}\n\n${bottomDecorations}`,
+        )
         .setImage(gifUrl)
+        .setFooter({
+          text: `Mission accomplished! Target has been poked! ${getRandomKaomoji()}`,
+          iconURL: interaction.user.displayAvatarURL(),
+        })
         .setTimestamp();
 
       await interaction.editReply({ embeds: [embed] });
@@ -79,7 +155,9 @@ export const command: Command = {
         embeds: [
           new EmbedBuilder()
             .setColor("#ff3838")
-            .setDescription("❌ Your poke missed! Try again!"),
+            .setDescription(
+              `❌ Critical miss! Your poke failed to connect! ${getRandomKaomoji()}`,
+            ),
         ],
       });
     }

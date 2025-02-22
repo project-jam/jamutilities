@@ -10,7 +10,12 @@ export type GifType =
   | "pat"
   | "poke"
   | "slap"
-  | "blush";
+  | "blush"
+  | "cuddle"
+  | "dance"
+  | "nom"
+  | "nuzzle"
+  | "nyah";
 
 // Function to get a GIF from the API
 export async function getGif(type: GifType): Promise<string> {
