@@ -19,7 +19,7 @@ export class BlacklistManager {
     this.blacklistPath = join(__dirname, "..", "..", "blacklist.env");
     this.blacklistedUsers = new Map();
     this.loadBlacklist();
-    this.watchBlacklistFile();
+    this.startFileWatcher();
   }
 
   public static getInstance(): BlacklistManager {
@@ -29,20 +29,16 @@ export class BlacklistManager {
     return BlacklistManager.instance;
   }
 
-  private watchBlacklistFile(): void {
+  private startFileWatcher(): void {
     try {
       this.fileWatcher = watch(
         this.blacklistPath,
         async (eventType, filename) => {
           if (filename) {
-            Logger.debug(`Blacklist file changed (${eventType}), reloading...`);
             await this.loadBlacklist();
-            Logger.info("Blacklist reloaded successfully");
           }
         },
       );
-
-      Logger.info("Blacklist file watcher started");
     } catch (error) {
       Logger.error("Failed to start blacklist file watcher:", error);
     }
@@ -51,26 +47,24 @@ export class BlacklistManager {
   private async loadBlacklist(): Promise<void> {
     try {
       const data = await fs.readFile(this.blacklistPath, "utf-8");
-      Logger.debug(`Loading blacklist data: ${data}`);
-
       const lines = data.split("\n").filter((line) => line.trim());
 
       const newBlacklist = new Map<string, BlacklistEntry>();
       lines.forEach((line) => {
-        const [id, username, reason] = line
+        const [id, username, reason, timestamp] = line
           .split("=")
           .map((part) => part.trim());
         if (id && username && reason) {
           newBlacklist.set(id, {
             username,
             reason,
-            timestamp: Date.now(),
+            timestamp: parseInt(timestamp) || Date.now(),
           });
-          Logger.debug(`Loaded blacklist entry: ${id} - ${username}`);
         }
       });
 
       this.blacklistedUsers = newBlacklist;
+      Logger.info(`Loaded ${this.blacklistedUsers.size} blacklist entries`);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
         Logger.info("No blacklist file found, will create when needed");
@@ -85,13 +79,14 @@ export class BlacklistManager {
       this.fileWatcher?.removeAllListeners();
 
       const content = Array.from(this.blacklistedUsers.entries())
-        .map(([id, entry]) => `${id}=${entry.username}=${entry.reason}`)
+        .map(
+          ([id, entry]) =>
+            `${id}=${entry.username}=${entry.reason}=${entry.timestamp}`,
+        )
         .join("\n");
 
       await fs.writeFile(this.blacklistPath, content);
-      Logger.debug(`Saved blacklist content: ${content}`);
-
-      this.watchBlacklistFile();
+      this.startFileWatcher();
     } catch (error) {
       Logger.error("Error saving blacklist:", error);
       throw error;
@@ -104,15 +99,22 @@ export class BlacklistManager {
     reason: string,
   ): Promise<void> {
     try {
+      const timestamp = Date.now();
       this.blacklistedUsers.set(userId, {
         username,
         reason,
-        timestamp: Date.now(),
+        timestamp,
       });
       await this.saveBlacklist();
-      Logger.debug(`Added user to blacklist: ${userId} - ${username}`);
+
+      const date = new Date(timestamp).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+      Logger.info(`Blacklisted user with ID ${userId} on ${date}`);
     } catch (error) {
-      Logger.error(`Failed to add user to blacklist: ${userId}`, error);
+      Logger.error(`Failed to blacklist user: ${userId}`, error);
       throw error;
     }
   }
@@ -122,7 +124,7 @@ export class BlacklistManager {
       const removed = this.blacklistedUsers.delete(userId);
       if (removed) {
         await this.saveBlacklist();
-        Logger.debug(`Removed user from blacklist: ${userId}`);
+        Logger.info(`Removed user ${userId} from blacklist`);
       }
       return removed;
     } catch (error) {
@@ -131,39 +133,41 @@ export class BlacklistManager {
     }
   }
 
-  public async reloadBlacklist(): Promise<void> {
-    await this.loadBlacklist();
-    Logger.info("Blacklist manually reloaded");
-  }
-
   public searchBlacklist(query: string): Array<[string, BlacklistEntry]> {
     query = query.toLowerCase();
-    Logger.debug(`Searching blacklist for query: ${query}`);
-
     const results = Array.from(this.blacklistedUsers.entries()).filter(
       ([id, entry]) => {
-        const matches =
+        return (
           id.toLowerCase().includes(query) ||
-          entry.username.toLowerCase().includes(query) ||
-          entry.reason.toLowerCase().includes(query);
-
-        Logger.debug(
-          `Checking entry - ID: ${id}, Username: ${entry.username}, Result: ${matches}`,
+          entry.reason.toLowerCase().includes(query)
         );
-        return matches;
       },
     );
 
-    Logger.debug(`Search results count: ${results.length}`);
+    if (results.length > 0) {
+      Logger.info(`Found ${results.length} blacklist entries matching query`);
+    }
+
     return results;
+  }
+
+  public getBlacklistInfo(userId: string): BlacklistEntry | null {
+    const info = this.blacklistedUsers.get(userId);
+    if (info) {
+      const date = new Date(info.timestamp).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+      Logger.debug(
+        `Retrieved blacklist info for ID ${userId} (Blacklisted on ${date})`,
+      );
+    }
+    return info || null;
   }
 
   public isBlacklisted(userId: string): boolean {
     return this.blacklistedUsers.has(userId);
-  }
-
-  public getBlacklistInfo(userId: string): BlacklistEntry | null {
-    return this.blacklistedUsers.get(userId) || null;
   }
 
   public cleanup(): void {
