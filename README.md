@@ -92,6 +92,22 @@ Try to use the api folder to save much time (we also use it, so yeah, ignore tha
 
 Same as Reddit, Twitter and Instagram (we're not sure, you can create a discussion on Github if that's false) but we're investigating on how to make it working.
 
+# Disable
+
+The disable isn't a command, but the `/toggle` command is a command that disables some commands by the owner if required, and it is usable by the bot owner.
+
+This is what it looks like on an env file:
+
+`DISABLED_COMMANDS=image search,dl`
+
+So like we disabled 2 commands, one with a subcommand, and one which is an ordinary command.
+
+> [!WARNING]
+> If you don't have the `DISABLED_COMMANDS` env, then the bot will just continue to accept commands by the user, so yeah, be careful on what you're doing.
+
+> [!NOTE]
+> If you're a professional coder, you can change the disable command function using the [toggle.ts command](https://github.com/project-jam/jamutilities/blob/main/src/commands/owner/toggle.ts), the [commandHandler.ts, which handles those errors](https://github.com/project-jam/jamutilities/blob/main/src/handlers/commandHandler.ts) and the [environment.d.ts which is currently not used](https://github.com/project-jam/jamutilities/blob/main/src/types/environment.d.ts).
+
 # Invite
 
 But yeah, it's still on progress (currently probably 25%), but you can inv it using the [global inv](https://discord.com/oauth2/authorize?client_id=1299803479308767355) or the [guild one as we call it/Discord calls it, it's the server one](https://discord.com/oauth2/authorize?client_id=1299803479308767355&permissions=8&integration_type=0&scope=bot+applications.commands)
