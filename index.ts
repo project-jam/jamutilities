@@ -10,6 +10,13 @@ import { Logger } from "./src/utils/logger";
 import { CommandHandler } from "./src/handlers/commandHandler";
 import { BlacklistManager } from "./src/handlers/blacklistMembers";
 
+// Add CommandHandler to Client type
+declare module "discord.js" {
+  interface Client {
+    commandHandler: CommandHandler;
+  }
+}
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -21,7 +28,8 @@ const client = new Client({
   ],
 });
 
-const commandHandler = new CommandHandler(client);
+// Attach command handler to client
+client.commandHandler = new CommandHandler(client);
 
 // Fun status messages with emojis
 const statusMessages = [
@@ -69,7 +77,7 @@ client.once("ready", async (c) => {
     `👥 Tormenting ${c.users.cache.size} users`,
     `💾 Consuming ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB of RAM`,
     `⚡ Powered by Node ${process.version}`,
-    `🎮 ${commandHandler.getCommands().size} commands loaded`,
+    `🎮 ${client.commandHandler.getCommands().size} commands loaded`,
   ]);
 
   updateStatus();
@@ -78,10 +86,10 @@ client.once("ready", async (c) => {
   setInterval(updateStatus, 3 * 60 * 1000);
 
   try {
-    await commandHandler.loadCommands();
+    await client.commandHandler.loadCommands();
     Logger.success(`Commands loaded successfully!`);
 
-    await commandHandler.registerCommands();
+    await client.commandHandler.registerCommands();
     Logger.success(`Commands registered with Discord API!`);
   } catch (error) {
     Logger.error(`Failed to initialize commands:`, error);
@@ -155,22 +163,7 @@ client.on("interactionCreate", async (interaction) => {
     }
   }
 
-  const command = commandHandler.getCommands().get(interaction.commandName);
-  if (!command) return;
-
-  try {
-    await command.execute(interaction);
-    Logger.command(
-      `${interaction.user.tag} used /${interaction.commandName} in ${interaction.guild?.name}`,
-    );
-  } catch (error) {
-    Logger.error(`Command execution failed: ${interaction.commandName}`, error);
-    await interaction.reply({
-      content:
-        "🎭 Oops! The command failed successfully! (Task failed successfully!)",
-      flags: MessageFlags.Ephemeral,
-    });
-  }
+  await client.commandHandler.handleCommand(interaction);
 });
 
 client.on("guildCreate", (guild) => {

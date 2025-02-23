@@ -6,6 +6,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ComponentType,
+  MessageFlags,
 } from "discord.js";
 import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
@@ -53,22 +54,26 @@ export const command: Command = {
 
   async execute(interaction: ChatInputCommandInteraction) {
     const subcommand = interaction.options.getSubcommand();
-
     switch (subcommand) {
       case "search":
         await handleImageSearch(interaction);
         break;
       default:
-        await interaction.reply({
-          content: "Unknown subcommand",
-          ephemeral: true,
-        });
+        if (!interaction.replied && !interaction.deferred) {
+          await interaction.reply({
+            content: "Unknown subcommand",
+            flags: MessageFlags.Ephemeral,
+          });
+        }
     }
   },
 };
 
 async function handleImageSearch(interaction: ChatInputCommandInteraction) {
-  await interaction.deferReply();
+  // Only defer if we haven't already replied or deferred
+  if (!interaction.replied && !interaction.deferred) {
+    await interaction.deferReply();
+  }
 
   try {
     const query = interaction.options.getString("query", true);
@@ -76,9 +81,7 @@ async function handleImageSearch(interaction: ChatInputCommandInteraction) {
     let currentPage = 0;
 
     const response = await fetch(
-      `https://api.project-jam.is-a.dev/api/v0/image-search/google?q=${encodeURIComponent(
-        query,
-      )}&lang=${language}`,
+      `https://api.project-jam.is-a.dev/api/v0/image-search/google?q=${encodeURIComponent(query)}&lang=${language}`,
     );
 
     if (!response.ok) {
@@ -210,7 +213,6 @@ async function handleImageSearch(interaction: ChatInputCommandInteraction) {
 
     collector.on("end", async (_, reason) => {
       if (reason === "time") {
-        // Add a "Timed out" note to the embed
         const timedOutEmbed = EmbedBuilder.from(message.embeds[0])
           .setColor("#ff3838")
           .setFooter({
@@ -223,21 +225,22 @@ async function handleImageSearch(interaction: ChatInputCommandInteraction) {
             embeds: [timedOutEmbed],
             components: [],
           })
-          .catch(() => {
-            // Ignore any errors from editing expired messages
-          });
+          .catch(() => {});
       }
     });
   } catch (error) {
     Logger.error("Image search command failed:", error);
-    await interaction.editReply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor("#ff3838")
-          .setDescription(
-            "❌ Failed to search for images. Please try again later.",
-          ),
-      ],
-    });
+
+    if (interaction.deferred) {
+      await interaction.editReply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("#ff3838")
+            .setDescription(
+              "❌ Failed to search for images. Please try again later.",
+            ),
+        ],
+      });
+    }
   }
 }
