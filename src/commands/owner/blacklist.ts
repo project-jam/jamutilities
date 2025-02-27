@@ -180,7 +180,6 @@ export const command: Command = {
           const user = interaction.options.getUser("user")!;
           const newReason = interaction.options.getString("new_reason")!;
 
-          // Check if user is blacklisted
           const currentInfo = blacklistManager.getBlacklistInfo(user.id);
           if (!currentInfo) {
             await interaction.reply({
@@ -194,7 +193,6 @@ export const command: Command = {
             return;
           }
 
-          // Change the reason
           await blacklistManager.changeReason(user.id, newReason);
 
           const embed = new EmbedBuilder()
@@ -205,6 +203,10 @@ export const command: Command = {
               { name: "User", value: user.tag },
               { name: "Old Reason", value: currentInfo.reason },
               { name: "New Reason", value: newReason },
+              {
+                name: "Blacklisted Since",
+                value: `<t:${Math.floor(currentInfo.timestamp / 1000)}:R>`,
+              },
             )
             .setTimestamp();
 

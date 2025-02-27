@@ -58,21 +58,21 @@ export class BlacklistManager {
         if (id && username && reason && timestamp) {
           let timestampValue: number;
           if (timestamp.includes("/")) {
-            // Format: MM/DD/YYYY/HH:mm:ss
+            // Convert date string to timestamp
             const [date, time] = timestamp.split("/");
             const [month, day, year] = date.split("/");
             timestampValue = new Date(
               `${year}-${month}-${day}T${time}`,
             ).getTime();
           } else {
-            // Old format: Unix timestamp
+            // Already a timestamp
             timestampValue = parseInt(timestamp);
           }
 
           newBlacklist.set(id, {
             username,
             reason,
-            timestamp: timestampValue,
+            timestamp: timestampValue, // Always store as number
           });
         }
       });
@@ -94,7 +94,6 @@ export class BlacklistManager {
 
       const content = Array.from(this.blacklistedUsers.entries())
         .map(([id, entry]) => {
-          // Format: MM/DD/YYYY/HH:mm:ss
           const date = new Date(entry.timestamp);
           const formattedDate = date.toLocaleDateString("en-US", {
             year: "numeric",
@@ -170,7 +169,6 @@ export class BlacklistManager {
         throw new Error("User not found in blacklist");
       }
 
-      // Update the reason while keeping other data the same
       this.blacklistedUsers.set(userId, {
         ...currentEntry,
         reason: newReason,
