@@ -50,6 +50,23 @@ export const command: Command = {
             .setDescription("Search by ID, username, or reason")
             .setRequired(true),
         ),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("change")
+        .setDescription("Change the reason for a blacklisted user")
+        .addUserOption((option) =>
+          option
+            .setName("user")
+            .setDescription("The user whose reason to change")
+            .setRequired(true),
+        )
+        .addStringOption((option) =>
+          option
+            .setName("new_reason")
+            .setDescription("The new reason for the blacklist")
+            .setRequired(true),
+        ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
@@ -154,6 +171,42 @@ export const command: Command = {
               ].join("\n"),
             });
           });
+
+          await interaction.reply({ embeds: [embed] });
+          break;
+        }
+
+        case "change": {
+          const user = interaction.options.getUser("user")!;
+          const newReason = interaction.options.getString("new_reason")!;
+
+          // Check if user is blacklisted
+          const currentInfo = blacklistManager.getBlacklistInfo(user.id);
+          if (!currentInfo) {
+            await interaction.reply({
+              embeds: [
+                new EmbedBuilder()
+                  .setColor("#ff3838")
+                  .setDescription("❌ This user is not blacklisted!"),
+              ],
+              flags: MessageFlags.Ephemeral,
+            });
+            return;
+          }
+
+          // Change the reason
+          await blacklistManager.changeReason(user.id, newReason);
+
+          const embed = new EmbedBuilder()
+            .setColor("#00ff00")
+            .setTitle("Blacklist Reason Updated")
+            .setDescription(`Updated blacklist reason for ${user.tag}`)
+            .addFields(
+              { name: "User", value: user.tag },
+              { name: "Old Reason", value: currentInfo.reason },
+              { name: "New Reason", value: newReason },
+            )
+            .setTimestamp();
 
           await interaction.reply({ embeds: [embed] });
           break;

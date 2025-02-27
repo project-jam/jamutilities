@@ -54,11 +54,25 @@ export class BlacklistManager {
         const [id, username, reason, timestamp] = line
           .split("=")
           .map((part) => part.trim());
-        if (id && username && reason) {
+
+        if (id && username && reason && timestamp) {
+          let timestampValue: number;
+          if (timestamp.includes("/")) {
+            // Format: MM/DD/YYYY/HH:mm:ss
+            const [date, time] = timestamp.split("/");
+            const [month, day, year] = date.split("/");
+            timestampValue = new Date(
+              `${year}-${month}-${day}T${time}`,
+            ).getTime();
+          } else {
+            // Old format: Unix timestamp
+            timestampValue = parseInt(timestamp);
+          }
+
           newBlacklist.set(id, {
             username,
             reason,
-            timestamp: parseInt(timestamp) || Date.now(),
+            timestamp: timestampValue,
           });
         }
       });
@@ -79,10 +93,23 @@ export class BlacklistManager {
       this.fileWatcher?.removeAllListeners();
 
       const content = Array.from(this.blacklistedUsers.entries())
-        .map(
-          ([id, entry]) =>
-            `${id}=${entry.username}=${entry.reason}=${entry.timestamp}`,
-        )
+        .map(([id, entry]) => {
+          // Format: MM/DD/YYYY/HH:mm:ss
+          const date = new Date(entry.timestamp);
+          const formattedDate = date.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          });
+          const formattedTime = date.toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false,
+          });
+
+          return `${id}=${entry.username}=${entry.reason}=${formattedDate}/${formattedTime}`;
+        })
         .join("\n");
 
       await fs.writeFile(this.blacklistPath, content);
@@ -111,6 +138,9 @@ export class BlacklistManager {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
       });
       Logger.info(`Blacklisted user with ID ${userId} on ${date}`);
     } catch (error) {
@@ -133,12 +163,37 @@ export class BlacklistManager {
     }
   }
 
+  public async changeReason(userId: string, newReason: string): Promise<void> {
+    try {
+      const currentEntry = this.blacklistedUsers.get(userId);
+      if (!currentEntry) {
+        throw new Error("User not found in blacklist");
+      }
+
+      // Update the reason while keeping other data the same
+      this.blacklistedUsers.set(userId, {
+        ...currentEntry,
+        reason: newReason,
+      });
+
+      await this.saveBlacklist();
+      Logger.info(`Updated blacklist reason for user ${userId}: ${newReason}`);
+    } catch (error) {
+      Logger.error(
+        `Failed to update blacklist reason for user: ${userId}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
   public searchBlacklist(query: string): Array<[string, BlacklistEntry]> {
     query = query.toLowerCase();
     const results = Array.from(this.blacklistedUsers.entries()).filter(
       ([id, entry]) => {
         return (
           id.toLowerCase().includes(query) ||
+          entry.username.toLowerCase().includes(query) ||
           entry.reason.toLowerCase().includes(query)
         );
       },
@@ -158,6 +213,9 @@ export class BlacklistManager {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
       });
       Logger.debug(
         `Retrieved blacklist info for ID ${userId} (Blacklisted on ${date})`,

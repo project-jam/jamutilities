@@ -61,11 +61,11 @@ Currently, we have those options:
 It gets created on a file called `blacklist.env` and it's __**ignored**__ on git by default.
 To manually create one, create the file, and look at this template:
 
-`useridhere=usernamehere=reason`
+`useridhere=usernamehere=reason=day-month-year/hour:minute:second`
 
 like:
 
-`756529025719074846=omarplayz.=example reason`
+`756529025719074846=omarplayz.=example reason=01-01-2025/00:00:00`
 
 > [!WARNING]
 > Do NOT delete your `blacklist.env` file, otherwise it'll just be gone... very VERY gone...
