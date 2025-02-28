@@ -167,7 +167,7 @@ export const command: Command = {
                 `**ID:** \`${id}\``,
                 `**Username:** ${entry.username}`,
                 `**Reason:** ${entry.reason}`,
-                `**Added:** <t:${Math.floor(entry.timestamp / 1000)}:R>`,
+                `**Added:** ${entry.timestamp}`, // Shows date directly from blacklist.env
               ].join("\n"),
             });
           });
@@ -203,10 +203,6 @@ export const command: Command = {
               { name: "User", value: user.tag },
               { name: "Old Reason", value: currentInfo.reason },
               { name: "New Reason", value: newReason },
-              {
-                name: "Blacklisted Since",
-                value: `<t:${Math.floor(currentInfo.timestamp / 1000)}:R>`,
-              },
             )
             .setTimestamp();
 

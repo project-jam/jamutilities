@@ -51,28 +51,22 @@ export class BlacklistManager {
 
       const newBlacklist = new Map<string, BlacklistEntry>();
       lines.forEach((line) => {
-        const [id, username, reason, timestamp] = line
+        const [id, username, reason, dateString] = line
           .split("=")
           .map((part) => part.trim());
 
-        if (id && username && reason && timestamp) {
-          let timestampValue: number;
-          if (timestamp.includes("/")) {
-            // Convert date string to timestamp
-            const [date, time] = timestamp.split("/");
-            const [month, day, year] = date.split("/");
-            timestampValue = new Date(
-              `${year}-${month}-${day}T${time}`,
-            ).getTime();
-          } else {
-            // Already a timestamp
-            timestampValue = parseInt(timestamp);
-          }
+        if (id && username && reason && dateString) {
+          // Convert MM/DD/YYYY/HH:mm:ss to Unix timestamp
+          const [datePart, timePart] = dateString.split("/");
+          const [month, day, year] = datePart.split("/");
+          const timestamp = Math.floor(
+            new Date(`${year}-${month}-${day}T${timePart}`).getTime() / 1000,
+          );
 
           newBlacklist.set(id, {
             username,
             reason,
-            timestamp: timestampValue, // Always store as number
+            timestamp,
           });
         }
       });
@@ -94,20 +88,23 @@ export class BlacklistManager {
 
       const content = Array.from(this.blacklistedUsers.entries())
         .map(([id, entry]) => {
-          const date = new Date(entry.timestamp);
-          const formattedDate = date.toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          });
-          const formattedTime = date.toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: false,
-          });
+          // Keep the original date format in the file
+          const date = new Date(entry.timestamp * 1000);
+          const formatted =
+            date.toLocaleDateString("en-US", {
+              month: "2-digit",
+              day: "2-digit",
+              year: "numeric",
+            }) +
+            "/" +
+            date.toLocaleTimeString("en-US", {
+              hour12: false,
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            });
 
-          return `${id}=${entry.username}=${entry.reason}=${formattedDate}/${formattedTime}`;
+          return `${id}=${entry.username}=${entry.reason}=${formatted}`;
         })
         .join("\n");
 
@@ -125,23 +122,14 @@ export class BlacklistManager {
     reason: string,
   ): Promise<void> {
     try {
-      const timestamp = Date.now();
+      const timestamp = Math.floor(Date.now() / 1000); // Store as seconds
       this.blacklistedUsers.set(userId, {
         username,
         reason,
         timestamp,
       });
       await this.saveBlacklist();
-
-      const date = new Date(timestamp).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      });
-      Logger.info(`Blacklisted user with ID ${userId} on ${date}`);
+      Logger.info(`Blacklisted user with ID ${userId}`);
     } catch (error) {
       Logger.error(`Failed to blacklist user: ${userId}`, error);
       throw error;

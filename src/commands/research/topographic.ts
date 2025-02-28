@@ -102,7 +102,7 @@ async function handleTopographicLines(
     }
 
     // Construct API URL
-    const apiUrl = `https://api.project-jam.is-a.dev/api/v0/topographic-lines?width=${width}&height=${height}&thickness=${thickness}&lineColor=${lineColor}&bgColor=${bgColor}`;
+    const apiUrl = `https://api.project-jam.is-a.dev/api/v0/image/topographic-lines?width=${width}&height=${height}&thickness=${thickness}&lineColor=${lineColor}&bgColor=${bgColor}`;
 
     // Fetch the image
     const response = await fetch(apiUrl);
