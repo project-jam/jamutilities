@@ -20,6 +20,7 @@
     "discord.js": "^14.17.3",
     "dotenv": "^16.4.7",
     "fast-average-color-node": "^3.1.0",
+    "figlet": "^1.8.0",
     "gradient-string": "^3.0.0",
     "libsodium-wrappers": "^0.7.15",
     "miniget": "^4.2.3",
