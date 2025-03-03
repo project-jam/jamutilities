@@ -81,7 +81,7 @@ async function handleImageSearch(interaction: ChatInputCommandInteraction) {
     let currentPage = 0;
 
     const response = await fetch(
-      `https://api.project-jam.is-a.dev/api/v0/image-search/google?q=${encodeURIComponent(query)}&lang=${language}`,
+      `https://api.project-jam.is-a.dev/api/v0/image/image-search/google?q=${encodeURIComponent(query)}&lang=${language}`,
     );
 
     if (!response.ok) {
