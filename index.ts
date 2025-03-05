@@ -1,4 +1,3 @@
-import "dotenv/config";
 import {
   Client,
   GatewayIntentBits,
@@ -39,20 +38,8 @@ const statusMessages = [
   { text: "kisses being blown 💋", type: ActivityType.Watching },
   { text: "air kisses flying ✨", type: ActivityType.Watching },
   { text: "waves to members 👋", type: ActivityType.Watching },
-  { text: "the server grow 📈", type: ActivityType.Watching },
+  { text: "the server grow 🌱", type: ActivityType.Watching },
   { text: "commit messages 🖥️", type: ActivityType.Watching },
-  { text: "devious plans 😈", type: ActivityType.Watching },
-  { text: "evil laughs 🦹", type: ActivityType.Listening },
-  { text: "coins being flipped 🪙", type: ActivityType.Watching },
-  { text: "tickets being made ✉️", type: ActivityType.Watching },
-  { text: "with moderation ⚔️", type: ActivityType.Playing },
-  { text: "server stats 📊", type: ActivityType.Watching },
-  { text: "git pull origin main", type: ActivityType.Playing },
-  { text: "npm install success ✅", type: ActivityType.Watching },
-  { text: "bun install --force", type: ActivityType.Playing },
-  { text: "moderators at work 🛡️", type: ActivityType.Watching },
-  { text: "members having fun 🎮", type: ActivityType.Watching },
-  { text: "the chat flow 💭", type: ActivityType.Watching },
 ];
 
 function updateStatus() {
@@ -92,7 +79,8 @@ client.once("ready", async (c) => {
     await client.commandHandler.registerCommands();
     Logger.success(`Commands registered with Discord API!`);
   } catch (error) {
-    Logger.error(`Failed to initialize commands:`, error);
+    Logger.fatal("Failed to initialize commands: ", error);
+    process.exit(1);
   }
 
   Logger.ready("SYSTEM INFO", [
@@ -147,9 +135,7 @@ client.on("interactionCreate", async (interaction) => {
               },
               {
                 name: "Blacklisted Since",
-                value: blacklistInfo
-                  ? `<t:${Math.floor(blacklistInfo.timestamp / 1000)}:R>`
-                  : "Unknown",
+                value: `<t:${Math.floor(blacklistInfo.timestamp / 1000)}:R>`,
                 inline: true,
               },
             )
@@ -185,15 +171,15 @@ client.on("guildDelete", (guild) => {
 });
 
 client.on("error", (error) => {
-  Logger.error("Discord client error occurred:", error);
+  Logger.fatal("Discord client error occurred: ", error);
 });
 
 process.on("unhandledRejection", (error) => {
-  Logger.error("💀 Unhandled Promise Rejection:", error);
+  Logger.fatal("☆ Unhandled Promise Rejection: ", error);
 });
 
 process.on("uncaughtException", (error) => {
-  Logger.fatal("🔥 Uncaught Exception (Bot will restart):", error);
+  Logger.fatal("🔥 Uncaught Exception (Bot will restart): ", error);
 });
 
 process.on("SIGINT", () => {
@@ -215,6 +201,6 @@ client
   .login(process.env.DISCORD_TOKEN)
   .then(() => Logger.info("Discord connection established!"))
   .catch((error) => {
-    Logger.fatal("Failed to start the chaos engine:", error);
+    Logger.fatal("Failed to start the chaos engine: ", error);
     process.exit(1);
   });
