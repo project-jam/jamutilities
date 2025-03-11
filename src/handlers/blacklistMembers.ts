@@ -50,26 +50,32 @@ export class BlacklistManager {
       const lines = data.split("\n").filter((line) => line.trim());
 
       const newBlacklist = new Map<string, BlacklistEntry>();
-      lines.forEach((line) => {
+
+      for (const line of lines) {
         const [id, username, reason, dateString] = line
           .split("=")
           .map((part) => part.trim());
 
         if (id && username && reason && dateString) {
-          // Convert MM/DD/YYYY/HH:mm:ss to Unix timestamp
-          const [datePart, timePart] = dateString.split("/");
-          const [month, day, year] = datePart.split("/");
-          const timestamp = Math.floor(
-            new Date(`${year}-${month}-${day}T${timePart}`).getTime() / 1000,
-          );
-
-          newBlacklist.set(id, {
-            username,
-            reason,
-            timestamp,
-          });
+          // Keep the current timestamp instead of trying to parse the date
+          const currentEntry = this.blacklistedUsers.get(id);
+          if (currentEntry) {
+            // If entry exists, keep its timestamp
+            newBlacklist.set(id, {
+              username,
+              reason,
+              timestamp: currentEntry.timestamp,
+            });
+          } else {
+            // If it's a new entry, use current time
+            newBlacklist.set(id, {
+              username,
+              reason,
+              timestamp: Math.floor(Date.now() / 1000),
+            });
+          }
         }
-      });
+      }
 
       this.blacklistedUsers = newBlacklist;
       Logger.info(`Loaded ${this.blacklistedUsers.size} blacklist entries`);
@@ -88,22 +94,8 @@ export class BlacklistManager {
 
       const content = Array.from(this.blacklistedUsers.entries())
         .map(([id, entry]) => {
-          // Keep the original date format in the file
           const date = new Date(entry.timestamp * 1000);
-          const formatted =
-            date.toLocaleDateString("en-US", {
-              month: "2-digit",
-              day: "2-digit",
-              year: "numeric",
-            }) +
-            "/" +
-            date.toLocaleTimeString("en-US", {
-              hour12: false,
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            });
-
+          const formatted = `${String(date.getDate()).padStart(2, "0")}-${String(date.getMonth() + 1).padStart(2, "0")}-${date.getFullYear()}/${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}:${String(date.getSeconds()).padStart(2, "0")}`;
           return `${id}=${entry.username}=${entry.reason}=${formatted}`;
         })
         .join("\n");
@@ -122,7 +114,7 @@ export class BlacklistManager {
     reason: string,
   ): Promise<void> {
     try {
-      const timestamp = Math.floor(Date.now() / 1000); // Store as seconds
+      const timestamp = Math.floor(Date.now() / 1000);
       this.blacklistedUsers.set(userId, {
         username,
         reason,
@@ -193,21 +185,7 @@ export class BlacklistManager {
   }
 
   public getBlacklistInfo(userId: string): BlacklistEntry | null {
-    const info = this.blacklistedUsers.get(userId);
-    if (info) {
-      const date = new Date(info.timestamp).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      });
-      Logger.debug(
-        `Retrieved blacklist info for ID ${userId} (Blacklisted on ${date})`,
-      );
-    }
-    return info || null;
+    return this.blacklistedUsers.get(userId) || null;
   }
 
   public isBlacklisted(userId: string): boolean {

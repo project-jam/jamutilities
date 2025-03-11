@@ -167,7 +167,8 @@ export const command: Command = {
                 `**ID:** \`${id}\``,
                 `**Username:** ${entry.username}`,
                 `**Reason:** ${entry.reason}`,
-                `**Added:** ${entry.timestamp}`, // Shows date directly from blacklist.env
+                `**Added:** <t:${entry.timestamp}:F>`,
+                `**Relative Time:** <t:${entry.timestamp}:R>`,
               ].join("\n"),
             });
           });
