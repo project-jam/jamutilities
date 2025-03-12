@@ -17,6 +17,7 @@ interface BlueskyProfile {
   followersCount: number;
   followsCount: number;
   postsCount: number;
+  createdAt: string; // Use createdAt for join date
   indexedAt: string;
   viewer?: {
     muted: boolean;
@@ -173,7 +174,8 @@ export const command: Command = {
             value: [
               `🏷️ Handle: ${data.handle}`,
               `🆔 DID: ${data.did}`,
-              `📅 Joined: <t:${Math.floor(new Date(data.indexedAt).getTime() / 1000)}:R>`,
+              // Use createdAt instead of indexedAt for the join date
+              `📅 Joined: <t:${Math.floor(new Date(data.createdAt).getTime() / 1000)}:R>`,
             ].join("\n"),
             inline: true,
           },
