@@ -57,17 +57,34 @@ export class BlacklistManager {
           .map((part) => part.trim());
 
         if (id && username && reason && dateString) {
-          // Keep the current timestamp instead of trying to parse the date
-          const currentEntry = this.blacklistedUsers.get(id);
-          if (currentEntry) {
-            // If entry exists, keep its timestamp
+          try {
+            // Parse the date from the file format (DD-MM-YYYY/HH:MM:SS)
+            const [datePart, timePart] = dateString.split("/");
+            const [day, month, year] = datePart.split("-").map(Number);
+            const [hours, minutes, seconds] = timePart.split(":").map(Number);
+
+            // Month is 0-indexed in JavaScript Date
+            const date = new Date(
+              year,
+              month - 1,
+              day,
+              hours,
+              minutes,
+              seconds,
+            );
+            const timestamp = Math.floor(date.getTime() / 1000);
+
             newBlacklist.set(id, {
               username,
               reason,
-              timestamp: currentEntry.timestamp,
+              timestamp: timestamp,
             });
-          } else {
-            // If it's a new entry, use current time
+          } catch (error) {
+            // If date parsing fails, use current time as fallback
+            Logger.warn(
+              `Failed to parse date from blacklist entry: ${dateString}`,
+              error,
+            );
             newBlacklist.set(id, {
               username,
               reason,
