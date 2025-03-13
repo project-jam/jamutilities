@@ -113,6 +113,18 @@ export class CommandHandler {
     if (!command) return;
 
     try {
+      // Log the command execution with user ID
+      const commandName = interaction.commandName;
+      const subCommand = interaction.options.getSubcommand(false);
+      const fullCommand = subCommand
+        ? `${commandName} ${subCommand}`
+        : commandName;
+      const location = interaction.guild?.name || "DM";
+
+      Logger.command(
+        `${interaction.user.tag} [${interaction.user.id}] used /${fullCommand} in ${location}`,
+      );
+
       // Check if either the main command or the specific subcommand is disabled
       const commandString = interaction.options.getSubcommand(false)
         ? `${interaction.commandName} ${interaction.options.getSubcommand()}`
@@ -137,9 +149,6 @@ export class CommandHandler {
       }
 
       await command.execute(interaction);
-      Logger.command(
-        `${interaction.user.tag} used /${commandString} in ${interaction.guild?.name || "DM"}`,
-      );
     } catch (error) {
       Logger.error(
         `Command execution failed: ${interaction.commandName}`,

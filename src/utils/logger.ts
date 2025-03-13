@@ -20,7 +20,7 @@ const BOX = {
   separator: "╠════════════════════════════════════════════════════╣",
 };
 
-class Logger {
+export class Logger {
   private static logLevels = {
     [LogLevel.DEBUG]: 0,
     [LogLevel.INFO]: 1,
@@ -59,7 +59,7 @@ class Logger {
         output += chalk.bgRed.white(`[${level}] ${message}`);
         break;
       case LogLevel.COMMAND:
-        output += chalk.magenta(`[${level}] ${message}`);
+        output += chalk.magenta(`[${level}] 🎮 ${message}`);
         break;
       case LogLevel.EVENT:
         output += chalk.cyan(`[${level}] ${message}`);
@@ -72,8 +72,10 @@ class Logger {
     output = output.padEnd(BOX.top.length - 2) + BOX.side;
 
     if (error) {
-      // Display the full stack trace for errors and capture the message
-      const errorMessage = `${BOX.side} ${chalk.red(error.stack || error.message)}`.padEnd(BOX.top.length - 2) + BOX.side;
+      const errorMessage =
+        `${BOX.side} ${chalk.red(error.stack || error.message)}`.padEnd(
+          BOX.top.length - 2,
+        ) + BOX.side;
       return `${BOX.top}\n${output}\n${BOX.separator}\n${errorMessage}\n${BOX.bottom}`;
     }
 
@@ -115,21 +117,21 @@ class Logger {
     }
   }
 
-  static success(message: string) {
-    if (Logger.logLevels[Logger.level] <= Logger.logLevels[LogLevel.INFO]) {
-      console.log(Logger.formatMessage(LogLevel.READY, `✨ ${message}`));
-    }
-  }
-
   static command(message: string) {
     if (Logger.logLevels[Logger.level] <= Logger.logLevels[LogLevel.COMMAND]) {
-      console.log(Logger.formatMessage(LogLevel.COMMAND, `🎮 ${message}`));
+      console.log(Logger.formatMessage(LogLevel.COMMAND, message));
     }
   }
 
   static event(message: string) {
     if (Logger.logLevels[Logger.level] <= Logger.logLevels[LogLevel.EVENT]) {
-      console.log(Logger.formatMessage(LogLevel.EVENT, `📡 ${message}`));
+      console.log(Logger.formatMessage(LogLevel.EVENT, message));
+    }
+  }
+
+  static success(message: string) {
+    if (Logger.logLevels[Logger.level] <= Logger.logLevels[LogLevel.INFO]) {
+      console.log(Logger.formatMessage(LogLevel.READY, `✨ ${message}`));
     }
   }
 
@@ -168,5 +170,4 @@ class Logger {
 
 Logger.setLevel(LogLevel.DEBUG);
 
-export { Logger, LogLevel };
-
+export { LogLevel };

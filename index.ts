@@ -49,7 +49,6 @@ function updateStatus() {
 }
 
 client.once("ready", async (c) => {
-  // Log shard info if available
   const shardInfo = client.shard
     ? ` on shard [${client.shard.ids.join(", ")}]`
     : "";
@@ -149,14 +148,11 @@ client.on("interactionCreate", async (interaction) => {
     }
   }
 
-  // Add this line before handling the command to log with user ID
-  Logger.command(
-    `🎮 ${interaction.user.tag} [${interaction.user.id}] used /${interaction.commandName}${
-      interaction.options.getSubcommand(false)
-        ? ` ${interaction.options.getSubcommand()}`
-        : ""
-    } in ${interaction.guild?.name || "DM"}`,
-  );
+  // Single command log with proper formatting
+  const commandName = interaction.commandName;
+  const subCommand = interaction.options.getSubcommand(false);
+  const fullCommand = subCommand ? `${commandName} ${subCommand}` : commandName;
+  const location = interaction.guild?.name || "DM";
 
   await client.commandHandler.handleCommand(interaction);
 });
