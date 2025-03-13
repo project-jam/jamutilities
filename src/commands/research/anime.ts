@@ -29,46 +29,46 @@ interface AnimeResult {
     };
   };
   trailer: {
-    url: string;
-    embed_url: string;
+    url: string | null;
+    embed_url: string | null;
   };
   title: string;
-  title_english: string;
-  title_japanese: string;
-  type: string;
+  title_english: string | null;
+  title_japanese: string | null;
+  type: string | null;
   source: string;
-  episodes: number;
+  episodes: number | null;
   status: string;
   airing: boolean;
   aired: {
-    from: string;
-    to: string;
+    from: string | null;
+    to: string | null;
     string: string;
   };
   duration: string;
-  rating: string;
-  score: number;
-  scored_by: number;
-  rank: number;
-  popularity: number;
+  rating: string | null;
+  score: number | null;
+  scored_by: number | null;
+  rank: number | null;
+  popularity: number | null;
   members: number;
   favorites: number;
-  synopsis: string;
-  background: string;
-  season: string;
-  year: number;
-  studios: {
+  synopsis: string | null;
+  background: string | null;
+  season: string | null;
+  year: number | null;
+  studios: Array<{
     mal_id: number;
     type: string;
     name: string;
     url: string;
-  }[];
-  genres: {
+  }>;
+  genres: Array<{
     mal_id: number;
     type: string;
     name: string;
     url: string;
-  }[];
+  }>;
 }
 
 export const command: Command = {
@@ -148,11 +148,8 @@ async function handleAnimeSearch(
   interaction: ChatInputCommandInteraction,
   title: string,
 ) {
-  // Enforce SFW filter in the API call
   const response = await fetch(
-    `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(
-      title,
-    )}&sfw=true&limit=10`,
+    `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&sfw=true&limit=10`,
   );
 
   if (!response.ok) {
@@ -166,18 +163,16 @@ async function handleAnimeSearch(
       embeds: [
         new EmbedBuilder()
           .setColor("#ff3838")
-          .setDescription(`❌ No suitable anime found matching "${title}".`),
+          .setDescription(`❌ No results found for "${title}"`),
       ],
     });
     return;
   }
 
-  // Show paginated results if multiple are found
   await showPaginatedResults(interaction, data.data, "search");
 }
 
 async function handleRandomAnime(interaction: ChatInputCommandInteraction) {
-  // Explicitly request SFW content only
   const response = await fetch(
     "https://api.jikan.moe/v4/random/anime?sfw=true",
   );
@@ -200,12 +195,6 @@ async function handleRandomAnime(interaction: ChatInputCommandInteraction) {
     return;
   }
 
-  // Check if the result is safe (double check despite API filter)
-  if (anime.rating && anime.rating.includes("Rx")) {
-    return handleRandomAnime(interaction); // Try again if NSFW content slipped through
-  }
-
-  // Send the single result
   await sendAnimeEmbed(interaction, anime);
 }
 
@@ -213,7 +202,6 @@ async function handleTopAnime(
   interaction: ChatInputCommandInteraction,
   type: string | null,
 ) {
-  // Build API URL with type filter if specified
   let apiUrl = "https://api.jikan.moe/v4/top/anime?sfw=true&limit=10";
   if (type) {
     apiUrl += `&type=${type}`;
@@ -238,7 +226,6 @@ async function handleTopAnime(
     return;
   }
 
-  // Show paginated results
   await showPaginatedResults(interaction, data.data, "top");
 }
 
@@ -249,23 +236,6 @@ async function showPaginatedResults(
 ) {
   let currentPage = 0;
 
-  // Filter out any potentially NSFW content that slipped through
-  const safeAnimeList = animeList.filter(
-    (anime) => !(anime.rating && anime.rating.includes("Rx")),
-  );
-
-  if (safeAnimeList.length === 0) {
-    await interaction.editReply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor("#ff3838")
-          .setDescription("❌ No suitable anime found."),
-      ],
-    });
-    return;
-  }
-
-  // Create pagination buttons
   const createButtons = (page: number) => {
     return new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
@@ -277,29 +247,22 @@ async function showPaginatedResults(
         .setCustomId("next")
         .setEmoji("▶️")
         .setStyle(ButtonStyle.Primary)
-        .setDisabled(page === safeAnimeList.length - 1),
+        .setDisabled(page === animeList.length - 1),
     );
   };
 
-  // Send the initial anime embed
   const message = await interaction.editReply({
     embeds: [
-      createAnimeEmbed(
-        safeAnimeList[currentPage],
-        currentPage,
-        safeAnimeList.length,
-      ),
+      createAnimeEmbed(animeList[currentPage], currentPage, animeList.length),
     ],
-    components: safeAnimeList.length > 1 ? [createButtons(currentPage)] : [],
+    components: animeList.length > 1 ? [createButtons(currentPage)] : [],
   });
 
-  // If only one result, no need for pagination
-  if (safeAnimeList.length <= 1) return;
+  if (animeList.length <= 1) return;
 
-  // Create collector for button interactions
   const collector = message.createMessageComponentCollector({
     componentType: ComponentType.Button,
-    time: 300000, // 5 minutes
+    time: 300000,
   });
 
   collector.on("collect", async (i) => {
@@ -311,21 +274,15 @@ async function showPaginatedResults(
       return;
     }
 
-    // Update current page based on button clicked
     if (i.customId === "prev") {
       currentPage = Math.max(0, currentPage - 1);
     } else if (i.customId === "next") {
-      currentPage = Math.min(safeAnimeList.length - 1, currentPage + 1);
+      currentPage = Math.min(animeList.length - 1, currentPage + 1);
     }
 
-    // Update the message with the new page
     await i.update({
       embeds: [
-        createAnimeEmbed(
-          safeAnimeList[currentPage],
-          currentPage,
-          safeAnimeList.length,
-        ),
+        createAnimeEmbed(animeList[currentPage], currentPage, animeList.length),
       ],
       components: [createButtons(currentPage)],
     });
@@ -333,10 +290,7 @@ async function showPaginatedResults(
 
   collector.on("end", async () => {
     try {
-      // Remove buttons when time expires
-      await message.edit({
-        components: [],
-      });
+      await message.edit({ components: [] });
     } catch (error) {
       // Message may have been deleted
     }
@@ -348,78 +302,92 @@ function createAnimeEmbed(
   currentPage: number,
   totalPages: number,
 ) {
-  // Truncate synopsis if it's too long
   let synopsis = anime.synopsis || "No synopsis available.";
-  if (synopsis.length > 1024) {
-    synopsis = synopsis.substring(0, 1021) + "...";
+  if (synopsis.length > 2048) {
+    synopsis = synopsis.substring(0, 2045) + "...";
   }
 
-  // Get studios as a comma-separated string
   const studios =
     anime.studios?.map((studio) => studio.name).join(", ") || "Unknown";
-
-  // Get genres as a comma-separated string
   const genres = anime.genres?.map((genre) => genre.name).join(", ") || "None";
 
-  // Create the embed
   const embed = new EmbedBuilder()
-    .setColor("#2E51A2") // MAL blue color
-    .setTitle(anime.title || "Unknown Title")
+    .setColor("#2E51A2")
+    .setTitle(anime.title)
     .setURL(anime.url)
     .setDescription(
-      anime.title_english ? `English: ${anime.title_english}` : "",
-    )
-    .setThumbnail(anime.images?.jpg?.image_url)
-    .addFields(
-      {
-        name: "📊 Rating",
-        value: anime.score
-          ? `${anime.score}/10 (${anime.scored_by} votes)`
-          : "No rating yet",
-        inline: true,
-      },
-      {
-        name: "📺 Type",
-        value: `${anime.type || "Unknown"} • ${anime.episodes || "?"} episode(s)`,
-        inline: true,
-      },
-      {
-        name: "📆 Aired",
-        value: anime.aired?.string || "Unknown",
-        inline: true,
-      },
-      {
-        name: "📝 Synopsis",
-        value: synopsis,
-      },
-      {
-        name: "🎭 Genres",
-        value: genres,
-        inline: true,
-      },
-      {
-        name: "🎨 Studios",
-        value: studios,
-        inline: true,
-      },
-      {
-        name: "📊 Status",
-        value: anime.status || "Unknown",
-        inline: true,
-      },
-    )
-    .setFooter({
-      text:
-        totalPages > 1
-          ? `Anime ${currentPage + 1}/${totalPages} • Rank #${anime.rank || "?"}`
-          : `Rank #${anime.rank || "?"} • Popularity #${anime.popularity || "?"}`,
-    })
-    .setTimestamp();
+      anime.title_english
+        ? `English: ${anime.title_english}`
+        : "No English title available",
+    );
 
-  // Add image if available
+  if (anime.images?.jpg?.image_url) {
+    embed.setThumbnail(anime.images.jpg.image_url);
+  }
+
+  // Add fields in chunks to avoid length issues
+  if (anime.score) {
+    embed.addFields({
+      name: "📊 Rating",
+      value: `${anime.score}/10 ${anime.scored_by ? `(${anime.scored_by.toLocaleString()} votes)` : ""}`,
+      inline: true,
+    });
+  }
+
+  embed.addFields(
+    {
+      name: "📺 Type",
+      value: `${anime.type || "Unknown"} • ${anime.episodes || "?"} episode(s)`,
+      inline: true,
+    },
+    {
+      name: "📆 Aired",
+      value: anime.aired?.string || "Unknown",
+      inline: true,
+    },
+  );
+
+  // Split synopsis into chunks if needed
+  const synopsisChunks = synopsis.match(/.{1,1024}/g) || [
+    "No synopsis available.",
+  ];
+  synopsisChunks.forEach((chunk, index) => {
+    embed.addFields({
+      name: index === 0 ? "📝 Synopsis" : "📝 Synopsis (continued)",
+      value: chunk,
+    });
+  });
+
+  embed.addFields(
+    {
+      name: "🎭 Genres",
+      value: genres,
+      inline: true,
+    },
+    {
+      name: "🎨 Studios",
+      value: studios,
+      inline: true,
+    },
+    {
+      name: "📊 Status",
+      value: anime.status || "Unknown",
+      inline: true,
+    },
+  );
+
+  embed.setFooter({
+    text:
+      totalPages > 1
+        ? `Anime ${currentPage + 1}/${totalPages} • ${anime.rank ? `Rank #${anime.rank}` : "Unranked"}`
+        : `${anime.rank ? `Rank #${anime.rank}` : "Unranked"} • ${anime.popularity ? `Popularity #${anime.popularity}` : ""}`,
+  });
+
   if (anime.images?.jpg?.large_image_url) {
     embed.setImage(anime.images.jpg.large_image_url);
   }
+
+  embed.setTimestamp();
 
   return embed;
 }

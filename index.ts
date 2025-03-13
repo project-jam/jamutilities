@@ -149,6 +149,15 @@ client.on("interactionCreate", async (interaction) => {
     }
   }
 
+  // Add this line before handling the command to log with user ID
+  Logger.command(
+    `🎮 ${interaction.user.tag} [${interaction.user.id}] used /${interaction.commandName}${
+      interaction.options.getSubcommand(false)
+        ? ` ${interaction.options.getSubcommand()}`
+        : ""
+    } in ${interaction.guild?.name || "DM"}`,
+  );
+
   await client.commandHandler.handleCommand(interaction);
 });
 
