@@ -43,7 +43,7 @@ Since it is interactive, you can follow the steps.
 > [!NOTE]
 > Make sure to restart your terminal after using the scripts **IF** and **IF** (yes, twice, stfu) the packages or commands were missing
 >
-> Linux interactive installer ix coming soon, stay tuned!
+> Linux interactive installer is coming soon, stay tuned!
 
 ## Universally
 
