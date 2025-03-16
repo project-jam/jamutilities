@@ -186,12 +186,16 @@ function normalizeUnicode(input: string): string {
 function containsProfaneWords(input: string): boolean {
   if (!input) return false;
 
+  // Log the original query
+  Logger.info(`Checking query: ${input}`);
+
   // Normalize input to handle accented characters
   const normalizedInput = normalizeUnicode(input.toLowerCase());
 
   // Check the original input
   for (let word of swearWordsList) {
     if (word && normalizedInput.includes(word)) {
+      Logger.warn(`Profane word detected in query: ${input}`);
       return true;
     }
   }
@@ -213,6 +217,9 @@ function containsProfaneWords(input: string): boolean {
   // Check the normalized version against the swear words list
   for (let word of swearWordsList) {
     if (word && normalizedWithHomoglyphs.includes(word)) {
+      Logger.warn(
+        `Profane word detected in normalized query: ${normalizedWithHomoglyphs}`,
+      );
       return true;
     }
   }
@@ -297,6 +304,9 @@ async function handleImageSearch(interaction: ChatInputCommandInteraction) {
     const query = interaction.options.getString("query", true);
     const language = interaction.options.getString("language") || "en";
     let currentPage = 0;
+
+    // Log the query
+    Logger.info(`Processing image search query: ${query}`);
 
     if (containsProfaneWords(query)) {
       await interaction
