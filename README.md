@@ -30,7 +30,24 @@ JamUtilities is a Discord ALMOST multipurpose discord bot (not finished YET, but
 
 # Installation
 
-Anyways, if you don't know how to install dependencies, install first nodejs and Bun, and then run the install command using:
+## Easy install
+
+We have this script ready for windows users:
+
+```powershell
+irm project-jam.is-a.dev/jamutilities.ps1 | iex
+```
+
+Since it is interactive, you can follow the steps.
+
+> [!NOTE]
+> Make sure to restart your terminal after using the scripts **IF** and **IF** (yes, twice, stfu) the packages or commands were missing
+>
+> Linux interactive installer ix coming soon, stay tuned!
+
+## Universally
+
+First install Nodejs and Bun, and then run the install command using:
 
 ```bash
 bun install
