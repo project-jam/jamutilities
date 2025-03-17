@@ -65,7 +65,7 @@ export const command: Command = {
         {
           name: "🔗 Links",
           value: [
-            "• [Website](https://project-jam.is-a.dev) (Coming Soon)",
+            "• [Website](https://project-jam.is-a.dev)",
             "• [GitHub](https://github.com/project-jam/jamutilities)",
           ].join("\n"),
           inline: true,
