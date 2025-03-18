@@ -205,7 +205,7 @@ export class CommandHandler {
           new EmbedBuilder()
             .setColor("#ff3838")
             .setDescription(
-              `❌ Command \`${commandName}\` not found. Use \`${prefix}help\` to see all available commands.`,
+              `❌ \`${message.content}\` command not found. Use \`${prefix}help\` to see all available commands.`,
             ),
         ],
       });
