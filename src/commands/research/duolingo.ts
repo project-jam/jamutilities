@@ -19,7 +19,6 @@ interface DuolingoUser {
     learningLanguage: string;
     fromLanguage: string;
     xp: number;
-    crowns: number;
   }[];
   streakData: {
     currentStreak: {
@@ -30,6 +29,7 @@ interface DuolingoUser {
   };
   hasPlus: boolean;
   picture: string;
+  creationDate: number;
 }
 
 interface DuolingoResponse {
@@ -66,6 +66,11 @@ const languageEmojis: { [key: string]: string } = {
   he: "🇮🇱",
 };
 
+function getCurrentUTCTime(): string {
+  const now = new Date();
+  return now.toISOString().replace("T", " ").slice(0, 19);
+}
+
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("duolingo")
@@ -78,17 +83,20 @@ export const command: Command = {
         .setRequired(true),
     ),
 
-  // Add prefix command configuration
   prefix: {
     aliases: ["duolingo", "duo"],
-    usage: "<username>", // Example: jam!duo username
+    usage: "<username>",
   },
 
   async execute(
     interaction: ChatInputCommandInteraction | Message,
     isPrefix = false,
   ) {
-    // Handle different ways to defer/show typing
+    const executorName = isPrefix
+      ? (interaction as Message).author.tag
+      : (interaction as ChatInputCommandInteraction).user.tag;
+    const currentTime = getCurrentUTCTime();
+
     if (isPrefix) {
       await (interaction as Message).channel.sendTyping();
     } else {
@@ -96,7 +104,6 @@ export const command: Command = {
     }
 
     try {
-      // Get username from appropriate source
       const username = isPrefix
         ? (interaction as Message).content
             .slice(process.env.PREFIX?.length || 0)
@@ -108,7 +115,6 @@ export const command: Command = {
             true,
           );
 
-      // Check if username was provided
       if (!username) {
         const errorEmbed = new EmbedBuilder()
           .setColor("#ff3838")
@@ -118,6 +124,9 @@ export const command: Command = {
             value: isPrefix
               ? `${process.env.PREFIX || "jam!"}duolingo <username>`
               : "/duolingo username:<username>",
+          })
+          .setFooter({
+            text: `Requested by ${executorName} • ${currentTime} UTC`,
           });
 
         if (isPrefix) {
@@ -145,7 +154,10 @@ export const command: Command = {
       if (!data.users || data.users.length === 0) {
         const notFoundEmbed = new EmbedBuilder()
           .setColor("#ff3838")
-          .setDescription("❌ User not found!");
+          .setDescription("❌ User not found!")
+          .setFooter({
+            text: `Requested by ${executorName} • ${currentTime} UTC`,
+          });
 
         if (isPrefix) {
           await (interaction as Message).reply({ embeds: [notFoundEmbed] });
@@ -159,13 +171,13 @@ export const command: Command = {
 
       const user = data.users[0];
 
-      // Format courses information
+      // Format courses information without crowns
       const coursesInfo = user.courses
         .map(
           (course) =>
             `${languageEmojis[course.learningLanguage] || "🌐"} **${
               course.title
-            }**\n╰ XP: ${course.xp.toLocaleString()} | Crowns: ${course.crowns.toLocaleString()}`,
+            }**\n╰ XP: ${course.xp.toLocaleString()}`,
         )
         .join("\n");
 
@@ -191,7 +203,7 @@ export const command: Command = {
           },
           {
             name: "👑 Subscription",
-            value: user.hasPlus ? "Super Duolingo / Duolingo Max" : "Free", // Updated to show Super/Max
+            value: user.hasPlus ? "Super Duolingo / Duolingo Max" : "Free",
             inline: true,
           },
           {
@@ -200,11 +212,8 @@ export const command: Command = {
           },
         )
         .setFooter({
-          text: `Joined Duolingo: ${new Date(
-            user.creationDate * 1000,
-          ).toLocaleDateString()}`,
-        })
-        .setTimestamp();
+          text: `Requested by ${executorName} • ${currentTime} UTC`,
+        });
 
       // Add streak information if available
       if (user.streakData?.currentStreak) {
@@ -216,7 +225,6 @@ export const command: Command = {
         });
       }
 
-      // Send the embed
       if (isPrefix) {
         await (interaction as Message).reply({ embeds: [embed] });
       } else {
@@ -230,7 +238,10 @@ export const command: Command = {
         .setColor("#ff3838")
         .setDescription(
           "❌ Failed to fetch Duolingo profile. Please check the username and try again.",
-        );
+        )
+        .setFooter({
+          text: `Requested by ${executorName} • ${currentTime} UTC`,
+        });
 
       if (isPrefix) {
         await (interaction as Message).reply({ embeds: [errorEmbed] });
