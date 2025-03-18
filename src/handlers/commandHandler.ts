@@ -90,7 +90,7 @@ export class CommandHandler {
         })
         .join(", ");
 
-      Logger.info(`${commandList} (${category})`);
+      Logger.info(`${category}: ${commandList}`);
     }
 
     Logger.success(
@@ -199,14 +199,25 @@ export class CommandHandler {
       this.commands.get(commandName) ||
       this.commands.get(this.aliases.get(commandName) || "");
 
-    if (!command) return;
+    if (!command) {
+      await message.channel.send({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("#ff3838")
+            .setDescription(
+              `❌ Command \`${commandName}\` not found. Use \`${prefix}help\` to see all available commands.`,
+            ),
+        ],
+      });
+      return;
+    }
 
     // Check if command is disabled
     if (
       this.isCommandDisabled(commandName) &&
       message.author.id !== process.env.OWNER_ID
     ) {
-      await message.reply({
+      await message.channel.send({
         embeds: [
           new EmbedBuilder()
             .setColor("#ff3838")
@@ -214,6 +225,13 @@ export class CommandHandler {
         ],
       });
       return;
+    }
+
+    // Special handling for commands with subcommands that need quotes
+    if (commandName === "image" && args[0] === "search") {
+      const searchQuery = args.slice(1).join(" ");
+      args[0] = "search";
+      args[1] = searchQuery;
     }
 
     // Handle cooldowns
@@ -232,12 +250,12 @@ export class CommandHandler {
 
         if (now < expirationTime) {
           const timeLeft = (expirationTime - now) / 1000;
-          await message.reply({
+          await message.channel.send({
             embeds: [
               new EmbedBuilder()
                 .setColor("#ff3838")
                 .setDescription(
-                  `Please wait ${timeLeft.toFixed(1)} more seconds before using this command again.`,
+                  `⏰ Please wait ${timeLeft.toFixed(1)} more seconds before using this command again.`,
                 ),
             ],
           });
@@ -256,7 +274,7 @@ export class CommandHandler {
       await command.execute(message, true);
     } catch (error) {
       Logger.error(`Error executing prefix command ${commandName}:`, error);
-      await message.reply({
+      await message.channel.send({
         embeds: [
           new EmbedBuilder()
             .setColor("#ff3838")

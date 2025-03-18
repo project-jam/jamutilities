@@ -54,7 +54,7 @@ export const command: Command = {
     .addStringOption((option) =>
       option
         .setName("command")
-        .setDescription("The command to toggle (e.g., 'image search', 'help')")
+        .setDescription('The command to toggle (e.g., "image search", "help")')
         .setRequired(true),
     )
     .addBooleanOption((option) =>
@@ -66,7 +66,7 @@ export const command: Command = {
 
   prefix: {
     aliases: ["toggle", "cmd", "command"],
-    usage: "<command> <on/off/enable/disable>", // Example: jam!toggle help off
+    usage: '"<command>" <on/off/enable/disable>',
   },
 
   async execute(
@@ -77,13 +77,14 @@ export const command: Command = {
     const userId = isPrefix
       ? (interaction as Message).author.id
       : (interaction as ChatInputCommandInteraction).user.id;
+
     if (userId !== process.env.OWNER_ID) {
       const errorEmbed = new EmbedBuilder()
         .setColor("#ff3838")
         .setDescription("❌ This command is restricted to the bot owner only!");
 
       if (isPrefix) {
-        await (interaction as Message).reply({ embeds: [errorEmbed] });
+        await (interaction as Message).channel.send({ embeds: [errorEmbed] });
       } else {
         await (interaction as ChatInputCommandInteraction).reply({
           embeds: [errorEmbed],
@@ -94,39 +95,44 @@ export const command: Command = {
     }
 
     let commandInput: string;
-    let disable: boolean;
+    let action: string | undefined;
+    const prefix = process.env.PREFIX || "jam!";
 
     if (isPrefix) {
       // Handle prefix command parsing
-      const args = (interaction as Message).content
+      const message = interaction as Message;
+      const args = message.content
         .slice(process.env.PREFIX?.length || 0)
         .trim()
-        .split(/ +/g)
-        .slice(1);
+        .split(/ +/g);
 
       if (args.length < 2) {
-        const prefix = process.env.PREFIX || "jam!";
-        const usageEmbed = new EmbedBuilder()
-          .setColor("#ff3838")
-          .setDescription("❌ Invalid usage!")
-          .addFields({
-            name: "Usage",
-            value: [
-              `${prefix}toggle <command> <on/off/enable/disable>`,
-              "Example: `jam!toggle help off`",
-              "\nFor commands with subcommands:",
-              `${prefix}toggle "image search" off`,
-            ].join("\n"),
-          });
-
-        await (interaction as Message).reply({ embeds: [usageEmbed] });
+        await message.channel.send({
+          embeds: [
+            new EmbedBuilder()
+              .setColor("#ff3838")
+              .setDescription("❌ Invalid usage!")
+              .addFields({
+                name: "Usage",
+                value: [
+                  `${prefix}toggle "<command>" <on/off/enable/disable>`,
+                  "",
+                  "Examples:",
+                  `${prefix}toggle "image search" off`,
+                  `${prefix}toggle "help" disable`,
+                  "",
+                  "Note: Commands with spaces must be wrapped in quotes",
+                ].join("\n"),
+              }),
+          ],
+        });
         return;
       }
 
-      // Handle quoted command names (for subcommands)
-      if (args[0].startsWith('"') && args.length > 2) {
+      // Handle quoted command names
+      if (args[1].startsWith('"')) {
         const quotedParts = [];
-        let i = 0;
+        let i = 1;
         while (i < args.length && !args[i].endsWith('"')) {
           quotedParts.push(args[i].replace(/^"/, ""));
           i++;
@@ -134,27 +140,40 @@ export const command: Command = {
         if (i < args.length) {
           quotedParts.push(args[i].replace(/"$/, ""));
           commandInput = quotedParts.join(" ");
-          const action = args[i + 1]?.toLowerCase();
-          disable = action === "off" || action === "disable";
+          action = args[i + 1]?.toLowerCase();
         } else {
-          commandInput = args[0];
-          const action = args[1]?.toLowerCase();
-          disable = action === "off" || action === "disable";
+          commandInput = args[1].replace(/"/g, "");
+          action = args[2]?.toLowerCase();
         }
       } else {
-        commandInput = args[0];
-        const action = args[1]?.toLowerCase();
-        disable = action === "off" || action === "disable";
+        commandInput = args[1];
+        action = args[2]?.toLowerCase();
+      }
+
+      if (!action) {
+        await message.channel.send({
+          embeds: [
+            new EmbedBuilder()
+              .setColor("#ff3838")
+              .setDescription(
+                "❌ Please specify whether to enable or disable the command!",
+              )
+              .addFields({
+                name: "Usage",
+                value: `${prefix}toggle "<command>" <on/off/enable/disable>`,
+              }),
+          ],
+        });
+        return;
       }
     } else {
-      // Handle slash command options
-      commandInput = (interaction as ChatInputCommandInteraction).options
-        .getString("command", true)
-        .toLowerCase();
-      disable = (interaction as ChatInputCommandInteraction).options.getBoolean(
-        "disable",
-        true,
-      );
+      commandInput = (
+        interaction as ChatInputCommandInteraction
+      ).options.getString("command", true);
+      const disable = (
+        interaction as ChatInputCommandInteraction
+      ).options.getBoolean("disable", true);
+      action = disable ? "off" : "on";
     }
 
     try {
@@ -174,7 +193,7 @@ export const command: Command = {
           .setDescription(`❌ Command "${mainCommand}" does not exist.`);
 
         if (isPrefix) {
-          await (interaction as Message).reply({ embeds: [errorEmbed] });
+          await (interaction as Message).channel.send({ embeds: [errorEmbed] });
         } else {
           await (interaction as ChatInputCommandInteraction).reply({
             embeds: [errorEmbed],
@@ -198,7 +217,7 @@ export const command: Command = {
           );
 
         if (isPrefix) {
-          await (interaction as Message).reply({ embeds: [errorEmbed] });
+          await (interaction as Message).channel.send({ embeds: [errorEmbed] });
         } else {
           await (interaction as ChatInputCommandInteraction).reply({
             embeds: [errorEmbed],
@@ -213,6 +232,8 @@ export const command: Command = {
         ? `${mainCommand} ${subCommand}`
         : mainCommand;
 
+      const disable = action === "off" || action === "disable";
+
       await updateEnvFile(commandString, disable);
       commandHandler.toggleCommand(commandString, disable);
 
@@ -223,7 +244,7 @@ export const command: Command = {
         );
 
       if (isPrefix) {
-        await (interaction as Message).reply({ embeds: [successEmbed] });
+        await (interaction as Message).channel.send({ embeds: [successEmbed] });
       } else {
         await (interaction as ChatInputCommandInteraction).reply({
           embeds: [successEmbed],
@@ -231,16 +252,16 @@ export const command: Command = {
         });
       }
     } catch (error) {
-      Logger.error(`Failed to toggle command:`, error);
+      Logger.error("Failed to toggle command:", error);
 
       const errorEmbed = new EmbedBuilder()
         .setColor("#ff3838")
         .setDescription(
-          `❌ Failed to ${disable ? "disable" : "enable"} command: ${error.message}`,
+          `❌ Failed to ${action === "off" || action === "disable" ? "disable" : "enable"} command: ${error.message}`,
         );
 
       if (isPrefix) {
-        await (interaction as Message).reply({ embeds: [errorEmbed] });
+        await (interaction as Message).channel.send({ embeds: [errorEmbed] });
       } else {
         await (interaction as ChatInputCommandInteraction).reply({
           embeds: [errorEmbed],
