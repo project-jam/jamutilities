@@ -93,6 +93,11 @@ async function cleanupFiles(): Promise<string[]> {
   }
 }
 
+function getCurrentUTCTime(): string {
+  const now = new Date();
+  return now.toISOString().replace("T", " ").slice(0, 19);
+}
+
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("stop")
@@ -105,40 +110,37 @@ export const command: Command = {
         .setRequired(false),
     ),
 
-  // Add prefix command configuration
   prefix: {
     aliases: ["stop"],
-    usage: "[force]", // Optional force parameter
+    usage: "[force]",
   },
 
   async execute(
     interaction: ChatInputCommandInteraction | Message,
     isPrefix = false,
   ) {
+    const startTime = getCurrentUTCTime();
+    const executorName = isPrefix
+      ? (interaction as Message).author.tag
+      : (interaction as ChatInputCommandInteraction).user.tag;
+
     // Check owner permission
     const userId = isPrefix
       ? (interaction as Message).author.id
       : (interaction as ChatInputCommandInteraction).user.id;
     if (userId !== process.env.OWNER_ID) {
-      if (isPrefix) {
-        await (interaction as Message).reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription(
-                "❌ This command is restricted to the bot owner only!",
-              ),
-          ],
+      const denyEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription("❌ This command is restricted to the bot owner only!")
+        .setFooter({
+          text: `Requested by ${executorName} • ${startTime} UTC`,
         });
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [denyEmbed] });
       } else {
         await (interaction as ChatInputCommandInteraction).reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription(
-                "❌ This command is restricted to the bot owner only!",
-              ),
-          ],
+          embeds: [denyEmbed],
           flags: MessageFlags.Ephemeral,
         });
       }
@@ -175,40 +177,30 @@ export const command: Command = {
     // Send confirmation message with platform-specific info
     const platformInfo = `Platform: ${process.platform}\nBase Path: ${getBasePath()}`;
 
+    const confirmEmbed = new EmbedBuilder()
+      .setColor("#ff3838")
+      .setTitle("⚠️ Confirm Bot Shutdown")
+      .setDescription(
+        "Are you sure you want to stop the bot? This will:\n\n" +
+          "1️⃣ Disconnect the bot from Discord\n" +
+          "2️⃣ Stop all processes\n" +
+          "3️⃣ Remove bot-related files\n" +
+          "4️⃣ Keep only: blacklist.env, .env, and start.sh\n\n" +
+          `Shutdown Type: ${force ? "⚠️ Forced" : "🛑 Graceful"}\n\n` +
+          `System Info:\n${platformInfo}`,
+      )
+      .setFooter({
+        text: `Requested by ${executorName} • ${startTime} UTC`,
+      });
+
     // Send confirmation message
     const response = isPrefix
       ? await (interaction as Message).reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setTitle("⚠️ Confirm Bot Shutdown")
-              .setDescription(
-                "Are you sure you want to stop the bot? This will:\n\n" +
-                  "1️⃣ Disconnect the bot from Discord\n" +
-                  "2️⃣ Stop all processes\n" +
-                  "3️⃣ Remove bot-related files\n" +
-                  "4️⃣ Keep only: blacklist.env, .env, and start.sh\n\n" +
-                  `Shutdown Type: ${force ? "⚠️ Forced" : "🛑 Graceful"}\n\n` +
-                  `System Info:\n${platformInfo}`,
-              ),
-          ],
+          embeds: [confirmEmbed],
           components: [buttons],
         })
       : await (interaction as ChatInputCommandInteraction).reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setTitle("⚠️ Confirm Bot Shutdown")
-              .setDescription(
-                "Are you sure you want to stop the bot? This will:\n\n" +
-                  "1️⃣ Disconnect the bot from Discord\n" +
-                  "2️⃣ Stop all processes\n" +
-                  "3️⃣ Remove bot-related files\n" +
-                  "4️⃣ Keep only: blacklist.env, .env, and start.sh\n\n" +
-                  `Shutdown Type: ${force ? "⚠️ Forced" : "🛑 Graceful"}\n\n` +
-                  `System Info:\n${platformInfo}`,
-              ),
-          ],
+          embeds: [confirmEmbed],
           components: [buttons],
         });
 
@@ -223,12 +215,15 @@ export const command: Command = {
       });
 
       if (confirmation.customId === "stop_cancel") {
+        const cancelEmbed = new EmbedBuilder()
+          .setColor("#00ff00")
+          .setDescription("✅ Bot shutdown cancelled.")
+          .setFooter({
+            text: `Cancelled by ${executorName} • ${getCurrentUTCTime()} UTC`,
+          });
+
         await confirmation.update({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#00ff00")
-              .setDescription("✅ Bot shutdown cancelled."),
-          ],
+          embeds: [cancelEmbed],
           components: [],
         });
         return;
@@ -237,43 +232,60 @@ export const command: Command = {
       await confirmation.update({ components: [] });
 
       if (force) {
-        await confirmation.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription("⚠️ Force stopping the bot..."),
-          ],
-        });
+        const forceStopEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription("⚠️ Force stopping the bot...")
+          .setFooter({
+            text: `Force stopped by ${executorName} • ${getCurrentUTCTime()} UTC`,
+          });
+
+        if (isPrefix) {
+          await (interaction as Message).channel.send({
+            embeds: [forceStopEmbed],
+          });
+        } else {
+          await confirmation.editReply({ embeds: [forceStopEmbed] });
+        }
+
         Logger.warn("Force stopping the bot...");
         process.exit(1);
       } else {
-        await confirmation.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setTitle("🛑 Bot Shutdown Initiated")
-              .setDescription("Stopping the bot and cleaning up files..."),
-          ],
-        });
+        const shutdownEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setTitle("🛑 Bot Shutdown Initiated")
+          .setDescription("Stopping the bot and cleaning up files...")
+          .setFooter({
+            text: `Shutdown initiated by ${executorName} • ${getCurrentUTCTime()} UTC`,
+          });
+
+        if (isPrefix) {
+          await (interaction as Message).channel.send({
+            embeds: [shutdownEmbed],
+          });
+        } else {
+          await confirmation.editReply({ embeds: [shutdownEmbed] });
+        }
 
         // Perform cleanup
         const preservedFiles = await cleanupFiles();
 
         // Send final message
-        const followUpEmbed = new EmbedBuilder()
+        const finalEmbed = new EmbedBuilder()
           .setColor("#ff3838")
           .setTitle("✅ Shutdown Complete")
           .setDescription(
             "The following files have been preserved:\n" +
               preservedFiles.map((file) => `• ${file}`).join("\n"),
           )
-          .setFooter({ text: "Bot is shutting down..." });
+          .setFooter({
+            text: `Completed by ${executorName} • ${getCurrentUTCTime()} UTC`,
+          });
 
         if (isPrefix) {
-          await (interaction as Message).followUp({ embeds: [followUpEmbed] });
+          await (interaction as Message).channel.send({ embeds: [finalEmbed] });
         } else {
           await (interaction as ChatInputCommandInteraction).followUp({
-            embeds: [followUpEmbed],
+            embeds: [finalEmbed],
           });
         }
 
@@ -290,13 +302,18 @@ export const command: Command = {
         process.exit(0);
       }
     } catch (error) {
+      const currentTime = getCurrentUTCTime();
+
       if (error instanceof Error && error.message.includes("time")) {
         const timeoutEmbed = new EmbedBuilder()
           .setColor("#ff3838")
-          .setDescription("❌ Shutdown confirmation timed out.");
+          .setDescription("❌ Shutdown confirmation timed out.")
+          .setFooter({
+            text: `Timeout • ${currentTime} UTC`,
+          });
 
         if (isPrefix) {
-          await (interaction as Message).editReply({
+          await (interaction as Message).channel.send({
             embeds: [timeoutEmbed],
             components: [],
           });
@@ -310,10 +327,13 @@ export const command: Command = {
         Logger.error("Error during shutdown:", error);
         const errorEmbed = new EmbedBuilder()
           .setColor("#ff3838")
-          .setDescription("❌ An error occurred during shutdown.");
+          .setDescription("❌ An error occurred during shutdown.")
+          .setFooter({
+            text: `Error • ${currentTime} UTC`,
+          });
 
         if (isPrefix) {
-          await (interaction as Message).editReply({
+          await (interaction as Message).channel.send({
             embeds: [errorEmbed],
             components: [],
           });
