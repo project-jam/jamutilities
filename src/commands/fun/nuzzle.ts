@@ -77,19 +77,60 @@ export const command: Command = {
         .setRequired(true),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["nuzzle", "snuggle", "nuzz"],
+    usage: "<@user>", // Example: jam!nuzzle @user
+  },
 
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
     try {
-      const target = interaction.options.getUser("user");
+      let target;
+      const user = isPrefix
+        ? (interaction as Message).author
+        : (interaction as ChatInputCommandInteraction).user;
+
+      if (isPrefix) {
+        const message = interaction as Message;
+        await message.channel.sendTyping();
+        target = message.mentions.users.first();
+
+        if (!target) {
+          const prefix = process.env.PREFIX || "jam!";
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription(
+                  `❌ Please mention someone to nuzzle! ${getRandomEmote()}`,
+                )
+                .addFields({
+                  name: "Usage",
+                  value: command.prefix.aliases
+                    .map((alias) => `${prefix}${alias} <@user>`)
+                    .concat("Example: `jam!nuzzle @user`")
+                    .join("\n"),
+                }),
+            ],
+          });
+          return;
+        }
+      } else {
+        await (interaction as ChatInputCommandInteraction).deferReply();
+        target = (interaction as ChatInputCommandInteraction).options.getUser(
+          "user",
+        );
+      }
 
       // Self-nuzzle case
-      if (target?.id === interaction.user.id) {
+      if (target.id === user.id) {
         const selfMessage = selfNuzzleMessages[
           Math.floor(Math.random() * selfNuzzleMessages.length)
-        ](interaction.user.toString());
+        ](user.toString());
 
-        const [gifUrl] = await Promise.all([getGif("nuzzle")]);
+        const gifUrl = await getGif("nuzzle");
 
         // Create sparkle border effect with emoticons
         const borderTop = Array(3)
@@ -102,55 +143,67 @@ export const command: Command = {
           .join(" ");
 
         const embed = new EmbedBuilder()
-          .setColor("#FFB6C1") // Light pink for maximum cute
+          .setColor("#FFB6C1")
           .setTitle(`${borderTop} ULTIMATE NUZZLE ${borderTop}`)
           .setDescription(`${selfMessage}\n\n${borderBottom} ∞ ${borderBottom}`)
           .setImage(gifUrl)
           .setFooter({
             text: "Warning: Excessive self-nuzzling may cause spontaneous transformation into a fluffy creature",
-            iconURL: interaction.user.displayAvatarURL(),
+            iconURL: user.displayAvatarURL(),
           })
           .setTimestamp();
 
-        await interaction.editReply({ embeds: [embed] });
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [embed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [embed],
+          });
+        }
         return;
       }
 
       // Regular nuzzle case
-      const [gifUrl, message] = await Promise.all([
-        getGif("nuzzle"),
-        Promise.resolve(
-          getRandomMessage(
-            nuzzleMessages,
-            interaction.user.toString(),
-            target.toString(),
-          ),
-        ),
-      ]);
+      const gifUrl = await getGif("nuzzle");
+      const message = getRandomMessage(
+        nuzzleMessages,
+        user.toString(),
+        target.toString(),
+      );
 
       const embed = new EmbedBuilder()
-        .setColor("#FFC0CB") // Pink for regular nuzzles
+        .setColor("#FFC0CB")
         .setTitle(`${getRandomEmote()} Nuzzle Time! ${getRandomEmote()}`)
         .setDescription(message)
         .setImage(gifUrl)
         .setFooter({
-          text: `Tip: Try /nuzzle @${interaction.user.username} to discover your inner floof!`,
-          iconURL: interaction.user.displayAvatarURL(),
+          text: `Tip: Try ${isPrefix ? "jam!" : "/"}nuzzle ${isPrefix ? "@" : ""}${user.username} to discover your inner floof!`,
+          iconURL: user.displayAvatarURL(),
         })
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [embed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
+        });
+      }
     } catch (error) {
       Logger.error("Nuzzle command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              `❌ The nuzzles were too powerful! ${getRandomEmote()} Try again!`,
-            ),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          `❌ The nuzzles were too powerful! ${getRandomEmote()} Try again!`,
+        );
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };

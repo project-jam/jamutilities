@@ -98,46 +98,87 @@ export const command: Command = {
         .setRequired(true),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["tickle", "ticklish?", "ticklewar", "ticklefight"],
+    usage: "<@user>", // Example: jam!tickle @user
+  },
 
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
     try {
-      const target = interaction.options.getUser("user");
+      let target;
+      const user = isPrefix
+        ? (interaction as Message).author
+        : (interaction as ChatInputCommandInteraction).user;
+
+      if (isPrefix) {
+        const message = interaction as Message;
+        await message.channel.sendTyping();
+        target = message.mentions.users.first();
+
+        if (!target) {
+          const prefix = process.env.PREFIX || "jam!";
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription(
+                  `❌ Please mention someone to tickle! ${getRandomKaomoji()}`,
+                )
+                .addFields({
+                  name: "Usage",
+                  value: command.prefix.aliases
+                    .map((alias) => `${prefix}${alias} <@user>`)
+                    .concat("Example: `jam!tickle @user`")
+                    .join("\n"),
+                }),
+            ],
+          });
+          return;
+        }
+      } else {
+        await (interaction as ChatInputCommandInteraction).deferReply();
+        target = (interaction as ChatInputCommandInteraction).options.getUser(
+          "user",
+        );
+      }
 
       // Don't allow tickling yourself
-      if (target?.id === interaction.user.id) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription(
-                `❌ Self-tickling creates a paradox! Don't break the universe! ${getRandomKaomoji()}`,
-              )
-              .setFooter({
-                text: "Find someone else to tickle into oblivion! 😆",
-              }),
-          ],
-        });
+      if (target.id === user.id) {
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription(
+            `❌ Self-tickling creates a paradox! Don't break the universe! ${getRandomKaomoji()}`,
+          )
+          .setFooter({
+            text: "Find someone else to tickle into oblivion! 😆",
+          });
+
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [errorEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [errorEmbed],
+          });
+        }
         return;
       }
 
-      const [gifUrl, message] = await Promise.all([
-        getGif("tickle"),
-        Promise.resolve(
-          getRandomMessage(
-            tickleMessages,
-            interaction.user.toString(),
-            target.toString(),
-          ),
-        ),
-      ]);
+      const gifUrl = await getGif("tickle");
+      const message = getRandomMessage(
+        tickleMessages,
+        user.toString(),
+        target.toString(),
+      );
 
       // Create decorative borders
       const topDecorations = getRandomDecorations(3);
       const bottomDecorations = getRandomDecorations(3);
 
       const embed = new EmbedBuilder()
-        .setColor("#ffd1dc") // Light pink for chaotic tickles!
+        .setColor("#ffd1dc")
         .setTitle(`${topDecorations} TICKLE CHAOS ACTIVATED! ${topDecorations}`)
         .setDescription(
           `${message} ${getRandomKaomoji()}\n\n${bottomDecorations}`,
@@ -145,22 +186,32 @@ export const command: Command = {
         .setImage(gifUrl)
         .setFooter({
           text: `The tickle monster strikes again! ${getRandomKaomoji()}`,
-          iconURL: interaction.user.displayAvatarURL(),
+          iconURL: user.displayAvatarURL(),
         })
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [embed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
+        });
+      }
     } catch (error) {
       Logger.error("Tickle command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              `❌ The tickle monster got distracted by a butterfly! Try again! ${getRandomKaomoji()}`,
-            ),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          `❌ The tickle monster got distracted by a butterfly! Try again! ${getRandomKaomoji()}`,
+        );
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };

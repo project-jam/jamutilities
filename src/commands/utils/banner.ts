@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
 } from "discord.js";
@@ -18,27 +19,51 @@ export const command: Command = {
         .setRequired(false),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["banner", "userbanner"],
+    usage: "[@user]",
+  },
 
-    const user = interaction.options.getUser("user") || interaction.user;
-    const fetchedUser = await user.fetch(true); // Force fetch to get banner
-    const bannerUrl = fetchedUser.bannerURL({ size: 4096 });
-
-    if (!bannerUrl) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(`❌ ${user.username} doesn't have a banner set!`),
-        ],
-      });
-      return;
-    }
-
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
     try {
+      // Handle different command types
+      let user;
+      if (interaction instanceof Message) {
+        // Prefix command
+        user = interaction.mentions.users.first() || interaction.author;
+      } else {
+        // Slash command
+        await interaction.deferReply();
+        user = interaction.options.getUser("user") || interaction.user;
+      }
+
+      // Fetch the full user to get banner information
+      const fetchedUser = await user.fetch();
+      const bannerUrl = fetchedUser.bannerURL({ size: 4096 });
+
+      if (!bannerUrl) {
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription(`❌ ${user.username} doesn't have a banner!`);
+
+        if (interaction instanceof Message) {
+          await interaction.reply({ embeds: [errorEmbed] });
+        } else {
+          await interaction.editReply({ embeds: [errorEmbed] });
+        }
+        return;
+      }
+
       // Get the dominant color from the banner
-      const color = await getAverageColor(bannerUrl);
+      let color;
+      try {
+        color = await getAverageColor(bannerUrl);
+      } catch {
+        color = { hex: "#2b2d31" }; // Fallback color
+      }
 
       const embed = new EmbedBuilder()
         .setTitle(`${user.username}'s Banner`)
@@ -46,16 +71,22 @@ export const command: Command = {
         .setColor(color.hex)
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      // Send the response
+      if (interaction instanceof Message) {
+        await interaction.reply({ embeds: [embed] });
+      } else {
+        await interaction.editReply({ embeds: [embed] });
+      }
     } catch (error) {
-      // Fallback to default color if color extraction fails
-      const embed = new EmbedBuilder()
-        .setTitle(`${user.username}'s Banner`)
-        .setImage(bannerUrl)
-        .setColor("#2b2d31")
-        .setTimestamp();
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription("❌ Something went wrong while fetching the banner!");
 
-      await interaction.editReply({ embeds: [embed] });
+      if (interaction instanceof Message) {
+        await interaction.reply({ embeds: [errorEmbed] });
+      } else {
+        await interaction.editReply({ embeds: [errorEmbed] });
+      }
     }
   },
 };

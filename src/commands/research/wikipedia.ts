@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
   Collection,
@@ -49,27 +50,46 @@ export const command: Command = {
         .setDescription("Show a more detailed result?")
         .setRequired(false),
     ),
+
+  prefix: {
+    aliases: ["wikipedia", "wiki", "wp"],
+    usage: "<query> [--detailed]",
+  },
+
   cooldown: 3, // 3 seconds cooldown
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    const userId = interaction.user.id;
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    const userId = isPrefix
+      ? (interaction as Message).author.id
+      : (interaction as ChatInputCommandInteraction).user.id;
     const now = Date.now();
-    const cooldownAmount = (this.cooldown || 3) * 1000; // Convert to milliseconds
+    const cooldownAmount = (this.cooldown || 3) * 1000;
 
-    // Check if user is on cooldown
     if (cooldowns.has(userId)) {
       const expirationTime = cooldowns.get(userId)! + cooldownAmount;
 
       if (now < expirationTime) {
         const timeLeft = (expirationTime - now) / 1000;
-        await interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription(`⏰ Please wait ${timeLeft.toFixed(1)} more seconds before using this command again.`),
-          ],
-          ephemeral: true,
-        });
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription(
+            `⏰ Please wait ${timeLeft.toFixed(1)} more seconds before using this command again.`,
+          );
+
+        if (isPrefix) {
+          await (interaction as Message).reply({
+            embeds: [errorEmbed],
+            ephemeral: true,
+          });
+        } else {
+          await (interaction as ChatInputCommandInteraction).reply({
+            embeds: [errorEmbed],
+            ephemeral: true,
+          });
+        }
         return;
       }
     }
@@ -77,11 +97,64 @@ export const command: Command = {
     cooldowns.set(userId, now);
     setTimeout(() => cooldowns.delete(userId), cooldownAmount);
 
-    await interaction.deferReply();
-
     try {
-      const query = interaction.options.getString("query", true);
-      const detailed = interaction.options.getBoolean("detailed") ?? false;
+      let query: string;
+      let detailed = false;
+      const commandUsed = isPrefix
+        ? (interaction as Message).content
+            .slice(process.env.PREFIX?.length || 0)
+            .trim()
+            .split(/ +/)[0]
+        : "wikipedia";
+
+      if (isPrefix) {
+        const message = interaction as Message;
+        const args = message.content
+          .slice(process.env.PREFIX?.length || 0)
+          .trim()
+          .split(/ +/);
+
+        args.shift(); // Remove command name
+
+        if (args.length === 0) {
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription("❌ Please provide a search query!")
+                .addFields({
+                  name: "Usage",
+                  value: [
+                    `${process.env.PREFIX || "jam!"}${commandUsed} <query> [--detailed]`,
+                    "",
+                    "Examples:",
+                    `${process.env.PREFIX || "jam!"}${commandUsed} Discord`,
+                    `${process.env.PREFIX || "jam!"}${commandUsed} "Albert Einstein" --detailed`,
+                    "",
+                    "Options:",
+                    "--detailed: Show a more detailed result with similar articles",
+                  ].join("\n"),
+                }),
+            ],
+          });
+          return;
+        }
+
+        detailed = args.includes("--detailed");
+        query = args.filter((arg) => arg !== "--detailed").join(" ");
+
+        await message.channel.sendTyping();
+      } else {
+        await (interaction as ChatInputCommandInteraction).deferReply();
+        query = (interaction as ChatInputCommandInteraction).options.getString(
+          "query",
+          true,
+        );
+        detailed =
+          (interaction as ChatInputCommandInteraction).options.getBoolean(
+            "detailed",
+          ) ?? false;
+      }
 
       // Fetch search results from Wikipedia API
       const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&srprop=snippet&origin=*`;
@@ -89,13 +162,17 @@ export const command: Command = {
       const searchData: WikiSearchResponse = await searchResponse.json();
 
       if (!searchData.query.search.length) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription("❌ No results found for your search."),
-          ],
-        });
+        const notFoundEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription(`❌ No results found for "${query}"`);
+
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [notFoundEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [notFoundEmbed],
+          });
+        }
         return;
       }
 
@@ -118,30 +195,37 @@ export const command: Command = {
         .setColor("#2b2d31")
         .setTitle(firstResult.title)
         .setURL(pageData.fullurl)
-        .setDescription(detailed ? cleanExtract.substring(0, 4096) : cleanExtract.substring(0, 256) + "...")
+        .setDescription(
+          detailed
+            ? cleanExtract.substring(0, 4096)
+            : cleanExtract.substring(0, 256) + "...",
+        )
         .addFields({
           name: "Read More",
           value: `[Click here to read the full article](${pageData.fullurl})`,
         })
         .setFooter({
-          text: `Requested by ${interaction.user.tag} | Data from Wikipedia`,
-          iconURL: interaction.user.displayAvatarURL(),
+          text: `Requested by ${isPrefix ? (interaction as Message).author.tag : (interaction as ChatInputCommandInteraction).user.tag}`,
+          iconURL: isPrefix
+            ? (interaction as Message).author.displayAvatarURL()
+            : (
+                interaction as ChatInputCommandInteraction
+              ).user.displayAvatarURL(),
         })
         .setTimestamp();
 
-      // Add thumbnail if available and valid
+      // Add thumbnail if available
       if (pageData.pageimage) {
         try {
-          // Ensure the image URL is fully qualified
           let thumbnailUrl = pageData.pageimage;
-          if (!thumbnailUrl.startsWith('http')) {
+          if (!thumbnailUrl.startsWith("http")) {
             thumbnailUrl = `https://en.wikipedia.org/wiki/Special:FilePath/${encodeURIComponent(thumbnailUrl)}`;
           }
 
           const url = new URL(thumbnailUrl);
           embed.setThumbnail(url.toString());
         } catch (error) {
-          console.warn('Invalid thumbnail URL:', pageData.pageimage);
+          Logger.warn("Invalid thumbnail URL:", pageData.pageimage);
         }
       }
 
@@ -168,17 +252,26 @@ export const command: Command = {
         inline: true,
       });
 
-      await interaction.editReply({ embeds: [embed] });
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [embed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
+        });
+      }
     } catch (error) {
       Logger.error("Wikipedia command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription("❌ An error occurred while searching Wikipedia."),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription("❌ An error occurred while searching Wikipedia.");
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };
-

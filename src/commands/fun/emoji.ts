@@ -1,10 +1,12 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
 } from "discord.js";
 import { Command } from "../../types/Command";
 import { getAverageColor } from "fast-average-color-node";
+import { Logger } from "../../utils/logger";
 
 export const command: Command = {
   data: new SlashCommandBuilder()
@@ -19,40 +21,78 @@ export const command: Command = {
           option
             .setName("emoji1")
             .setDescription("The first emoji to mix")
-            .setRequired(true)
+            .setRequired(true),
         )
         .addStringOption((option) =>
           option
             .setName("emoji2")
             .setDescription("The second emoji to mix")
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["emojimix", "mixemoji", "emix"],
+    usage: "<emoji1> <emoji2>", // Example: jam!emix 😀 😎
+  },
 
-    try {
-      // Get the two emojis provided by the user
-      const emoji1 = interaction.options.getString("emoji1", true);
-      const emoji2 = interaction.options.getString("emoji2", true);
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    let emoji1: string;
+    let emoji2: string;
 
-      // Check if the inputs are emojis
-      if (
-        !emoji1.match(
-          /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B50}]/u
-        ) ||
-        !emoji2.match(
-          /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B50}]/u
-        )
-      ) {
-        await interaction.editReply({
+    if (isPrefix) {
+      const message = interaction as Message;
+      await message.channel.sendTyping();
+
+      const args = message.content.trim().split(/ +/).slice(1);
+
+      if (args.length !== 2) {
+        const prefix = process.env.PREFIX || "jam!";
+        await message.reply({
           embeds: [
             new EmbedBuilder()
               .setColor("#ff3838")
-              .setDescription("❌ Please provide valid emojis!"),
+              .setDescription("❌ Please provide exactly two emojis to mix!")
+              .addFields({
+                name: "Usage",
+                value: command.prefix.aliases
+                  .map((alias) => `${prefix}${alias} <emoji1> <emoji2>`)
+                  .concat("Example: `jam!emix 😀 😎`")
+                  .join("\n"),
+              }),
           ],
         });
+        return;
+      }
+
+      [emoji1, emoji2] = args;
+    } else {
+      const slashInteraction = interaction as ChatInputCommandInteraction;
+      await slashInteraction.deferReply();
+      emoji1 = slashInteraction.options.getString("emoji1", true);
+      emoji2 = slashInteraction.options.getString("emoji2", true);
+    }
+
+    try {
+      // Check if the inputs are emojis
+      const emojiRegex =
+        /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B50}]/u;
+
+      if (!emoji1.match(emojiRegex) || !emoji2.match(emojiRegex)) {
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription("❌ Please provide valid emojis!");
+
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [errorEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [errorEmbed],
+          });
+        }
         return;
       }
 
@@ -68,22 +108,31 @@ export const command: Command = {
       const embed = new EmbedBuilder()
         .setTitle(`${emoji1} + ${emoji2}`)
         .setImage(url)
-        .setColor(color.hex) // Use the dominant color as the embed color
+        .setColor(color.hex)
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [embed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
+        });
+      }
     } catch (error) {
-      console.error("Error mixing emojis:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              "❌ Something went wrong while mixing the emojis. Please try again."
-            ),
-        ],
-      });
+      Logger.error("Error mixing emojis:", error);
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          "❌ Something went wrong while mixing the emojis. Please try again.",
+        );
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };
-

@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
   User,
@@ -100,18 +101,42 @@ export const command: Command = {
         .setRequired(false),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["userinfo", "whois", "user"],
+    usage: "[@user] [server:false]",
+  },
+
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    if (!isPrefix) {
+      await (interaction as ChatInputCommandInteraction).deferReply();
+    }
 
     try {
-      const targetUser =
-        interaction.options.getUser("user") || interaction.user;
-      const member = interaction.guild?.members.cache.get(targetUser.id);
-      const showServerInfo =
-        interaction.options.getBoolean("server_info") ?? true;
+      // Get target user based on command type
+      let targetUser;
+      let showServerInfo = true;
+      let guild;
+
+      if (isPrefix) {
+        const message = interaction as Message;
+        targetUser = message.mentions.users.first() || message.author;
+        showServerInfo = !message.content
+          .toLowerCase()
+          .includes("server:false");
+        guild = message.guild;
+      } else {
+        const slashCommand = interaction as ChatInputCommandInteraction;
+        targetUser = slashCommand.options.getUser("user") || slashCommand.user;
+        showServerInfo = slashCommand.options.getBoolean("server_info") ?? true;
+        guild = slashCommand.guild;
+      }
 
       // Fetch full user data
       const fetchedUser = await targetUser.fetch();
+      const member = guild?.members.cache.get(targetUser.id);
       const userBanner = fetchedUser.bannerURL({
         size: 4096,
         dynamic: true,
@@ -198,15 +223,19 @@ export const command: Command = {
             .join("\n"),
         })
         .setFooter({
-          text: `Requested by ${interaction.user.tag}`,
-          iconURL: interaction.user.displayAvatarURL(),
+          text: `Requested by ${isPrefix ? (interaction as Message).author.tag : (interaction as ChatInputCommandInteraction).user.tag}`,
+          iconURL: isPrefix
+            ? (interaction as Message).author.displayAvatarURL()
+            : (
+                interaction as ChatInputCommandInteraction
+              ).user.displayAvatarURL(),
         })
         .setTimestamp();
 
       // Add server-specific information if requested and in a guild
       if (showServerInfo && member) {
         const roles = member.roles.cache
-          .filter((role) => role.id !== interaction.guild?.id)
+          .filter((role) => role.id !== guild?.id)
           .sort((a, b) => b.position - a.position)
           .map((role) => role.toString());
 
@@ -253,16 +282,26 @@ export const command: Command = {
         embed.setImage(userBanner);
       }
 
-      await interaction.editReply({ embeds: [embed] });
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [embed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
+        });
+      }
     } catch (error) {
       Logger.error("Userinfo command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription("❌ Failed to fetch user information."),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription("❌ Failed to fetch user information.");
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };

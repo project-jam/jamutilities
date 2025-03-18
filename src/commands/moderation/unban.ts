@@ -18,78 +18,127 @@ export const command: Command = {
         .setRequired(true),
     )
     .addStringOption((option) =>
-      option
-        .setName("reason")
-        .setDescription("The reason for the unban")
-        .setRequired(false),
+      option.setName("reason").setDescription("The reason for the unban"),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["unban", "pardon"],
+    usage: "<userId> [reason]", // Example: jam!unban 123456789 reformed
+  },
 
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
     try {
-      // Check if the user has permission to unban
-      if (!interaction.memberPermissions?.has(PermissionFlagsBits.BanMembers)) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription("❌ You don't have permission to unban members!"),
-          ],
-        });
-        return;
-      }
+      let userId;
+      let reason = "No reason provided";
+      let guild;
+      let executor;
 
-      const userId = interaction.options.getString("userid");
-      const reason =
-        interaction.options.getString("reason") || "No reason provided";
+      if (isPrefix) {
+        const message = interaction as Message;
+        guild = message.guild;
+        executor = message.member;
 
-      if (!userId) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription("❌ Please provide a valid user ID!"),
-          ],
-        });
-        return;
+        // Check permissions
+        if (!message.member?.permissions.has(PermissionFlagsBits.BanMembers)) {
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription(
+                  "❌ You don't have permission to unban members!",
+                ),
+            ],
+          });
+          return;
+        }
+
+        const args = message.content.split(/ +/).slice(1);
+
+        if (args.length < 1) {
+          const prefix = process.env.PREFIX || "jam!";
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription("❌ Please provide a user ID to unban!")
+                .addFields({
+                  name: "Usage",
+                  value: command.prefix.aliases
+                    .map((alias) => `${prefix}${alias} <userId> [reason]`)
+                    .concat("Example: `jam!unban 123456789 reformed`")
+                    .join("\n"),
+                }),
+            ],
+          });
+          return;
+        }
+
+        userId = args[0];
+        if (args.length > 1) {
+          reason = args.slice(1).join(" ");
+        }
+      } else {
+        const slashInteraction = interaction as ChatInputCommandInteraction;
+        await slashInteraction.deferReply();
+        guild = slashInteraction.guild;
+        executor = slashInteraction.member;
+        userId = slashInteraction.options.getString("userid", true);
+        reason =
+          slashInteraction.options.getString("reason") || "No reason provided";
       }
 
       // Check if the ID is valid
       if (!/^\d{17,19}$/.test(userId)) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription(
-                "❌ Please provide a valid user ID! User IDs are 17-19 digit numbers.",
-              ),
-          ],
-        });
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription(
+            "❌ Please provide a valid user ID! User IDs are 17-19 digit numbers.",
+          );
+
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [errorEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [errorEmbed],
+          });
+        }
         return;
       }
 
-      // Fetch ban info to check if user is actually banned
-      const banList = await interaction.guild?.bans.fetch();
+      // Fetch ban info
+      const banList = await guild?.bans.fetch();
       const banInfo = banList?.find((ban) => ban.user.id === userId);
 
       if (!banInfo) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription("❌ This user is not banned from this server!"),
-          ],
-        });
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription("❌ This user is not banned from this server!");
+
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [errorEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [errorEmbed],
+          });
+        }
         return;
       }
 
       // Format the unban reason
-      const formattedReason = `Unbanned by ${interaction.user.tag} (${interaction.user.id}) | ${new Date().toLocaleString()} | Reason: ${reason}`;
+      const executorTag = isPrefix
+        ? (interaction as Message).author.tag
+        : (interaction as ChatInputCommandInteraction).user.tag;
+      const executorId = isPrefix
+        ? (interaction as Message).author.id
+        : (interaction as ChatInputCommandInteraction).user.id;
+      const formattedReason = `Unbanned by ${executorTag} (${executorId}) | ${new Date().toLocaleString()} | Reason: ${reason}`;
 
       // Perform the unban
-      await interaction.guild?.members.unban(userId, formattedReason);
+      await guild?.members.unban(userId, formattedReason);
 
       // Create success embed
       const unbanEmbed = new EmbedBuilder()
@@ -102,23 +151,27 @@ export const command: Command = {
             value: `${banInfo.user.tag} (${banInfo.user.id})`,
             inline: true,
           },
-          { name: "Unbanned By", value: interaction.user.tag, inline: true },
+          { name: "Unbanned By", value: executorTag, inline: true },
           { name: "Reason", value: reason },
         )
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [unbanEmbed] });
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [unbanEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [unbanEmbed],
+        });
+      }
 
       // Try to DM the unbanned user
       try {
         const dmEmbed = new EmbedBuilder()
           .setColor("#00ff00")
           .setTitle("You've Been Unbanned")
-          .setDescription(
-            `You have been unbanned from ${interaction.guild?.name}`,
-          )
+          .setDescription(`You have been unbanned from ${guild?.name}`)
           .addFields(
-            { name: "Unbanned By", value: interaction.user.tag },
+            { name: "Unbanned By", value: executorTag },
             { name: "Reason", value: reason },
           )
           .setTimestamp();
@@ -129,15 +182,17 @@ export const command: Command = {
       }
     } catch (error) {
       Logger.error("Unban command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              "❌ An error occurred while trying to unban the user.",
-            ),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription("❌ An error occurred while trying to unban the user.");
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };

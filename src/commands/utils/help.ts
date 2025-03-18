@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
   Collection,
@@ -59,11 +60,42 @@ export const command: Command = {
         .setRequired(false),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["help", "commands", "h"],
+    usage: "[category|command]",
+  },
 
-    const category = interaction.options.getString("category");
-    const commandName = interaction.options.getString("command");
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    if (!isPrefix) {
+      await (interaction as ChatInputCommandInteraction).deferReply();
+    }
+
+    let category: string | null = null;
+    let commandName: string | null = null;
+    const prefix = process.env.PREFIX || "jam!";
+
+    if (isPrefix) {
+      const args = (interaction as Message).content.trim().split(" ");
+      const query = args[1]?.toLowerCase();
+
+      if (query) {
+        if (Object.keys(categories).includes(query)) {
+          category = query;
+        } else {
+          commandName = query;
+        }
+      }
+    } else {
+      category = (interaction as ChatInputCommandInteraction).options.getString(
+        "category",
+      );
+      commandName = (
+        interaction as ChatInputCommandInteraction
+      ).options.getString("command");
+    }
 
     // Load commands from files
     const commands = new Collection<string, Command>();
@@ -87,19 +119,24 @@ export const command: Command = {
       }
     }
 
+    // Specific command help
     if (commandName) {
-      // Show detailed info for specific command
       const cmd = commands.get(commandName);
       if (!cmd) {
-        await interaction.editReply({
-          content: `❌ Command \`${commandName}\` not found.`,
-        });
+        const response = `❌ Command \`${commandName}\` not found.`;
+        if (isPrefix) {
+          await (interaction as Message).reply({ content: response });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            content: response,
+          });
+        }
         return;
       }
 
       const embed = new EmbedBuilder()
         .setColor("#2b2d31")
-        .setTitle(`Command: /${cmd.data.name}`)
+        .setTitle(`Command: ${cmd.data.name}`)
         .setDescription(cmd.data.description)
         .addFields(
           {
@@ -114,9 +151,42 @@ export const command: Command = {
           },
         );
 
-      // Add options if they exist
-      if (cmd.data.options?.length) {
-        const optionsField = cmd.data.options
+      // Add slash command usage
+      embed.addFields({
+        name: "Slash Command Usage",
+        value: `\`/${cmd.data.name}\``,
+      });
+
+      // Add prefix command usage if available
+      if (cmd.prefix) {
+        const aliases = cmd.prefix.aliases
+          .map((alias) => `${prefix}${alias}`)
+          .join(", ");
+        embed.addFields({
+          name: "Prefix Command Usage",
+          value: `${aliases}\nUsage: \`${prefix}${cmd.data.name} ${cmd.prefix.usage || ""}\``,
+        });
+      }
+
+      // Add subcommands if they exist
+      const subcommands = cmd.data.options?.filter(
+        (opt) => opt.type === ApplicationCommandOptionType.Subcommand,
+      );
+      if (subcommands?.length) {
+        const subcommandList = subcommands
+          .map(
+            (sub) => `• \`/${cmd.data.name} ${sub.name}\` - ${sub.description}`,
+          )
+          .join("\n");
+        embed.addFields({ name: "Subcommands", value: subcommandList });
+      }
+
+      // Add regular options if they exist
+      const options = cmd.data.options?.filter(
+        (opt) => opt.type !== ApplicationCommandOptionType.Subcommand,
+      );
+      if (options?.length) {
+        const optionsField = options
           .map((opt) => {
             const required = opt.required ? "*(required)*" : "*(optional)*";
             const type = getOptionTypeName(opt.type);
@@ -127,23 +197,18 @@ export const command: Command = {
         embed.addFields({ name: "Options", value: optionsField });
       }
 
-      // Add usage examples if available
-      if (cmd.data.options?.length) {
-        const usage = [`\`/${cmd.data.name}\``];
-        cmd.data.options.forEach((opt) => {
-          usage.push(
-            `\`/${cmd.data.name} ${opt.name}:${getOptionExample(opt.type)}\``,
-          );
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [embed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
         });
-        embed.addFields({ name: "Usage Examples", value: usage.join("\n") });
       }
-
-      await interaction.editReply({ embeds: [embed] });
       return;
     }
 
+    // Category specific help
     if (category) {
-      // Show commands for specific category
       const categoryCommands = commands.filter(
         (cmd) =>
           getCategoryForCommand(cmd, categoryFolders).toLowerCase() ===
@@ -158,26 +223,44 @@ export const command: Command = {
         .setDescription(categories[category].description);
 
       categoryCommands.forEach((cmd) => {
+        let fieldValue = cmd.data.description;
+
+        // Add prefix aliases if available
+        if (cmd.prefix) {
+          const aliases = cmd.prefix.aliases
+            .map((alias) => `${prefix}${alias}`)
+            .join(", ");
+          fieldValue += `\n**Prefix:** ${aliases}`;
+        }
+
+        // Add options if available
+        if (cmd.data.options?.length) {
+          fieldValue += `\n**Options:** ${cmd.data.options.map((opt) => `\`${opt.name}\``).join(", ")}`;
+        }
+
         embed.addFields({
           name: `/${cmd.data.name}`,
-          value: `${cmd.data.description}\n${
-            cmd.data.options?.length
-              ? `*Options: ${cmd.data.options.map((opt) => `\`${opt.name}\``).join(", ")}*`
-              : ""
-          }`,
+          value: fieldValue,
         });
       });
 
-      await interaction.editReply({ embeds: [embed] });
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [embed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
+        });
+      }
       return;
     }
 
-    // Show all categories
+    // General help - show all categories
     const embed = new EmbedBuilder()
       .setColor("#2b2d31")
       .setTitle("📚 Command Categories")
       .setDescription(
-        "Use `/help category:<category>` for specific commands\nUse `/help command:<command>` for detailed command info",
+        `Use \`${prefix}help <category>\` or \`/help category:<category>\` for specific commands\n` +
+          `Use \`${prefix}help <command>\` or \`/help command:<command>\` for detailed command info`,
       )
       .addFields(
         Object.entries(categories).map(([name, { emoji, description }]) => ({
@@ -193,10 +276,16 @@ export const command: Command = {
         })),
       )
       .setFooter({
-        text: "Tip: Click on category names to see their commands!",
+        text: `Tip: You can use both ${prefix} prefix or / commands!`,
       });
 
-    await interaction.editReply({ embeds: [embed] });
+    if (isPrefix) {
+      await (interaction as Message).reply({ embeds: [embed] });
+    } else {
+      await (interaction as ChatInputCommandInteraction).editReply({
+        embeds: [embed],
+      });
+    }
   },
 };
 
@@ -227,20 +316,7 @@ function getOptionTypeName(type: number): string {
     [ApplicationCommandOptionType.Role]: "Role",
     [ApplicationCommandOptionType.Number]: "Number (decimal)",
     [ApplicationCommandOptionType.Mentionable]: "User or Role",
+    [ApplicationCommandOptionType.Attachment]: "File",
   };
   return types[type] || "Unknown";
-}
-
-function getOptionExample(type: number): string {
-  const examples: { [key: number]: string } = {
-    [ApplicationCommandOptionType.String]: "text",
-    [ApplicationCommandOptionType.Integer]: "42",
-    [ApplicationCommandOptionType.Boolean]: "true",
-    [ApplicationCommandOptionType.User]: "@user",
-    [ApplicationCommandOptionType.Channel]: "#channel",
-    [ApplicationCommandOptionType.Role]: "@role",
-    [ApplicationCommandOptionType.Number]: "3.14",
-    [ApplicationCommandOptionType.Mentionable]: "@user/@role",
-  };
-  return examples[type] || "value";
 }

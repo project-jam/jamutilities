@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
 } from "discord.js";
@@ -74,24 +75,64 @@ export const command: Command = {
         .setRequired(true),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["nom", "feed", "nibble"],
+    usage: "<@user>", // Example: jam!nom @user
+  },
 
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
     try {
-      const target = interaction.options.getUser("user");
+      let target;
+      const user = isPrefix
+        ? (interaction as Message).author
+        : (interaction as ChatInputCommandInteraction).user;
+
+      if (isPrefix) {
+        const message = interaction as Message;
+        await message.channel.sendTyping();
+        target = message.mentions.users.first();
+
+        if (!target) {
+          const prefix = process.env.PREFIX || "jam!";
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription("❌ Please mention someone to nom with!")
+                .addFields({
+                  name: "Usage",
+                  value: command.prefix.aliases
+                    .map((alias) => `${prefix}${alias} <@user>`)
+                    .concat("Example: `jam!nom @user`")
+                    .join("\n"),
+                }),
+            ],
+          });
+          return;
+        }
+      } else {
+        await (interaction as ChatInputCommandInteraction).deferReply();
+        target = (interaction as ChatInputCommandInteraction).options.getUser(
+          "user",
+        );
+      }
+
       const randomFoodEmoji =
         foodEmojis[Math.floor(Math.random() * foodEmojis.length)];
 
       // Special case for self-nom
-      if (target?.id === interaction.user.id) {
+      if (target.id === user.id) {
         const selfMessage = selfNomMessages[
           Math.floor(Math.random() * selfNomMessages.length)
-        ](interaction.user.toString());
+        ](user.toString());
 
-        const [gifUrl] = await Promise.all([getGif("nom")]);
+        const gifUrl = await getGif("nom");
 
         const embed = new EmbedBuilder()
-          .setColor("#FFD700") // Gold color for special self-nom
+          .setColor("#FFD700")
           .setTitle(
             `${randomFoodEmoji} INFINITE NOM DETECTED ${randomFoodEmoji}`,
           )
@@ -102,51 +143,63 @@ export const command: Command = {
           })
           .setTimestamp();
 
-        await interaction.editReply({ embeds: [embed] });
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [embed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [embed],
+          });
+        }
         return;
       }
 
       // Regular nom with someone else
-      const [gifUrl, message] = await Promise.all([
-        getGif("nom"),
-        Promise.resolve(
-          getRandomMessage(
-            nomMessages,
-            interaction.user.toString(),
-            target.toString(),
-          ),
-        ),
-      ]);
+      const gifUrl = await getGif("nom");
+      const message = getRandomMessage(
+        nomMessages,
+        user.toString(),
+        target.toString(),
+      );
 
-      // Generate some extra food emojis for decoration
+      // Generate decorative emojis
       const decorativeEmojis = Array(3)
         .fill(0)
         .map(() => foodEmojis[Math.floor(Math.random() * foodEmojis.length)])
         .join(" ");
 
       const embed = new EmbedBuilder()
-        .setColor("#FFC0CB") // Pink for cute nom
+        .setColor("#FFC0CB")
         .setTitle(`${decorativeEmojis} Snack Time! ${decorativeEmojis}`)
         .setDescription(message)
         .setImage(gifUrl)
         .setFooter({
-          text: `Tip: Try /nom @${interaction.user.username} for a special nom!`,
-          iconURL: interaction.user.displayAvatarURL(),
+          text: `Tip: Try ${isPrefix ? "jam!" : "/"}nom ${isPrefix ? "@" : ""}${user.username} for a special nom!`,
+          iconURL: user.displayAvatarURL(),
         })
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [embed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
+        });
+      }
     } catch (error) {
       Logger.error("Nom command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              "❌ The snack disappeared into another dimension! Try again! 🌀",
-            ),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          "❌ The snack disappeared into another dimension! Try again! 🌀",
+        );
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };

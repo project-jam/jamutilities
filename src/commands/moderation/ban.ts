@@ -2,185 +2,290 @@ import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
   EmbedBuilder,
+  MessageFlags,
   PermissionFlagsBits,
-  GuildMember,
+  Message,
 } from "discord.js";
 import type { Command } from "../../types/Command";
+import { BlacklistManager } from "../../handlers/blacklistMembers";
 import { Logger } from "../../utils/logger";
 
 export const command: Command = {
   data: new SlashCommandBuilder()
-    .setName("ban")
-    .setDescription("Ban a user from the server")
-    .addUserOption((option) =>
-      option
-        .setName("user")
-        .setDescription("The user to ban")
-        .setRequired(true),
+    .setName("blacklist")
+    .setDescription("Manage bot blacklist (Owner only)")
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("add")
+        .setDescription("Add a user to the blacklist")
+        .addUserOption((option) =>
+          option
+            .setName("user")
+            .setDescription("The user to blacklist")
+            .setRequired(true),
+        )
+        .addStringOption((option) =>
+          option
+            .setName("reason")
+            .setDescription("Reason for blacklisting")
+            .setRequired(true),
+        ),
     )
-    .addStringOption((option) =>
-      option
-        .setName("reason")
-        .setDescription("The reason for the ban")
-        .setRequired(false),
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("remove")
+        .setDescription("Remove a user from the blacklist")
+        .addUserOption((option) =>
+          option
+            .setName("user")
+            .setDescription("The user to unblacklist")
+            .setRequired(true),
+        ),
     )
-    .addNumberOption((option) =>
-      option
-        .setName("days")
-        .setDescription("Number of days of messages to delete (0-7)")
-        .setMinValue(0)
-        .setMaxValue(7)
-        .setRequired(false),
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("search")
+        .setDescription("Search the blacklist")
+        .addStringOption((option) =>
+          option
+            .setName("query")
+            .setDescription("Search by ID, username, or reason")
+            .setRequired(true),
+        ),
     )
-    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("change")
+        .setDescription("Change the reason for a blacklisted user")
+        .addUserOption((option) =>
+          option
+            .setName("user")
+            .setDescription("The user whose reason to change")
+            .setRequired(true),
+        )
+        .addStringOption((option) =>
+          option
+            .setName("new_reason")
+            .setDescription("The new reason for the blacklist")
+            .setRequired(true),
+        ),
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["blacklist"],
+    usage:
+      "blacklist <add/remove/search/change> <@user/ID> [reason/new_reason]",
+  },
+
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    const blacklistManager = BlacklistManager.getInstance();
+
+    let subcommand: string;
+    let userId: string;
+    let reason: string;
+    let newReason: string;
+    let executor;
 
     try {
-      // Check if the user has permission to ban
-      if (!interaction.memberPermissions?.has(PermissionFlagsBits.BanMembers)) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
+      if (isPrefix) {
+        // Prefix-based execution
+        const message = interaction as Message;
+        executor = message.author;
+
+        if (executor.id !== process.env.OWNER_ID) {
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription(
+                  "❌ This command is restricted to the bot owner only!",
+                ),
+            ],
+          });
+          return;
+        }
+
+        const args = message.content.split(/ +/).slice(1);
+        subcommand = args[0];
+        userId = message.mentions.users.first()?.id || args[1] || undefined!;
+        reason = args.slice(2).join(" ");
+
+        switch (subcommand) {
+          case "add": {
+            if (!userId || !reason) {
+              await message.reply({
+                embeds: [
+                  new EmbedBuilder()
+                    .setColor("#ff3838")
+                    .setDescription(
+                      "❌ Please provide a user and a reason to blacklist!",
+                    ),
+                ],
+              });
+              return;
+            }
+
+            if (userId === process.env.OWNER_ID) {
+              await message.reply({
+                embeds: [
+                  new EmbedBuilder()
+                    .setColor("#ff3838")
+                    .setDescription("❌ You cannot blacklist the bot owner!"),
+                ],
+              });
+              return;
+            }
+
+            const user = await message.client.users.fetch(userId);
+
+            await blacklistManager.addUser(user.id, user.tag, reason);
+
+            const embed = new EmbedBuilder()
               .setColor("#ff3838")
-              .setDescription("❌ You don't have permission to ban members!"),
-          ],
-        });
-        return;
-      }
+              .setTitle("User Blacklisted")
+              .setDescription(`Successfully blacklisted ${user.tag}`)
+              .addFields(
+                { name: "User ID", value: user.id },
+                { name: "Username", value: user.tag },
+                { name: "Reason", value: reason },
+              )
+              .setTimestamp();
 
-      const targetUser = interaction.options.getUser("user");
-      const reason =
-        interaction.options.getString("reason") || "No reason provided";
-      const deleteMessageDays = interaction.options.getNumber("days") || 0;
+            await message.reply({ embeds: [embed] });
+            break;
+          }
 
-      if (!targetUser) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription("❌ Please specify a valid user to ban!"),
-          ],
-        });
-        return;
-      }
+          case "remove": {
+            if (!userId) {
+              await message.reply({
+                embeds: [
+                  new EmbedBuilder()
+                    .setColor("#ff3838")
+                    .setDescription("❌ Please provide a user to unblacklist!"),
+                ],
+              });
+              return;
+            }
 
-      const targetMember = await interaction.guild?.members.fetch(
-        targetUser.id,
-      );
-      const executorMember = await interaction.guild?.members.fetch(
-        interaction.user.id,
-      );
+            const user = await message.client.users.fetch(userId);
+            const removed = await blacklistManager.removeUser(user.id);
 
-      // Check if the target user is bannable
-      if (targetMember && !targetMember.bannable) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
+            const embed = new EmbedBuilder()
+              .setColor(removed ? "#00ff00" : "#ff3838")
+              .setTitle("Blacklist Remove")
               .setDescription(
-                "❌ I cannot ban this user! They may have higher permissions than me.",
-              ),
-          ],
-        });
-        return;
+                removed
+                  ? `✅ Successfully removed ${user.tag} from the blacklist`
+                  : `❌ ${user.tag} was not found in the blacklist`,
+              )
+              .setTimestamp();
+
+            await message.reply({ embeds: [embed] });
+            break;
+          }
+
+          case "search": {
+            if (!reason) {
+              await message.reply({
+                embeds: [
+                  new EmbedBuilder()
+                    .setColor("#ff3838")
+                    .setDescription("❌ Please provide a query!"),
+                ],
+              });
+              return;
+            }
+
+            const results = blacklistManager.searchBlacklist(reason);
+
+            if (results.length === 0) {
+              await message.reply({
+                embeds: [
+                  new EmbedBuilder()
+                    .setColor("#ff3838")
+                    .setTitle("No Results")
+                    .setDescription(`No matches found for query: "${reason}"`)
+                    .addFields({
+                      name: "Tip",
+                      value:
+                        "Try searching with:\n• User ID\n• Username\n• Reason for blacklist",
+                    }),
+                ],
+              });
+              return;
+            }
+
+            const embed = new EmbedBuilder()
+              .setColor("#2b2d31")
+              .setTitle("🔍 Blacklist Search Results")
+              .setDescription(`Found ${results.length} matching entries:`);
+
+            results.forEach(([id, entry], index) => {
+              embed.addFields({
+                name: `Match ${index + 1}: ${entry.username}`,
+                value: [
+                  `**ID:** \`${id}\``,
+                  `**Username:** ${entry.username}`,
+                  `**Reason:** ${entry.reason}`,
+                  `**Added:** <t:${entry.timestamp}:F>`,
+                ].join("\n"),
+              });
+            });
+
+            await message.reply({ embeds: [embed] });
+            break;
+          }
+
+          case "change": {
+            if (!userId || !reason) {
+              await message.reply({
+                embeds: [
+                  new EmbedBuilder()
+                    .setColor("#ff3838")
+                    .setDescription(
+                      "❌ Please provide a user and a new reason!",
+                    ),
+                ],
+              });
+              return;
+            }
+
+            const user = await message.client.users.fetch(userId);
+            const currentInfo = blacklistManager.getBlacklistInfo(user.id);
+
+            if (!currentInfo) {
+              await message.reply({
+                embeds: [
+                  new EmbedBuilder()
+                    .setColor("#ff3838")
+                    .setDescription("❌ This user is not blacklisted!"),
+                ],
+              });
+              return;
+            }
+
+            await blacklistManager.changeReason(user.id, reason);
+
+            const embed = new EmbedBuilder()
+              .setColor("#00ff00")
+              .setTitle("Blacklist Reason Updated")
+              .setDescription(`Updated blacklist reason for ${user.tag}`)
+              .setTimestamp();
+
+            await message.reply({ embeds: [embed] });
+            break;
+          }
+        }
       }
-
-      // Check if the user is trying to ban themselves
-      if (targetUser.id === interaction.user.id) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription("❌ You cannot ban yourself!"),
-          ],
-        });
-        return;
-      }
-
-      // Check role hierarchy
-      if (
-        targetMember &&
-        executorMember &&
-        targetMember.roles.highest.position >=
-          executorMember.roles.highest.position
-      ) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription(
-                "❌ You cannot ban someone with an equal or higher role!",
-              ),
-          ],
-        });
-        return;
-      }
-
-      // Try to DM the user before banning
-      try {
-        const dmEmbed = new EmbedBuilder()
-          .setColor("#ff3838")
-          .setTitle("You've Been Banned")
-          .setDescription(
-            `You have been banned from ${interaction.guild?.name}`,
-          )
-          .addFields(
-            { name: "Reason", value: reason },
-            { name: "Banned By", value: interaction.user.tag },
-          )
-          .setTimestamp();
-
-        await targetUser.send({ embeds: [dmEmbed] });
-      } catch (error) {
-        Logger.warn(`Could not DM banned user ${targetUser.tag}`);
-      }
-
-      // Format the ban reason
-      const formattedReason = `Banned by ${interaction.user.tag} (${interaction.user.id}) | ${new Date().toLocaleString()} | Reason: ${reason}`;
-
-      // Convert days to seconds (1 day = 86400 seconds)
-      const deleteMessageSeconds = deleteMessageDays * 86400;
-
-      // Perform the ban
-      await interaction.guild?.members.ban(targetUser, {
-        deleteMessageSeconds: deleteMessageSeconds,
-        reason: formattedReason,
-      });
-
-      // Create success embed
-      const banEmbed = new EmbedBuilder()
-        .setColor("#00ff00")
-        .setTitle("🔨 User Banned")
-        .setDescription(`Successfully banned **${targetUser.tag}**`)
-        .addFields(
-          {
-            name: "Banned User",
-            value: `${targetUser.tag} (${targetUser.id})`,
-            inline: true,
-          },
-          { name: "Banned By", value: interaction.user.tag, inline: true },
-          { name: "Reason", value: reason },
-          {
-            name: "Message Deletion",
-            value: `${deleteMessageDays} days`,
-            inline: true,
-          },
-        )
-        .setTimestamp();
-
-      await interaction.editReply({ embeds: [banEmbed] });
     } catch (error) {
-      Logger.error("Ban command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              "❌ An error occurred while trying to ban the user.",
-            ),
-        ],
+      Logger.error("Blacklist command error:", error);
+      await interaction.reply({
+        content: "❌ An error occurred while managing the blacklist.",
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

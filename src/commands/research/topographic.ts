@@ -1,11 +1,18 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
   AttachmentBuilder,
 } from "discord.js";
 import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
+import https from "https";
+
+// Create a reusable agent for all requests
+const agent = new https.Agent({
+  rejectUnauthorized: false,
+});
 
 export const command: Command = {
   data: new SlashCommandBuilder()
@@ -94,58 +101,158 @@ export const command: Command = {
         ),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    const subcommand = interaction.options.getSubcommand();
+  prefix: {
+    aliases: ["topo", "topographic", "tlines", "topowavy", "twavy", "topogen"],
+    usage: "<lines/wavy> [width] [height] [thickness] [linecolor] [bgcolor]",
+  },
 
-    switch (subcommand) {
-      case "lines":
-        await handleTopographicLines(interaction);
-        break;
-      case "wavy":
-        await handleTopographicWavy(interaction);
-        break;
-      default:
-        await interaction.reply({
-          content: "Unknown subcommand",
-          ephemeral: true,
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    try {
+      if (isPrefix) {
+        const message = interaction as Message;
+        const args = message.content
+          .slice(process.env.PREFIX?.length || 0)
+          .trim()
+          .split(/ +/g);
+
+        const commandUsed = args[0].toLowerCase(); // Get the alias that was used
+        args.shift(); // Remove command name
+
+        if (args.length < 1) {
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription("❌ Please specify a subcommand (lines/wavy)!")
+                .addFields({
+                  name: "Usage",
+                  value: [
+                    `${process.env.PREFIX || "jam!"}${commandUsed} <type> [options]`,
+                    "",
+                    "Types:",
+                    "• lines - Regular topographic lines",
+                    "• wavy - Wavy topographic lines",
+                    "",
+                    "Options:",
+                    "• width (100-3840)",
+                    "• height (100-2160)",
+                    "• thickness (1-10, lines only)",
+                    "• linecolor (hex, e.g., FFFFFF)",
+                    "• bgcolor (hex, e.g., 000000)",
+                    "",
+                    "Examples:",
+                    `${process.env.PREFIX || "jam!"}${commandUsed} lines 1920 1080 3 FFFFFF 000000`,
+                    `${process.env.PREFIX || "jam!"}${commandUsed} wavy 1920 1080 FFFFFF 000000`,
+                  ].join("\n"),
+                }),
+            ],
+          });
+          return;
+        }
+
+        const subcommand = args[0].toLowerCase();
+        let options: any = {
+          width: 1920,
+          height: 1080,
+          thickness: 3,
+          linecolor: "FFFFFF",
+          bgcolor: "000000",
+        };
+
+        if (subcommand === "lines") {
+          if (args[1]) options.width = parseInt(args[1]);
+          if (args[2]) options.height = parseInt(args[2]);
+          if (args[3]) options.thickness = parseInt(args[3]);
+          if (args[4]) options.linecolor = args[4];
+          if (args[5]) options.bgcolor = args[5];
+          await handleTopographicLines(message, options);
+        } else if (subcommand === "wavy") {
+          if (args[1]) options.width = parseInt(args[1]);
+          if (args[2]) options.height = parseInt(args[2]);
+          if (args[3]) options.linecolor = args[3];
+          if (args[4]) options.bgcolor = args[4];
+          await handleTopographicWavy(message, options);
+        } else {
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription(
+                  "❌ Invalid subcommand! Use 'lines' or 'wavy'.",
+                ),
+            ],
+          });
+        }
+      } else {
+        const slashInteraction = interaction as ChatInputCommandInteraction;
+        await slashInteraction.deferReply();
+
+        const subcommand = slashInteraction.options.getSubcommand();
+        const options = {
+          width: slashInteraction.options.getNumber("width") || 1920,
+          height: slashInteraction.options.getNumber("height") || 1080,
+          thickness: slashInteraction.options.getNumber("thickness") || 3,
+          linecolor:
+            slashInteraction.options.getString("linecolor") || "FFFFFF",
+          bgcolor: slashInteraction.options.getString("bgcolor") || "000000",
+        };
+
+        if (subcommand === "lines") {
+          await handleTopographicLines(slashInteraction, options);
+        } else if (subcommand === "wavy") {
+          await handleTopographicWavy(slashInteraction, options);
+        }
+      }
+    } catch (error) {
+      Logger.error("Topographic command failed:", error);
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription("❌ Failed to generate topographic image.");
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
         });
+      }
     }
   },
 };
 
 async function handleTopographicLines(
-  interaction: ChatInputCommandInteraction,
+  interaction: ChatInputCommandInteraction | Message,
+  options: any,
 ) {
-  await interaction.deferReply();
-
   try {
-    // Get options with defaults
-    const width = interaction.options.getNumber("width") || 1920;
-    const height = interaction.options.getNumber("height") || 1080;
-    const thickness = interaction.options.getNumber("thickness") || 3;
-    const lineColor = interaction.options.getString("linecolor") || "FFFFFF";
-    const bgColor = interaction.options.getString("bgcolor") || "000000";
-
-    // Validate hex colors
+    // Validate options
     const hexColorRegex = /^[0-9A-Fa-f]{6}$/;
-    if (!hexColorRegex.test(lineColor) || !hexColorRegex.test(bgColor)) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              "❌ Invalid hex color format. Use format like 'FFFFFF' for white.",
-            ),
-        ],
-      });
+    if (
+      !hexColorRegex.test(options.linecolor) ||
+      !hexColorRegex.test(options.bgcolor)
+    ) {
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          "❌ Invalid hex color format. Use format like 'FFFFFF'.",
+        );
+
+      if (interaction instanceof Message) {
+        await interaction.reply({ embeds: [errorEmbed] });
+      } else {
+        await interaction.editReply({ embeds: [errorEmbed] });
+      }
       return;
     }
 
     // Construct API URL
-    const apiUrl = `https://api.project-jam.is-a.dev/api/v0/image/topographic-lines?width=${width}&height=${height}&thickness=${thickness}&lineColor=${lineColor}&bgColor=${bgColor}`;
+    const apiUrl = `https://api.project-jam.is-a.dev/api/v0/image/topographic-lines?width=${options.width}&height=${options.height}&thickness=${options.thickness}&lineColor=${options.linecolor}&bgColor=${options.bgcolor}`;
 
     // Fetch the image
-    const response = await fetch(apiUrl);
+    const response = await fetch(apiUrl, { agent });
     if (!response.ok) {
       throw new Error(`API returned status ${response.status}`);
     }
@@ -160,80 +267,68 @@ async function handleTopographicLines(
 
     // Create embed
     const embed = new EmbedBuilder()
-      .setColor(`#${lineColor}`)
+      .setColor(`#${options.linecolor}`)
       .setTitle("🗺️ Topographic Lines Generated")
       .addFields(
         {
           name: "Dimensions",
-          value: `${width}x${height}`,
+          value: `${options.width}x${options.height}`,
           inline: true,
         },
         {
           name: "Line Thickness",
-          value: thickness.toString(),
+          value: options.thickness.toString(),
           inline: true,
         },
         {
           name: "Colors",
-          value: `Lines: #${lineColor}\nBackground: #${bgColor}`,
+          value: `Lines: #${options.linecolor}\nBackground: #${options.bgcolor}`,
           inline: true,
         },
       )
       .setImage("attachment://topographic-lines.png")
-      .setTimestamp()
-      .setFooter({
-        text: `Requested by ${interaction.user.tag}`,
-        iconURL: interaction.user.displayAvatarURL(),
-      });
+      .setTimestamp();
 
-    await interaction.editReply({
-      embeds: [embed],
-      files: [attachment],
-    });
+    if (interaction instanceof Message) {
+      await interaction.reply({ embeds: [embed], files: [attachment] });
+    } else {
+      await interaction.editReply({ embeds: [embed], files: [attachment] });
+    }
   } catch (error) {
-    Logger.error("Topographic lines command failed:", error);
-    await interaction.editReply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor("#ff3838")
-          .setDescription(
-            "❌ Failed to generate topographic lines. Please try again later.",
-          ),
-      ],
-    });
+    throw error;
   }
 }
 
-async function handleTopographicWavy(interaction: ChatInputCommandInteraction) {
-  await interaction.deferReply();
-
+async function handleTopographicWavy(
+  interaction: ChatInputCommandInteraction | Message,
+  options: any,
+) {
   try {
-    // Get options with defaults (wavy doesn't use thickness)
-    const width = interaction.options.getNumber("width") || 1920;
-    const height = interaction.options.getNumber("height") || 1080;
-    const lineColor = interaction.options.getString("linecolor") || "FFFFFF";
-    const bgColor = interaction.options.getString("bgcolor") || "000000";
-
-    // Validate hex colors
+    // Validate options
     const hexColorRegex = /^[0-9A-Fa-f]{6}$/;
-    if (!hexColorRegex.test(lineColor) || !hexColorRegex.test(bgColor)) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              "❌ Invalid hex color format. Use format like 'FFFFFF' for white.",
-            ),
-        ],
-      });
+    if (
+      !hexColorRegex.test(options.linecolor) ||
+      !hexColorRegex.test(options.bgcolor)
+    ) {
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          "❌ Invalid hex color format. Use format like 'FFFFFF'.",
+        );
+
+      if (interaction instanceof Message) {
+        await interaction.reply({ embeds: [errorEmbed] });
+      } else {
+        await interaction.editReply({ embeds: [errorEmbed] });
+      }
       return;
     }
 
-    // Construct API URL for wavy lines, adding wavy=true
-    const apiUrl = `https://api.project-jam.is-a.dev/api/v0/image/topographic-lines?width=${width}&height=${height}&lineColor=${lineColor}&bgColor=${bgColor}&wavy=true`;
+    // Construct API URL
+    const apiUrl = `https://api.project-jam.is-a.dev/api/v0/image/topographic-lines?width=${options.width}&height=${options.height}&lineColor=${options.linecolor}&bgColor=${options.bgcolor}&wavy=true`;
 
     // Fetch the image
-    const response = await fetch(apiUrl);
+    const response = await fetch(apiUrl, { agent });
     if (!response.ok) {
       throw new Error(`API returned status ${response.status}`);
     }
@@ -246,43 +341,31 @@ async function handleTopographicWavy(interaction: ChatInputCommandInteraction) {
       name: "topographic-wavy-lines.png",
     });
 
-    // Create embed for wavy lines
+    // Create embed
     const embed = new EmbedBuilder()
-      .setColor(`#${lineColor}`)
-      .setTitle("🌊 Wavy Topographic Lines Generated") // Updated title
+      .setColor(`#${options.linecolor}`)
+      .setTitle("🌊 Wavy Topographic Lines Generated")
       .addFields(
         {
           name: "Dimensions",
-          value: `${width}x${height}`,
+          value: `${options.width}x${options.height}`,
           inline: true,
         },
         {
           name: "Colors",
-          value: `Lines: #${lineColor}\nBackground: #${bgColor}`,
+          value: `Lines: #${options.linecolor}\nBackground: #${options.bgcolor}`,
           inline: true,
         },
       )
-      .setImage("attachment://topographic-wavy-lines.png") // Updated filename
-      .setTimestamp()
-      .setFooter({
-        text: `Requested by ${interaction.user.tag}`,
-        iconURL: interaction.user.displayAvatarURL(),
-      });
+      .setImage("attachment://topographic-wavy-lines.png")
+      .setTimestamp();
 
-    await interaction.editReply({
-      embeds: [embed],
-      files: [attachment],
-    });
+    if (interaction instanceof Message) {
+      await interaction.reply({ embeds: [embed], files: [attachment] });
+    } else {
+      await interaction.editReply({ embeds: [embed], files: [attachment] });
+    }
   } catch (error) {
-    Logger.error("Topographic wavy lines command failed:", error);
-    await interaction.editReply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor("#ff3838")
-          .setDescription(
-            "❌ Failed to generate wavy topographic lines. Please try again later.",
-          ),
-      ],
-    });
+    throw error;
   }
 }

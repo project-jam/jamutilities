@@ -111,31 +111,69 @@ export const command: Command = {
         .setRequired(true),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["nyah", "nya", "meow"],
+    usage: "<@user>", // Example: jam!nyah @user
+  },
 
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
     try {
-      const target = interaction.options.getUser("user");
+      let target;
+      const user = isPrefix
+        ? (interaction as Message).author
+        : (interaction as ChatInputCommandInteraction).user;
+
+      if (isPrefix) {
+        const message = interaction as Message;
+        await message.channel.sendTyping();
+        target = message.mentions.users.first();
+
+        if (!target) {
+          const prefix = process.env.PREFIX || "jam!";
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription(
+                  `❌ Please mention someone to nyah at! ${getRandomCatEmote()} ${getRandomSound()}`,
+                )
+                .addFields({
+                  name: "Usage",
+                  value: command.prefix.aliases
+                    .map((alias) => `${prefix}${alias} <@user>`)
+                    .concat("Example: `jam!nyah @user`")
+                    .join("\n"),
+                }),
+            ],
+          });
+          return;
+        }
+      } else {
+        await (interaction as ChatInputCommandInteraction).deferReply();
+        target = (interaction as ChatInputCommandInteraction).options.getUser(
+          "user",
+        );
+      }
 
       // Self-nyah transformation case
-      if (target?.id === interaction.user.id) {
+      if (target.id === user.id) {
         const selfMessage = selfNyahMessages[
           Math.floor(Math.random() * selfNyahMessages.length)
-        ](interaction.user.toString());
+        ](user.toString());
 
-        const [gifUrl] = await Promise.all([getGif("nyah")]);
-
+        const gifUrl = await getGif("nyah");
         const catBorderTop = generateCatBorder();
         const catBorderBottom = generateCatBorder();
-
-        // Generate a chorus of cat sounds
         const catChorus = Array(3)
           .fill("")
           .map(() => getRandomSound())
           .join(" ");
 
         const embed = new EmbedBuilder()
-          .setColor("#FF69B4") // Hot pink for maximum chaos
+          .setColor("#FF69B4")
           .setTitle(`${catBorderTop} NYAH TRANSFORMATION ${catBorderTop}`)
           .setDescription(
             [
@@ -149,50 +187,61 @@ export const command: Command = {
           .setImage(gifUrl)
           .setFooter({
             text: "Side effects may include: sudden cat ear growth, unexpected purring, and dimensional instability",
-            iconURL: interaction.user.displayAvatarURL(),
+            iconURL: user.displayAvatarURL(),
           })
           .setTimestamp();
 
-        // Add random cat reactions
-        await interaction.editReply({ embeds: [embed] });
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [embed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [embed],
+          });
+        }
         return;
       }
 
       // Regular nyah case
-      const [gifUrl, message] = await Promise.all([
-        getGif("nyah"),
-        Promise.resolve(
-          getRandomMessage(
-            nyahMessages,
-            interaction.user.toString(),
-            target.toString(),
-          ),
-        ),
-      ]);
+      const gifUrl = await getGif("nyah");
+      const message = getRandomMessage(
+        nyahMessages,
+        user.toString(),
+        target.toString(),
+      );
 
       const embed = new EmbedBuilder()
-        .setColor("#FFB6C1") // Light pink for regular nyahs
+        .setColor("#FFB6C1")
         .setTitle(`${getRandomCatEmote()} Nyah Time! ${getRandomCatEmote()}`)
         .setDescription(message)
         .setImage(gifUrl)
         .setFooter({
-          text: `Tip: /nyah @${interaction.user.username} to unlock your true feline form!`,
-          iconURL: interaction.user.displayAvatarURL(),
+          text: `Tip: Try ${isPrefix ? "jam!" : "/"}nyah ${isPrefix ? "@" : ""}${user.username} to unlock your true feline form!`,
+          iconURL: user.displayAvatarURL(),
         })
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [embed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
+        });
+      }
     } catch (error) {
       Logger.error("Nyah command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              `❌ The nyah~ energy was too powerful! ${getRandomCatEmote()} Try again!`,
-            ),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          `❌ The nyah~ energy was too powerful! ${getRandomCatEmote()} Try again!`,
+        );
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };

@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
 } from "discord.js";
@@ -77,48 +78,124 @@ export const command: Command = {
         ),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  // Add prefix command configuration
+  prefix: {
+    aliases: ["github", "gh"],
+    usage: "<repo/user> <name>", // Example: jam!gh repo username/repo
+  },
 
-    const subcommand = interaction.options.getSubcommand();
-
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
     try {
+      let subcommand: string;
+      let searchTerm: string;
+
+      if (isPrefix) {
+        const args = (interaction as Message).content
+          .slice(process.env.PREFIX?.length || 0)
+          .trim()
+          .split(/ +/g)
+          .slice(1);
+
+        if (args.length < 2) {
+          await (interaction as Message).reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription(
+                  "❌ Please provide both a subcommand and search term!",
+                )
+                .addFields({
+                  name: "Usage",
+                  value: [
+                    `${process.env.PREFIX || "jam!"}github <repo/user> <name>`,
+                    "",
+                    "Examples:",
+                    `${process.env.PREFIX || "jam!"}gh repo username/repository`,
+                    `${process.env.PREFIX || "jam!"}github user username`,
+                  ].join("\n"),
+                }),
+            ],
+          });
+          return;
+        }
+
+        subcommand = args[0].toLowerCase();
+        searchTerm = args.slice(1).join(" ");
+        await (interaction as Message).channel.sendTyping();
+      } else {
+        await (interaction as ChatInputCommandInteraction).deferReply();
+        subcommand = (
+          interaction as ChatInputCommandInteraction
+        ).options.getSubcommand();
+        searchTerm = (
+          interaction as ChatInputCommandInteraction
+        ).options.getString(
+          subcommand === "repo" ? "repository" : "username",
+          true,
+        );
+      }
+
       switch (subcommand) {
         case "repo":
-          await handleRepoLookup(interaction);
+          await handleRepoLookup(searchTerm, interaction, isPrefix);
           break;
         case "user":
-          await handleUserLookup(interaction);
+          await handleUserLookup(searchTerm, interaction, isPrefix);
           break;
+        default:
+          const errorEmbed = new EmbedBuilder()
+            .setColor("#ff3838")
+            .setDescription("❌ Invalid subcommand. Use 'repo' or 'user'.");
+
+          if (isPrefix) {
+            await (interaction as Message).reply({ embeds: [errorEmbed] });
+          } else {
+            await (interaction as ChatInputCommandInteraction).editReply({
+              embeds: [errorEmbed],
+            });
+          }
       }
     } catch (error) {
       Logger.error("GitHub command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              "❌ An error occurred while fetching GitHub information.",
-            ),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          "❌ An error occurred while fetching GitHub information.",
+        );
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };
 
-async function handleRepoLookup(interaction: ChatInputCommandInteraction) {
-  const repo = interaction.options.getString("repository", true);
-
+async function handleRepoLookup(
+  repo: string,
+  interaction: ChatInputCommandInteraction | Message,
+  isPrefix: boolean,
+) {
   if (!repo.includes("/")) {
-    await interaction.editReply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor("#ff3838")
-          .setDescription(
-            '❌ Please provide the repository in the format "username/repository"',
-          ),
-      ],
-    });
+    const errorEmbed = new EmbedBuilder()
+      .setColor("#ff3838")
+      .setDescription(
+        '❌ Please provide the repository in the format "username/repository"',
+      );
+
+    if (isPrefix) {
+      await (interaction as Message).reply({ embeds: [errorEmbed] });
+    } else {
+      await (interaction as ChatInputCommandInteraction).editReply({
+        embeds: [errorEmbed],
+      });
+    }
     return;
   }
 
@@ -131,13 +208,17 @@ async function handleRepoLookup(interaction: ChatInputCommandInteraction) {
 
   if (!response.ok) {
     if (response.status === 404) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription("❌ Repository not found!"),
-        ],
-      });
+      const notFoundEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription("❌ Repository not found!");
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [notFoundEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [notFoundEmbed],
+        });
+      }
       return;
     }
     throw new Error(`GitHub API returned ${response.status}`);
@@ -193,12 +274,20 @@ async function handleRepoLookup(interaction: ChatInputCommandInteraction) {
     });
   }
 
-  await interaction.editReply({ embeds: [embed] });
+  if (isPrefix) {
+    await (interaction as Message).reply({ embeds: [embed] });
+  } else {
+    await (interaction as ChatInputCommandInteraction).editReply({
+      embeds: [embed],
+    });
+  }
 }
 
-async function handleUserLookup(interaction: ChatInputCommandInteraction) {
-  const username = interaction.options.getString("username", true);
-
+async function handleUserLookup(
+  username: string,
+  interaction: ChatInputCommandInteraction | Message,
+  isPrefix: boolean,
+) {
   const response = await fetch(`https://api.github.com/users/${username}`, {
     headers: {
       Accept: "application/vnd.github.v3+json",
@@ -208,13 +297,17 @@ async function handleUserLookup(interaction: ChatInputCommandInteraction) {
 
   if (!response.ok) {
     if (response.status === 404) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription("❌ User not found!"),
-        ],
-      });
+      const notFoundEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription("❌ User not found!");
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [notFoundEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [notFoundEmbed],
+        });
+      }
       return;
     }
     throw new Error(`GitHub API returned ${response.status}`);
@@ -271,5 +364,11 @@ async function handleUserLookup(interaction: ChatInputCommandInteraction) {
     })
     .setTimestamp();
 
-  await interaction.editReply({ embeds: [embed] });
+  if (isPrefix) {
+    await (interaction as Message).reply({ embeds: [embed] });
+  } else {
+    await (interaction as ChatInputCommandInteraction).editReply({
+      embeds: [embed],
+    });
+  }
 }

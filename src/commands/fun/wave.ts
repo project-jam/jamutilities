@@ -105,24 +105,45 @@ export const command: Command = {
         .setRequired(false),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["wave", "hi", "hello"],
+    usage: "[@user]", // Example: jam!wave [@user]
+  },
 
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
     try {
-      const target = interaction.options.getUser("user");
-      const [gifUrl] = await Promise.all([getGif("wave")]);
+      let target;
+      const user = isPrefix
+        ? (interaction as Message).author
+        : (interaction as ChatInputCommandInteraction).user;
+
+      if (isPrefix) {
+        const message = interaction as Message;
+        await message.channel.sendTyping();
+        target = message.mentions.users.first();
+      } else {
+        await (interaction as ChatInputCommandInteraction).deferReply();
+        target = (interaction as ChatInputCommandInteraction).options.getUser(
+          "user",
+        );
+      }
+
+      const gifUrl = await getGif("wave");
 
       let message: string;
       if (!target) {
         // Solo wave to everyone!
         message = soloMessages[Math.floor(Math.random() * soloMessages.length)](
-          interaction.user.toString(),
+          user.toString(),
         );
       } else {
         // Wave to specific person
         message = getRandomMessage(
           waveMessages,
-          interaction.user.toString(),
+          user.toString(),
           target.toString(),
         );
       }
@@ -132,7 +153,7 @@ export const command: Command = {
       const bottomDecorations = getRandomDecorations(3);
 
       const embed = new EmbedBuilder()
-        .setColor("#87CEEB") // Sky blue for friendly waves!
+        .setColor("#87CEEB")
         .setTitle(`${topDecorations} Happy Wave Time! ${topDecorations}`)
         .setDescription(
           `${message} ${getRandomKaomoji()}\n\n${bottomDecorations}`,
@@ -140,22 +161,32 @@ export const command: Command = {
         .setImage(gifUrl)
         .setFooter({
           text: `Spreading joy one wave at a time! ${getRandomKaomoji()}`,
-          iconURL: interaction.user.displayAvatarURL(),
+          iconURL: user.displayAvatarURL(),
         })
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [embed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
+        });
+      }
     } catch (error) {
       Logger.error("Wave command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              `❌ Your wave got tangled in happiness! Try again! ${getRandomKaomoji()}`,
-            ),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          `❌ Your wave got tangled in happiness! Try again! ${getRandomKaomoji()}`,
+        );
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };

@@ -6,6 +6,9 @@ declare global {
       OWNER_ID: string;
       DISABLED_COMMANDS?: string;
       IGNORED_USER_ID: string;
+      PREFIX?: string;
+      ENABLE_PREFIX_COMMANDS?: string;
+      ENABLE_SLASH_COMMANDS?: string;
     }
   }
 }

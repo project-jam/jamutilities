@@ -1,112 +1,195 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
 } from "discord.js";
 import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
-import { getGif, getRandomMessage } from "../../utils/otakuGifs";
+import { getGif } from "../../utils/otakuGifs";
 
-// Messages for when someone tries to cuddle others (becomes self-comfort)
-const soloMessages = [
-  (user: string) =>
-    `**${user}** wraps themselves in a cozy blanket instead! 🌸`,
-  (user: string) => `**${user}** discovers the art of self-comfort! ✨`,
-  (user: string) =>
-    `Plot twist! **${user}** builds a pillow fort and snuggles in! 🏰`,
-  (user: string) =>
-    `**${user}** doesn't need cuddles when they have plushies! 🧸`,
-  (user: string) => `Watch as **${user}** creates the coziest comfort zone! 💫`,
-  (user: string) => `**${user}** turns into a human burrito of coziness! 🌯`,
-  (user: string) => `SURPRISE! **${user}** becomes one with the fluff! ☁️`,
-  (user: string) =>
-    `**${user}** said "cuddles are nice but have you tried MAXIMUM COZY?" 🌟`,
+// Dance emoticons for variety
+const danceEmotes = [
+  "💃",
+  "🕺",
+  "💫",
+  "✨",
+  "🌟",
+  "⭐",
+  "🎵",
+  "🎶",
+  "🎊",
+  "🎉",
+  "🪩",
+  "🔥",
+  "⚡",
+  "🌈",
+  "🦋",
+  "🎭",
+  "🎪",
+  "🎨",
+  "🎡",
+  "💝",
 ];
 
-// Messages for cuddling with yourself (becomes transcendent)
-const selfCuddleMessages = [
-  (user: string) => `**${user}** achieves cuddle enlightenment! ✨`,
-  (user: string) =>
-    `**${user}** discovers they were the ultimate cuddle buddy all along! 💫`,
-  (user: string) => `Plot twist! **${user}** creates a cuddle paradox! 🌌`,
-  (user: string) => `**${user}** transcends the boundaries of cuddling! 🎭`,
-  (user: string) =>
-    `**${user}** unlocks the secret technique: INFINITE SELF-CUDDLE! 💫`,
-  (user: string) =>
-    `The legends were true! **${user}** becomes the Cuddle Master! 👑`,
-  (user: string) =>
-    `**${user}** demonstrates the forbidden art of quantum cuddling! 🌟`,
-  (user: string) =>
-    `Reality bends as **${user}** creates a cuddle singularity! 🌀`,
+// Regular dance messages
+const danceMessages = [
+  (user: string, target: string) =>
+    `**${user}** and **${target}** light up the dance floor with their incredible moves! ${getRandomEmote()}`,
+  (user: string, target: string) =>
+    `The rhythm is contagious as **${user}** and **${target}** groove together! ${getRandomEmote()}`,
+  (user: string, target: string) =>
+    `Watch out! **${user}** and **${target}** are turning this into a party zone! ${getRandomEmote()}`,
+  (user: string, target: string) =>
+    `When **${user}** meets **${target}**, the dance floor becomes electric! ${getRandomEmote()}`,
+  (user: string, target: string) =>
+    `**${user}** and **${target}** create pure magic with their dance moves! ${getRandomEmote()}`,
+  (user: string, target: string) =>
+    `The spotlight shines on **${user}** and **${target}** as they dance the night away! ${getRandomEmote()}`,
 ];
+
+// Solo dance messages
+const soloDanceMessages = [
+  (user: string) =>
+    `**${user}** breaks into an incredible solo performance! ${getRandomEmote()}`,
+  (user: string) =>
+    `All eyes on **${user}** as they dominate the dance floor! ${getRandomEmote()}`,
+  (user: string) =>
+    `**${user}** unleashes their inner dancing star! ${getRandomEmote()}`,
+  (user: string) =>
+    `Watch in awe as **${user}** shows off their amazing moves! ${getRandomEmote()}`,
+  (user: string) =>
+    `**${user}** creates pure dance magic all by themselves! ${getRandomEmote()}`,
+  (user: string) =>
+    `The spotlight belongs to **${user}** as they dance their heart out! ${getRandomEmote()}`,
+];
+
+// Helper functions for random elements
+function getRandomEmote(): string {
+  return danceEmotes[Math.floor(Math.random() * danceEmotes.length)];
+}
+
+function getRandomDecorations(count: number): string {
+  return Array(count)
+    .fill(0)
+    .map(() => danceEmotes[Math.floor(Math.random() * danceEmotes.length)])
+    .join(" ");
+}
 
 export const command: Command = {
   data: new SlashCommandBuilder()
-    .setName("cuddle")
-    .setDescription("Start a cozy cuddle adventure! 🤗✨")
+    .setName("dance")
+    .setDescription("Start a groovy dance adventure! 💃✨")
     .setDMPermission(true)
     .addUserOption((option) =>
       option
         .setName("user")
-        .setDescription("The user to cuddle (or try to... results may vary!)")
+        .setDescription("Someone to dance with (optional)")
         .setRequired(false),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["dance", "groove", "party"],
+    usage: "@user",
+  },
 
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
     try {
-      const target = interaction.options.getUser("user");
-      const [gifUrl] = await Promise.all([getGif("cuddle")]);
+      if (isPrefix) {
+        // Handle prefix command
+        const message = interaction as Message;
+        const target = message.mentions.users.first();
+        const user = message.author;
 
-      // If they target someone else (including no target), they get self-comfort!
-      if (!target || target.id !== interaction.user.id) {
-        const soloMessage = soloMessages[
-          Math.floor(Math.random() * soloMessages.length)
-        ](interaction.user.toString());
+        const [gifUrl] = await Promise.all([getGif("dance")]);
+        const topDecorations = getRandomDecorations(3);
+        const bottomDecorations = getRandomDecorations(3);
 
         const embed = new EmbedBuilder()
-          .setColor("#9400D3") // Deep Purple for cozy solo time
-          .setTitle("✨ Cozy Time Activated! ✨")
-          .setDescription(soloMessage)
+          .setColor("#FF69B4")
+          .setTitle(`${topDecorations} Dance Time! ${topDecorations}`);
+
+        if (!target || target.id === user.id) {
+          // Solo dance
+          const soloMessage = soloDanceMessages[
+            Math.floor(Math.random() * soloDanceMessages.length)
+          ](user.toString());
+          embed.setDescription(`${soloMessage}\n\n${bottomDecorations}`);
+        } else {
+          // Partner dance
+          const danceMessage = danceMessages[
+            Math.floor(Math.random() * danceMessages.length)
+          ](user.toString(), target.toString());
+          embed.setDescription(`${danceMessage}\n\n${bottomDecorations}`);
+        }
+
+        embed
           .setImage(gifUrl)
           .setFooter({
-            text: "Protip: Try /cuddle @yourself to unlock ultimate coziness! 👀",
+            text: `Getting groovy! ${getRandomEmote()}`,
+            iconURL: user.displayAvatarURL(),
           })
           .setTimestamp();
 
-        await interaction.editReply({ embeds: [embed] });
-        return;
+        await message.reply({ embeds: [embed] });
+      } else {
+        // Handle slash command
+        const slashInteraction = interaction as ChatInputCommandInteraction;
+        await slashInteraction.deferReply();
+
+        const target = slashInteraction.options.getUser("user");
+        const user = slashInteraction.user;
+
+        const [gifUrl] = await Promise.all([getGif("dance")]);
+        const topDecorations = getRandomDecorations(3);
+        const bottomDecorations = getRandomDecorations(3);
+
+        const embed = new EmbedBuilder()
+          .setColor("#FF69B4")
+          .setTitle(`${topDecorations} Dance Time! ${topDecorations}`);
+
+        if (!target || target.id === user.id) {
+          // Solo dance
+          const soloMessage = soloDanceMessages[
+            Math.floor(Math.random() * soloDanceMessages.length)
+          ](user.toString());
+          embed.setDescription(`${soloMessage}\n\n${bottomDecorations}`);
+        } else {
+          // Partner dance
+          const danceMessage = danceMessages[
+            Math.floor(Math.random() * danceMessages.length)
+          ](user.toString(), target.toString());
+          embed.setDescription(`${danceMessage}\n\n${bottomDecorations}`);
+        }
+
+        embed
+          .setImage(gifUrl)
+          .setFooter({
+            text: `Getting groovy! ${getRandomEmote()}`,
+            iconURL: user.displayAvatarURL(),
+          })
+          .setTimestamp();
+
+        await slashInteraction.editReply({ embeds: [embed] });
       }
-
-      // If they target themselves, they achieve cuddle transcendence!
-      const selfCuddleMessage = selfCuddleMessages[
-        Math.floor(Math.random() * selfCuddleMessages.length)
-      ](interaction.user.toString());
-
-      const embed = new EmbedBuilder()
-        .setColor("#FF69B4") // Hot Pink for transcendent self-cuddles
-        .setTitle("🌟 ULTIMATE CUDDLE ACHIEVED! 🌟")
-        .setDescription(selfCuddleMessage)
-        .setImage(gifUrl)
-        .setFooter({
-          text: "You have unlocked the secrets of cosmic cuddling! ✨",
-          iconURL: interaction.user.displayAvatarURL(),
-        })
-        .setTimestamp();
-
-      await interaction.editReply({ embeds: [embed] });
     } catch (error) {
-      Logger.error("Cuddle command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              "❌ The cuddle dimension collapsed from too much coziness! Try again! 🌌✨",
-            ),
-        ],
-      });
+      Logger.error("Dance command failed:", error);
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          `❌ The dance floor got too wild! Try again! ${getRandomEmote()}`,
+        );
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };

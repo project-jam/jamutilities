@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
 } from "discord.js";
@@ -11,19 +12,35 @@ export const command: Command = {
     .setDMPermission(true)
     .setDescription("Shows bot latency and API response time"),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    // Start with deferring the reply
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["ping", "latency", "pong"],
+    usage: "",
+  },
+
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    let startTime: number;
+    let initialMessage: Message | void;
+
+    if (isPrefix) {
+      startTime = Date.now();
+      initialMessage = await (interaction as Message).reply(
+        "Calculating ping...",
+      );
+    } else {
+      await (interaction as ChatInputCommandInteraction).deferReply();
+      startTime = Date.now();
+    }
 
     // Calculate different types of latency
     const websocketLatency = interaction.client.ws.ping;
-    const startTime = Date.now();
-
-    // Send a test message and measure roundtrip time
-    const response = await interaction.editReply("Calculating ping...");
     const endTime = Date.now();
 
-    const roundtripLatency = endTime - interaction.createdTimestamp;
+    const roundtripLatency = isPrefix
+      ? endTime - (interaction as Message).createdTimestamp
+      : endTime - (interaction as ChatInputCommandInteraction).createdTimestamp;
     const apiLatency = endTime - startTime;
 
     // Get appropriate emoji based on latency
@@ -72,6 +89,15 @@ export const command: Command = {
               : "#f04747", // Red
       );
 
-    await interaction.editReply({ content: "", embeds: [embed] });
+    if (isPrefix) {
+      if (initialMessage) {
+        await initialMessage.edit({ content: "", embeds: [embed] });
+      }
+    } else {
+      await (interaction as ChatInputCommandInteraction).editReply({
+        content: "",
+        embeds: [embed],
+      });
+    }
   },
 };

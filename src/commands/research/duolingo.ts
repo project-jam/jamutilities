@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
 } from "discord.js";
@@ -68,7 +69,7 @@ const languageEmojis: { [key: string]: string } = {
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("duolingo")
-    .setDescription("Get Duolingo (rip) user statistics")
+    .setDescription("Get Duolingo user statistics")
     .setDMPermission(true)
     .addStringOption((option) =>
       option
@@ -77,11 +78,58 @@ export const command: Command = {
         .setRequired(true),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  // Add prefix command configuration
+  prefix: {
+    aliases: ["duolingo", "duo"],
+    usage: "<username>", // Example: jam!duo username
+  },
+
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    // Handle different ways to defer/show typing
+    if (isPrefix) {
+      await (interaction as Message).channel.sendTyping();
+    } else {
+      await (interaction as ChatInputCommandInteraction).deferReply();
+    }
 
     try {
-      const username = interaction.options.getString("username", true);
+      // Get username from appropriate source
+      const username = isPrefix
+        ? (interaction as Message).content
+            .slice(process.env.PREFIX?.length || 0)
+            .trim()
+            .split(/ +/g)
+            .slice(1)[0]
+        : (interaction as ChatInputCommandInteraction).options.getString(
+            "username",
+            true,
+          );
+
+      // Check if username was provided
+      if (!username) {
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription("❌ Please provide a Duolingo username!")
+          .addFields({
+            name: "Usage",
+            value: isPrefix
+              ? `${process.env.PREFIX || "jam!"}duolingo <username>`
+              : "/duolingo username:<username>",
+          });
+
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [errorEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [errorEmbed],
+          });
+        }
+        return;
+      }
+
       const response = await fetch(
         `https://www.duolingo.com/2017-06-30/users?username=${encodeURIComponent(
           username,
@@ -95,13 +143,17 @@ export const command: Command = {
       const data = (await response.json()) as DuolingoResponse;
 
       if (!data.users || data.users.length === 0) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription("❌ User not found!"),
-          ],
-        });
+        const notFoundEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription("❌ User not found!");
+
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [notFoundEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [notFoundEmbed],
+          });
+        }
         return;
       }
 
@@ -118,7 +170,7 @@ export const command: Command = {
         .join("\n");
 
       const embed = new EmbedBuilder()
-        .setColor("#58CC02") // Duolingo's green color
+        .setColor("#58CC02")
         .setTitle(`${user.name || user.username}'s Duolingo Profile`)
         .setURL(`https://www.duolingo.com/profile/${user.username}`)
         .setThumbnail(
@@ -138,8 +190,8 @@ export const command: Command = {
             inline: true,
           },
           {
-            name: "👑 Duolingo Plus",
-            value: user.hasPlus ? "Yes" : "No",
+            name: "👑 Subscription",
+            value: user.hasPlus ? "Super Duolingo / Duolingo Max" : "Free", // Updated to show Super/Max
             inline: true,
           },
           {
@@ -164,18 +216,29 @@ export const command: Command = {
         });
       }
 
-      await interaction.editReply({ embeds: [embed] });
+      // Send the embed
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [embed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
+        });
+      }
     } catch (error) {
       Logger.error("Failed to fetch Duolingo profile:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              "❌ Failed to fetch Duolingo profile. Please check the username and try again.",
-            ),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          "❌ Failed to fetch Duolingo profile. Please check the username and try again.",
+        );
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };

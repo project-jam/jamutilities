@@ -4,11 +4,11 @@
 > Exercise caution when using the bot. It is still in development and not yet suitable for public use. For best results, please use it on your own server. If you have any questions, feel free to reach out to us via [email](mailto:contact@project-jam.is-a.dev).
 
 > [!NOTE]
-> For future cases, i'll add a .env.example file to see how it works, as for now, we're working on adding the bot, so yeah, you can try to WAIT for it to update everytime.
+> For future cases, i added a `.env.example` file, so you can rename the `.env.example` file to `.env` and fill in the required/optional values. This will help you to keep your `.env` file safe and secure, as well as prevent you from accidentally committing it to the repository.
 >
 > AND there will be an auto-update and shards feature if we managed to add it, but it's coming soon.
 >
-> Also this license is BSD-3-Clause, you can make it private, BUT as long as YOU don't remove our project mentionnings on THE `/about` command, or try to make a way to mention our project, as that will be super DUPER helpful, if you do that, you're just a nice and respectful person, even with a messed face :)
+> Also this license is BSD-3-Clause, you can make it private, but you can't sell it, as it's open-source, and you can't remove the license, as it's required to keep the license on the repository.
 
 # jamutilities
 

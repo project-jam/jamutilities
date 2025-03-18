@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
 } from "discord.js";
@@ -73,68 +74,117 @@ export const command: Command = {
         .setRequired(true),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["airkiss", "airsmooch", "blowkiss", "flyingkiss", "GETOUT!"], // Only the base command name, no alternatives
+    usage: "@user",
+  },
+
+  async execute(
+    context: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    if (!isPrefix) {
+      await (context as ChatInputCommandInteraction).deferReply();
+    }
 
     try {
-      const target = interaction.options.getUser("user");
+      const target = isPrefix
+        ? (context as Message).mentions.users.first()
+        : (context as ChatInputCommandInteraction).options.getUser("user");
 
-      // Don't allow air kissing yourself
-      if (target?.id === interaction.user.id) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription(
-                "❌ Sending air kisses to yourself? Save them for someone special!",
-              )
-              .setFooter({
-                text: "Try sharing your affection with others instead! 💝",
-              }),
-          ],
-        });
+      const user = isPrefix
+        ? (context as Message).author
+        : (context as ChatInputCommandInteraction).user;
+
+      if (!target) {
+        const prefix = process.env.PREFIX || "jam!";
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription("❌ Please mention someone to send an air kiss to!")
+          .addFields({
+            name: "Usage",
+            value: isPrefix
+              ? command.prefix.aliases
+                  .map((alias) => `${prefix}${alias} @user`)
+                  .join("\n")
+              : `/airkiss user:@user`,
+          });
+
+        if (isPrefix) {
+          await (context as Message).reply({ embeds: [errorEmbed] });
+        } else {
+          await (context as ChatInputCommandInteraction).editReply({
+            embeds: [errorEmbed],
+          });
+        }
         return;
       }
 
-      // Get GIF and random message using utility functions
+      // Don't allow air kissing yourself
+      if (target.id === user.id) {
+        const selfKissEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription(
+            "❌ Sending air kisses to yourself? Save them for someone special!",
+          )
+          .setFooter({
+            text: "Try sharing your affection with others instead! 💝",
+          });
+
+        if (isPrefix) {
+          await (context as Message).reply({ embeds: [selfKissEmbed] });
+        } else {
+          await (context as ChatInputCommandInteraction).editReply({
+            embeds: [selfKissEmbed],
+          });
+        }
+        return;
+      }
+
       const [gifUrl, message] = await Promise.all([
         getGif("airkiss"),
         Promise.resolve(
-          getRandomMessage(
-            airkissMessages,
-            interaction.user.toString(),
-            target.toString(),
-          ),
+          getRandomMessage(airkissMessages, user.toString(), target.toString()),
         ),
       ]);
 
-      // Create decorative borders with hearts
+      // Create decorative borders
       const topHearts = getHeartDecorations(3);
       const bottomHearts = getHeartDecorations(3);
 
       const embed = new EmbedBuilder()
-        .setColor("#ffb6c1") // Light pink for air kisses!
+        .setColor("#ffb6c1")
         .setTitle(`${topHearts} Magical Air Kiss ${topHearts}`)
         .setDescription(`${message}\n\n${bottomHearts}`)
         .setImage(gifUrl)
         .setFooter({
           text: `Spreading love and affection! 💫`,
-          iconURL: interaction.user.displayAvatarURL(),
+          iconURL: user.displayAvatarURL(),
         })
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      if (isPrefix) {
+        await (context as Message).reply({ embeds: [embed] });
+      } else {
+        await (context as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
+        });
+      }
     } catch (error) {
       Logger.error("Airkiss command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              "❌ Oops! Your magical air kiss got lost in a sparkly whirlwind... Try again! ✨",
-            ),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          "❌ Oops! Your magical air kiss got lost in a sparkly whirlwind... Try again! ✨",
+        );
+
+      if (isPrefix) {
+        await (context as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (context as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };

@@ -1,14 +1,9 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
-  StringSelectMenuOptionBuilder,
-  StringSelectMenuBuilder,
-  ActionRowBuilder,
-  ComponentType,
-  ApplicationCommandOptionType,
 } from "discord.js";
-import type { Command } from "../../types/Command";
 import figlet from "figlet";
 import { Logger } from "../../utils/logger";
 
@@ -28,18 +23,16 @@ const figletFonts = [
   "Larry 3d",
   "Lean",
   "Letters",
-  " নেয়Quաղw",
   "Shimrod",
   "Small",
   "Speed",
   "Stampatello",
-  " কম্পিউটার",
   "Univers",
   "USA Flag",
   "колокол",
 ];
 
-export const command: Command = {
+export const command = {
   data: new SlashCommandBuilder()
     .setName("ascii")
     .setDescription("Convert text to ASCII art with font selection")
@@ -60,62 +53,176 @@ export const command: Command = {
         ),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["ascii", "figlet", "text"],
+    usage: "[font] <text> OR list", // Example: jam!ascii Standard hi, jam!ascii list
+  },
 
-    const text = interaction.options.getString("text", true);
-    const selectedFont = interaction.options.getString("font") || "Standard";
-
-    // Validate text length - reduced for safety
-    if (text.length > 100) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              "❌ Text is too long! Please keep it under 100 characters for best results.",
-            ),
-        ],
-      });
-      return;
-    }
-
+  async execute(interaction, isPrefix = false) {
     try {
-      // Generate ASCII art with selected font
-      const asciiArt = figlet.textSync(text, {
-        font: selectedFont,
-        horizontalLayout: "default",
-        verticalLayout: "default",
-      });
+      if (isPrefix) {
+        const message = interaction as Message;
+        const args = message.content
+          .slice(process.env.PREFIX?.length || 0)
+          .trim()
+          .split(/ +/);
 
-      // Removed debug log output: Logger.debug(`Generated ASCII Art (${selectedFont}):\n${asciiArt}`);
+        args.shift(); // Remove command name
 
-      const asciiOutput = `\`\`\`ansi\n${asciiArt}\`\`\``;
+        if (args.length === 0) {
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription(
+                  "❌ Please provide a font and text or use 'list' to see available fonts!",
+                )
+                .addFields({
+                  name: "Usage",
+                  value: [
+                    `${process.env.PREFIX || "jam!"}ascii [font] <text>`,
+                    `${process.env.PREFIX || "jam!"}ascii list`,
+                    "",
+                    "Examples:",
+                    `${process.env.PREFIX || "jam!"}ascii Standard Hello`,
+                    `${process.env.PREFIX || "jam!"}ascii Big "Hello World"`,
+                    `${process.env.PREFIX || "jam!"}ascii list`,
+                  ].join("\n"),
+                }),
+            ],
+          });
+          return;
+        }
 
-      if (asciiOutput.length > 2000) {
-        const trimmedArt = asciiArt.substring(0, 2000 - 10);
-        const trimmedOutput = `\`\`\`ansi\n${trimmedArt}...\`\`\``;
+        // Check if user wants to see the font list
+        if (args[0].toLowerCase() === "list") {
+          const fontListEmbed = new EmbedBuilder()
+            .setColor("#2b2d31")
+            .setTitle("Available ASCII Fonts")
+            .setDescription(figletFonts.join("\n"))
+            .setFooter({
+              text: `Usage: ${process.env.PREFIX || "jam!"}ascii <font> <text>`,
+            });
 
-        await interaction.editReply({
-          content: trimmedOutput, // FIX: Just send the trimmed ASCII art
+          await message.reply({ embeds: [fontListEmbed] });
+          return;
+        }
+
+        const selectedFont = args[0];
+        const text = args.slice(1).join(" ");
+
+        if (!text) {
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription("❌ Please provide text to convert!"),
+            ],
+          });
+          return;
+        }
+
+        if (!figletFonts.includes(selectedFont)) {
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription(
+                  `❌ Invalid font! Use \`${process.env.PREFIX || "jam!"}ascii list\` to see available fonts.`,
+                ),
+            ],
+          });
+          return;
+        }
+
+        if (text.length > 100) {
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription(
+                  "❌ Text is too long! Please keep it under 100 characters for best results.",
+                ),
+            ],
+          });
+          return;
+        }
+
+        await message.channel.sendTyping();
+
+        const asciiArt = figlet.textSync(text, {
+          font: selectedFont,
+          horizontalLayout: "default",
+          verticalLayout: "default",
         });
+
+        const asciiOutput = `\`\`\`ansi\n${asciiArt}\`\`\``;
+
+        if (asciiOutput.length > 2000) {
+          const trimmedArt = asciiArt.substring(0, 2000 - 10);
+          const trimmedOutput = `\`\`\`ansi\n${trimmedArt}...\`\`\``;
+          await message.reply({ content: trimmedOutput });
+        } else {
+          await message.reply({ content: asciiOutput });
+        }
       } else {
-        await interaction.editReply({
-          content: asciiOutput, // FIX: Just send the ASCII art directly
+        await (interaction as ChatInputCommandInteraction).deferReply();
+        const text = (
+          interaction as ChatInputCommandInteraction
+        ).options.getString("text", true);
+        const selectedFont =
+          (interaction as ChatInputCommandInteraction).options.getString(
+            "font",
+          ) || "Standard";
+
+        if (text.length > 100) {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription(
+                  "❌ Text is too long! Please keep it under 100 characters for best results.",
+                ),
+            ],
+          });
+          return;
+        }
+
+        const asciiArt = figlet.textSync(text, {
+          font: selectedFont,
+          horizontalLayout: "default",
+          verticalLayout: "default",
         });
+
+        const asciiOutput = `\`\`\`ansi\n${asciiArt}\`\`\``;
+
+        if (asciiOutput.length > 2000) {
+          const trimmedArt = asciiArt.substring(0, 2000 - 10);
+          const trimmedOutput = `\`\`\`ansi\n${trimmedArt}...\`\`\``;
+          await (interaction as ChatInputCommandInteraction).editReply({
+            content: trimmedOutput,
+          });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            content: asciiOutput,
+          });
+        }
       }
     } catch (error) {
       Logger.error("ASCII art generation failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              "❌ Failed to generate ASCII art with the selected font. There might be issues with this particular font or the text you provided.",
-            ),
-        ],
-        content: "",
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          "❌ Failed to generate ASCII art. There might be issues with this particular font or the text you provided.",
+        );
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };

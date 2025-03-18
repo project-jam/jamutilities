@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
   GuildVerificationLevel,
@@ -8,12 +9,11 @@ import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
 import { getAverageColor } from "fast-average-color-node";
 
-// Helper function to format timestamps
+// Helper functions remain the same
 const formatDate = (date: Date): string => {
   return `<t:${Math.floor(date.getTime() / 1000)}:F>`;
 };
 
-// Helper function to get verification level string
 const getVerificationLevel = (level: GuildVerificationLevel): string => {
   const levels: { [key in GuildVerificationLevel]: string } = {
     [GuildVerificationLevel.None]: "None",
@@ -30,15 +30,33 @@ export const command: Command = {
     .setName("serverinfo")
     .setDescription("Shows detailed information about the server"),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["serverinfo", "server", "guildinfo"],
+    usage: "",
+  },
+
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    if (!isPrefix) {
+      await (interaction as ChatInputCommandInteraction).deferReply();
+    }
 
     try {
-      const guild = interaction.guild;
+      const guild = isPrefix
+        ? (interaction as Message).guild
+        : (interaction as ChatInputCommandInteraction).guild;
+
       if (!guild) {
-        await interaction.editReply(
-          "This command can only be used in a server!",
-        );
+        const response = "This command can only be used in a server!";
+        if (isPrefix) {
+          await (interaction as Message).reply(response);
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply(
+            response,
+          );
+        }
         return;
       }
 
@@ -52,13 +70,12 @@ export const command: Command = {
       ).size;
       const humanCount = totalMembers - botCount;
 
-      // Try to fetch the owner with the logic you want
+      // Try to fetch the owner
       let ownerInfo;
       try {
         const owner = await guild.fetchOwner();
-        ownerInfo = `<@${owner.id}>`; // Just the mention if owner exists
+        ownerInfo = `<@${owner.id}>`;
       } catch {
-        // If owner fetch fails, try to get from cache or fall back to ID with tag
         const cachedOwner = guild.members.cache.get(guild.ownerId);
         ownerInfo = cachedOwner
           ? `${cachedOwner.user.tag}`
@@ -66,7 +83,7 @@ export const command: Command = {
       }
 
       // Get dominant color from server icon
-      let dominantColor = "#2b2d31"; // Default color
+      let dominantColor = "#2b2d31";
       if (guild.iconURL()) {
         try {
           const color = await getAverageColor(guild.iconURL({ size: 256 }));
@@ -123,8 +140,12 @@ export const command: Command = {
           },
         )
         .setFooter({
-          text: `Requested by ${interaction.user.tag}`,
-          iconURL: interaction.user.displayAvatarURL(),
+          text: `Requested by ${isPrefix ? (interaction as Message).author.tag : (interaction as ChatInputCommandInteraction).user.tag}`,
+          iconURL: isPrefix
+            ? (interaction as Message).author.displayAvatarURL()
+            : (
+                interaction as ChatInputCommandInteraction
+              ).user.displayAvatarURL(),
         })
         .setTimestamp();
 
@@ -144,16 +165,26 @@ export const command: Command = {
         embed.setImage(guild.bannerURL({ size: 1024 }) || "");
       }
 
-      await interaction.editReply({ embeds: [embed] });
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [embed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
+        });
+      }
     } catch (error) {
       Logger.error("Serverinfo command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription("❌ Failed to fetch server information."),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription("❌ Failed to fetch server information.");
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };

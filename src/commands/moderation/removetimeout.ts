@@ -21,119 +21,186 @@ export const command: Command = {
     .addStringOption((option) =>
       option
         .setName("reason")
-        .setDescription("The reason for removing the timeout")
-        .setRequired(false),
+        .setDescription("The reason for removing the timeout"),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["removetimeout", "untimeout", "unmute"],
+    usage: "<@user> [reason]", // Example: jam!untimeout @user behaving now
+  },
 
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
     try {
-      // Check if the user has permission to manage timeouts
-      if (
-        !interaction.memberPermissions?.has(PermissionFlagsBits.ModerateMembers)
-      ) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription(
-                "❌ You don't have permission to remove timeouts!",
-              ),
-          ],
-        });
+      let targetUser;
+      let reason = "No reason provided";
+      let guild;
+      let executor;
+
+      if (isPrefix) {
+        const message = interaction as Message;
+        guild = message.guild;
+        executor = message.member;
+
+        // Check permissions
+        if (
+          !message.member?.permissions.has(PermissionFlagsBits.ModerateMembers)
+        ) {
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription(
+                  "❌ You don't have permission to remove timeouts!",
+                ),
+            ],
+          });
+          return;
+        }
+
+        // Parse user mention and reason
+        targetUser = message.mentions.users.first();
+        if (!targetUser) {
+          const prefix = process.env.PREFIX || "jam!";
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription(
+                  "❌ Please mention a user to remove timeout from!",
+                )
+                .addFields({
+                  name: "Usage",
+                  value: command.prefix.aliases
+                    .map((alias) => `${prefix}${alias} <@user> [reason]`)
+                    .concat("Example: `jam!untimeout @user behaving now`")
+                    .join("\n"),
+                }),
+            ],
+          });
+          return;
+        }
+
+        const args = message.content.split(/ +/).slice(1);
+        if (args.length > 1) {
+          reason = args.slice(1).join(" ");
+        }
+      } else {
+        const slashInteraction = interaction as ChatInputCommandInteraction;
+        await slashInteraction.deferReply();
+        guild = slashInteraction.guild;
+        executor = slashInteraction.member;
+        targetUser = slashInteraction.options.getUser("user");
+        reason =
+          slashInteraction.options.getString("reason") || "No reason provided";
+      }
+
+      if (!targetUser || !guild) {
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription("❌ Please specify a valid user!");
+
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [errorEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [errorEmbed],
+          });
+        }
         return;
       }
 
-      const targetUser = interaction.options.getUser("user");
-      const reason =
-        interaction.options.getString("reason") || "No reason provided";
+      // Get target member
+      const targetMember = await guild.members.fetch(targetUser.id);
 
-      if (!targetUser) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription("❌ Please specify a valid user!"),
-          ],
-        });
-        return;
-      }
+      if (!targetMember) {
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription("❌ Failed to fetch member information!");
 
-      // Get both members for hierarchy check
-      const targetMember = await interaction.guild?.members.fetch(
-        targetUser.id,
-      );
-      const executorMember = await interaction.guild?.members.fetch(
-        interaction.user.id,
-      );
-
-      if (!targetMember || !executorMember) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription("❌ Failed to fetch member information!"),
-          ],
-        });
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [errorEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [errorEmbed],
+          });
+        }
         return;
       }
 
       // Check if the target is actually timed out
       if (!targetMember.isCommunicationDisabled()) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription("❌ This user is not timed out!"),
-          ],
-        });
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription("❌ This user is not timed out!");
+
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [errorEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [errorEmbed],
+          });
+        }
         return;
       }
 
-      // Check if the user is trying to remove their own timeout
-      if (targetUser.id === interaction.user.id) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription("❌ You cannot remove your own timeout!"),
-          ],
-        });
+      // Self-timeout removal check
+      if (
+        targetUser.id ===
+        (isPrefix
+          ? (interaction as Message).author.id
+          : (interaction as ChatInputCommandInteraction).user.id)
+      ) {
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription("❌ You cannot remove your own timeout!");
+
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [errorEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [errorEmbed],
+          });
+        }
         return;
       }
 
-      // Check role hierarchy
+      // Role hierarchy check
       if (
         targetMember.roles.highest.position >=
-        executorMember.roles.highest.position
+        (executor as any).roles.highest.position
       ) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription(
-                "❌ You cannot remove a timeout from someone with an equal or higher role than you!",
-              ),
-          ],
-        });
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription(
+            "❌ You cannot remove a timeout from someone with an equal or higher role than you!",
+          );
+
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [errorEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [errorEmbed],
+          });
+        }
         return;
       }
 
-      // Format the removal reason
-      const formattedReason = `Timeout removed by ${interaction.user.tag} (${interaction.user.id}) | ${new Date().toLocaleString()} | Reason: ${reason}`;
-
-      // Try to DM the user about the timeout removal
+      // Try to DM the user
       try {
+        const executorTag = isPrefix
+          ? (interaction as Message).author.tag
+          : (interaction as ChatInputCommandInteraction).user.tag;
+
         const dmEmbed = new EmbedBuilder()
           .setColor("#00ff00")
           .setTitle("Timeout Removed")
-          .setDescription(
-            `Your timeout in ${interaction.guild?.name} has been removed`,
-          )
+          .setDescription(`Your timeout in ${guild.name} has been removed`)
           .addFields(
-            { name: "Removed By", value: interaction.user.tag },
+            { name: "Removed By", value: executorTag },
             { name: "Reason", value: reason },
           )
           .setTimestamp();
@@ -144,6 +211,15 @@ export const command: Command = {
           `Could not DM user ${targetUser.tag} about timeout removal`,
         );
       }
+
+      // Format the removal reason
+      const executorTag = isPrefix
+        ? (interaction as Message).author.tag
+        : (interaction as ChatInputCommandInteraction).user.tag;
+      const executorId = isPrefix
+        ? (interaction as Message).author.id
+        : (interaction as ChatInputCommandInteraction).user.id;
+      const formattedReason = `Timeout removed by ${executorTag} (${executorId}) | ${new Date().toLocaleString()} | Reason: ${reason}`;
 
       // Remove the timeout
       await targetMember.timeout(null, formattedReason);
@@ -163,25 +239,35 @@ export const command: Command = {
           },
           {
             name: "Removed By",
-            value: interaction.user.tag,
+            value: executorTag,
             inline: true,
           },
           { name: "Reason", value: reason },
         )
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [successEmbed] });
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [successEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [successEmbed],
+        });
+      }
     } catch (error) {
       Logger.error("Remove timeout command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              "❌ An error occurred while trying to remove the timeout.",
-            ),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          "❌ An error occurred while trying to remove the timeout.",
+        );
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };

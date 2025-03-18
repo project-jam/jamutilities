@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from "@discordjs/builders";
 import {
   ChatInputCommandInteraction,
+  Message,
   EmbedBuilder,
   MessageFlags,
   ActionRowBuilder,
@@ -104,23 +105,58 @@ export const command: Command = {
         .setRequired(false),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    // Check if the user is the bot owner
-    if (interaction.user.id !== process.env.OWNER_ID) {
-      await interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              "❌ This command is restricted to the bot owner only!",
-            ),
-        ],
-        flags: MessageFlags.Ephemeral,
-      });
+  // Add prefix command configuration
+  prefix: {
+    aliases: ["stop"],
+    usage: "[force]", // Optional force parameter
+  },
+
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    // Check owner permission
+    const userId = isPrefix
+      ? (interaction as Message).author.id
+      : (interaction as ChatInputCommandInteraction).user.id;
+    if (userId !== process.env.OWNER_ID) {
+      if (isPrefix) {
+        await (interaction as Message).reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor("#ff3838")
+              .setDescription(
+                "❌ This command is restricted to the bot owner only!",
+              ),
+          ],
+        });
+      } else {
+        await (interaction as ChatInputCommandInteraction).reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor("#ff3838")
+              .setDescription(
+                "❌ This command is restricted to the bot owner only!",
+              ),
+          ],
+          flags: MessageFlags.Ephemeral,
+        });
+      }
       return;
     }
 
-    const force = interaction.options.getBoolean("force") ?? false;
+    // Parse force option
+    let force = false;
+    if (isPrefix) {
+      const args = (interaction as Message).content.split(" ");
+      force =
+        args[1]?.toLowerCase() === "force" || args[1]?.toLowerCase() === "true";
+    } else {
+      force =
+        (interaction as ChatInputCommandInteraction).options.getBoolean(
+          "force",
+        ) ?? false;
+    }
 
     // Create confirmation buttons
     const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -140,30 +176,48 @@ export const command: Command = {
     const platformInfo = `Platform: ${process.platform}\nBase Path: ${getBasePath()}`;
 
     // Send confirmation message
-    const response = await interaction.reply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor("#ff3838")
-          .setTitle("⚠️ Confirm Bot Shutdown")
-          .setDescription(
-            "Are you sure you want to stop the bot? This will:\n\n" +
-              "1️⃣ Disconnect the bot from Discord\n" +
-              "2️⃣ Stop all processes\n" +
-              "3️⃣ Remove bot-related files\n" +
-              "4️⃣ Keep only: blacklist.env, .env, and start.sh\n\n" +
-              `Shutdown Type: ${force ? "⚠️ Forced" : "🛑 Graceful"}\n\n` +
-              `System Info:\n${platformInfo}`,
-          ),
-      ],
-      components: [buttons],
-    });
+    const response = isPrefix
+      ? await (interaction as Message).reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor("#ff3838")
+              .setTitle("⚠️ Confirm Bot Shutdown")
+              .setDescription(
+                "Are you sure you want to stop the bot? This will:\n\n" +
+                  "1️⃣ Disconnect the bot from Discord\n" +
+                  "2️⃣ Stop all processes\n" +
+                  "3️⃣ Remove bot-related files\n" +
+                  "4️⃣ Keep only: blacklist.env, .env, and start.sh\n\n" +
+                  `Shutdown Type: ${force ? "⚠️ Forced" : "🛑 Graceful"}\n\n` +
+                  `System Info:\n${platformInfo}`,
+              ),
+          ],
+          components: [buttons],
+        })
+      : await (interaction as ChatInputCommandInteraction).reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor("#ff3838")
+              .setTitle("⚠️ Confirm Bot Shutdown")
+              .setDescription(
+                "Are you sure you want to stop the bot? This will:\n\n" +
+                  "1️⃣ Disconnect the bot from Discord\n" +
+                  "2️⃣ Stop all processes\n" +
+                  "3️⃣ Remove bot-related files\n" +
+                  "4️⃣ Keep only: blacklist.env, .env, and start.sh\n\n" +
+                  `Shutdown Type: ${force ? "⚠️ Forced" : "🛑 Graceful"}\n\n` +
+                  `System Info:\n${platformInfo}`,
+              ),
+          ],
+          components: [buttons],
+        });
 
     const confirmMessage = await response.fetch();
 
     try {
       // Wait for button interaction
       const confirmation = await confirmMessage.awaitMessageComponent({
-        filter: (i) => i.user.id === interaction.user.id,
+        filter: (i) => i.user.id === userId,
         time: 30000,
         componentType: ComponentType.Button,
       });
@@ -183,7 +237,7 @@ export const command: Command = {
       await confirmation.update({ components: [] });
 
       if (force) {
-        await interaction.editReply({
+        await confirmation.editReply({
           embeds: [
             new EmbedBuilder()
               .setColor("#ff3838")
@@ -193,7 +247,7 @@ export const command: Command = {
         Logger.warn("Force stopping the bot...");
         process.exit(1);
       } else {
-        await interaction.editReply({
+        await confirmation.editReply({
           embeds: [
             new EmbedBuilder()
               .setColor("#ff3838")
@@ -206,48 +260,69 @@ export const command: Command = {
         const preservedFiles = await cleanupFiles();
 
         // Send final message
-        await interaction.followUp({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setTitle("✅ Shutdown Complete")
-              .setDescription(
-                "The following files have been preserved:\n" +
-                  preservedFiles.map((file) => `• ${file}`).join("\n"),
-              )
-              .setFooter({ text: "Bot is shutting down..." }),
-          ],
-        });
+        const followUpEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setTitle("✅ Shutdown Complete")
+          .setDescription(
+            "The following files have been preserved:\n" +
+              preservedFiles.map((file) => `• ${file}`).join("\n"),
+          )
+          .setFooter({ text: "Bot is shutting down..." });
+
+        if (isPrefix) {
+          await (interaction as Message).followUp({ embeds: [followUpEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).followUp({
+            embeds: [followUpEmbed],
+          });
+        }
 
         Logger.info(
           `Preserved files: ${preservedFiles.join(", ")}\nBot shutdown complete.`,
         );
 
         // Graceful shutdown
-        await interaction.client.user?.setStatus("invisible");
-        await interaction.client.destroy();
+        const client = isPrefix
+          ? (interaction as Message).client
+          : (interaction as ChatInputCommandInteraction).client;
+        await client.user?.setStatus("invisible");
+        await client.destroy();
         process.exit(0);
       }
     } catch (error) {
       if (error instanceof Error && error.message.includes("time")) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription("❌ Shutdown confirmation timed out."),
-          ],
-          components: [],
-        });
+        const timeoutEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription("❌ Shutdown confirmation timed out.");
+
+        if (isPrefix) {
+          await (interaction as Message).editReply({
+            embeds: [timeoutEmbed],
+            components: [],
+          });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [timeoutEmbed],
+            components: [],
+          });
+        }
       } else {
         Logger.error("Error during shutdown:", error);
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription("❌ An error occurred during shutdown."),
-          ],
-          components: [],
-        });
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription("❌ An error occurred during shutdown.");
+
+        if (isPrefix) {
+          await (interaction as Message).editReply({
+            embeds: [errorEmbed],
+            components: [],
+          });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [errorEmbed],
+            components: [],
+          });
+        }
       }
     }
   },

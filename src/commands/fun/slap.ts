@@ -97,52 +97,99 @@ export const command: Command = {
         .setRequired(true),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["slap", "smack", "whack"],
+    usage: "<@user>", // Example: jam!slap @user
+  },
 
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
     try {
-      const target = interaction.options.getUser("target");
+      let target;
+      const user = isPrefix
+        ? (interaction as Message).author
+        : (interaction as ChatInputCommandInteraction).user;
+
+      if (isPrefix) {
+        const message = interaction as Message;
+        await message.channel.sendTyping();
+        target = message.mentions.users.first();
+
+        if (!target) {
+          const prefix = process.env.PREFIX || "jam!";
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription(
+                  `❌ Please mention someone to slap! ${getRandomKaomoji()}`,
+                )
+                .addFields({
+                  name: "Usage",
+                  value: command.prefix.aliases
+                    .map((alias) => `${prefix}${alias} <@user>`)
+                    .concat("Example: `jam!slap @user`")
+                    .join("\n"),
+                }),
+            ],
+          });
+          return;
+        }
+      } else {
+        await (interaction as ChatInputCommandInteraction).deferReply();
+        target = (interaction as ChatInputCommandInteraction).options.getUser(
+          "target",
+        );
+      }
 
       // Check if target is the ignored user ID
       if (target?.id === process.env.IGNORED_USER_ID) {
-        await interaction.editReply("ignore her");
+        if (isPrefix) {
+          await (interaction as Message).reply("ignore her");
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply(
+            "ignore her",
+          );
+        }
         return;
       }
 
       // Don't allow slapping yourself
-      if (target?.id === interaction.user.id) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription(
-                `❌ Self-slap? That's not how this works! ${getRandomKaomoji()}`,
-              )
-              .setFooter({
-                text: "Find someone else to slap! 👋",
-              }),
-          ],
-        });
+      if (target.id === user.id) {
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription(
+            `❌ Self-slap? That's not how this works! ${getRandomKaomoji()}`,
+          )
+          .setFooter({
+            text: "Find someone else to slap! 👋",
+          });
+
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [errorEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [errorEmbed],
+          });
+        }
         return;
       }
 
-      const [gifUrl, message] = await Promise.all([
-        getGif("slap"),
-        Promise.resolve(
-          getRandomMessage(
-            slapMessages,
-            interaction.user.toString(),
-            target?.toString() || "someone",
-          ),
-        ),
-      ]);
+      const gifUrl = await getGif("slap");
+      const message = getRandomMessage(
+        slapMessages,
+        user.toString(),
+        target.toString(),
+      );
 
       // Create decorative borders
       const topDecorations = getRandomDecorations(3);
       const bottomDecorations = getRandomDecorations(3);
 
       const embed = new EmbedBuilder()
-        .setColor("#FF4444") // Red for impact!
+        .setColor("#FF4444")
         .setTitle(`${topDecorations} ULTIMATE SLAP! ${topDecorations}`)
         .setDescription(
           `${message} ${getRandomKaomoji()}\n\n${bottomDecorations}`,
@@ -150,22 +197,32 @@ export const command: Command = {
         .setImage(gifUrl)
         .setFooter({
           text: `Critical hit confirmed! ${getRandomKaomoji()}`,
-          iconURL: interaction.user.displayAvatarURL(),
+          iconURL: user.displayAvatarURL(),
         })
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [embed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
+        });
+      }
     } catch (error) {
       Logger.error("Slap command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              `❌ Your slap missed! They're too powerful! ${getRandomKaomoji()}`,
-            ),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          `❌ Your slap missed! They're too powerful! ${getRandomKaomoji()}`,
+        );
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };

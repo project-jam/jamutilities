@@ -24,11 +24,15 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildPresences,
+    GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.DirectMessageReactions,
+    GatewayIntentBits.DirectMessageTyping,
   ],
 });
 
 // Attach command handler to client
-client.commandHandler = new CommandHandler(client);
+const commandHandler = new CommandHandler(client);
+client.commandHandler = commandHandler;
 
 // Fun status messages with emojis
 const statusMessages = [
@@ -57,26 +61,35 @@ client.once("ready", async (c) => {
   BlacklistManager.getInstance();
   Logger.info("Blacklist manager initialized");
 
-  Logger.ready("BOT STATISTICS", [
-    `🤖 Logged in as ${c.user.tag}${shardInfo}`,
-    `🌍 Spreading chaos in ${c.guilds.cache.size} guilds`,
-    `👥 Tormenting ${c.users.cache.size} users`,
-    `💾 Consuming ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB of RAM`,
-    `⚡ Powered by Node ${process.version}`,
-    `🎮 ${client.commandHandler.getCommands().size} commands loaded`,
-  ]);
+  Logger.ready(
+    "BOT STATISTICS",
+    [
+      `🤖 Logged in as ${c.user.tag}${shardInfo}`,
+      `🌍 Spreading chaos in ${c.guilds.cache.size} guilds`,
+      `👥 Tormenting ${c.users.cache.size} users`,
+      `💾 Consuming ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB of RAM`,
+      `⚡ Powered by Node ${process.version}`,
+      `🎮 ${client.commandHandler.getCommands().size} commands loaded`,
+      `🔧 Command Modes:`,
+      `   • Slash Commands: ${client.commandHandler.isSlashEnabled() ? "✅" : "❌"}`,
+      `   • Prefix Commands: ${client.commandHandler.isPrefixEnabled() ? "✅" : "❌"}`,
+      client.commandHandler.isPrefixEnabled()
+        ? `   • Prefix: ${client.commandHandler.getPrefix()}`
+        : "",
+    ].filter(Boolean),
+  );
 
   updateStatus();
   Logger.info(`Initial status set - Let the games begin!`);
-
-  setInterval(updateStatus, 3 * 60 * 1000);
 
   try {
     await client.commandHandler.loadCommands();
     Logger.success(`Commands loaded successfully!`);
 
-    await client.commandHandler.registerCommands();
-    Logger.success(`Commands registered with Discord API!`);
+    if (client.commandHandler.isSlashEnabled()) {
+      await client.commandHandler.registerCommands();
+      Logger.success(`Commands registered with Discord API!`);
+    }
   } catch (error) {
     Logger.fatal("Failed to initialize commands: ", error);
     process.exit(1);
@@ -106,9 +119,11 @@ client.once("ready", async (c) => {
   Logger.event(chaosMessages[Math.floor(Math.random() * chaosMessages.length)]);
 });
 
+// Handle Slash Commands
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
+  // Skip blacklist check for owner
   if (interaction.user.id !== process.env.OWNER_ID) {
     const blacklistManager = BlacklistManager.getInstance();
     if (blacklistManager.isBlacklisted(interaction.user.id)) {
@@ -134,7 +149,7 @@ client.on("interactionCreate", async (interaction) => {
               },
               {
                 name: "Blacklisted Since",
-                value: `<t:${Math.floor(blacklistInfo.timestamp / 1000)}:R>`,
+                value: `<t:${Math.floor(blacklistInfo!.timestamp)}:R>`,
                 inline: true,
               },
             )
@@ -148,13 +163,58 @@ client.on("interactionCreate", async (interaction) => {
     }
   }
 
-  // Single command log with proper formatting
-  const commandName = interaction.commandName;
-  const subCommand = interaction.options.getSubcommand(false);
-  const fullCommand = subCommand ? `${commandName} ${subCommand}` : commandName;
-  const location = interaction.guild?.name || "DM";
-
   await client.commandHandler.handleCommand(interaction);
+});
+
+// Handle Prefix Commands
+client.on("messageCreate", async (message) => {
+  // First check if message starts with prefix or is from a bot
+  if (
+    !message.content.startsWith(process.env.PREFIX || "jam!") ||
+    message.author.bot
+  )
+    return;
+
+  // Then check blacklist for non-owner users
+  if (message.author.id !== process.env.OWNER_ID) {
+    const blacklistManager = BlacklistManager.getInstance();
+    if (blacklistManager.isBlacklisted(message.author.id)) {
+      const blacklistInfo = blacklistManager.getBlacklistInfo(
+        message.author.id,
+      );
+      await message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("#ff3838")
+            .setTitle("Access Denied")
+            .setDescription("You are blacklisted from using this bot.")
+            .addFields(
+              {
+                name: "Username",
+                value: blacklistInfo?.username || "Unknown",
+                inline: true,
+              },
+              {
+                name: "Reason",
+                value: blacklistInfo?.reason || "No reason provided",
+                inline: true,
+              },
+              {
+                name: "Blacklisted Since",
+                value: `<t:${Math.floor(blacklistInfo!.timestamp)}:R>`,
+                inline: true,
+              },
+            )
+            .setFooter({
+              text: "Contact the bot owner if you think this is a mistake",
+            }),
+        ],
+      });
+      return;
+    }
+  }
+
+  await client.commandHandler.handlePrefixCommand(message);
 });
 
 client.on("guildCreate", (guild) => {
@@ -200,6 +260,9 @@ process.on("SIGTERM", () => {
   client.destroy();
   process.exit(0);
 });
+
+// Status update interval
+setInterval(updateStatus, 3 * 60 * 1000); // Every 3 minutes
 
 Logger.info("Initializing bot...");
 client

@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
   version as discordVersion,
@@ -64,7 +65,6 @@ async function getDiskInfo(): Promise<string[]> {
 
   try {
     if (process.platform === "linux") {
-      // For Linux systems
       const { stdout } = await execAsync(
         'df -h --output=source,size,used,avail,pcent,target | grep "^/dev"',
       );
@@ -78,7 +78,6 @@ async function getDiskInfo(): Promise<string[]> {
         }
       }
     } else if (process.platform === "win32") {
-      // For Windows systems
       const { stdout } = await execAsync(
         "wmic logicaldisk get caption,size,freespace",
       );
@@ -107,18 +106,48 @@ export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("status")
     .setDMPermission(true)
-    .setDescription("Shows detailed bot status and system information (Owner only!)"),
+    .setDescription(
+      "Shows detailed bot status and system information (Owner only!)",
+    ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    if (interaction.user.id !== process.env.OWNER_ID) {
-      return await interaction.reply({
-        content: "❌ This command is restricted to the bot owner only!",
-        ephemeral: true,
-      });
+  // Add prefix command configuration
+  prefix: {
+    aliases: ["status", "stats", "botinfo", "sysinfo"],
+    usage: "", // No arguments needed
+  },
+
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    // Check owner permission
+    const userId = isPrefix
+      ? (interaction as Message).author.id
+      : (interaction as ChatInputCommandInteraction).user.id;
+    if (userId !== process.env.OWNER_ID) {
+      if (isPrefix) {
+        await (interaction as Message).reply(
+          "❌ This command is restricted to the bot owner only!",
+        );
+      } else {
+        await (interaction as ChatInputCommandInteraction).reply({
+          content: "❌ This command is restricted to the bot owner only!",
+          ephemeral: true,
+        });
+      }
+      return;
     }
 
-    await interaction.deferReply();
-    const client = interaction.client;
+    // Defer reply
+    if (isPrefix) {
+      await (interaction as Message).channel.sendTyping();
+    } else {
+      await (interaction as ChatInputCommandInteraction).deferReply();
+    }
+
+    const client = isPrefix
+      ? (interaction as Message).client
+      : (interaction as ChatInputCommandInteraction).client;
 
     // Get disk info using the new async function
     const diskInfoLines = await getDiskInfo();
@@ -196,10 +225,21 @@ export const command: Command = {
       )
       .setTimestamp()
       .setFooter({
-        text: `Requested by ${interaction.user.tag}`,
-        iconURL: interaction.user.displayAvatarURL(),
+        text: `Requested by ${isPrefix ? (interaction as Message).author.tag : (interaction as ChatInputCommandInteraction).user.tag}`,
+        iconURL: isPrefix
+          ? (interaction as Message).author.displayAvatarURL()
+          : (
+              interaction as ChatInputCommandInteraction
+            ).user.displayAvatarURL(),
       });
 
-    await interaction.editReply({ embeds: [embed] });
+    // Send the embed
+    if (isPrefix) {
+      await (interaction as Message).reply({ embeds: [embed] });
+    } else {
+      await (interaction as ChatInputCommandInteraction).editReply({
+        embeds: [embed],
+      });
+    }
   },
 };

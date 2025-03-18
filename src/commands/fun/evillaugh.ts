@@ -82,26 +82,69 @@ export const command: Command = {
         ),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["evil", "evillaugh", "villain"],
+    usage: "<@user>", // Example: jam!evil @user
+  },
 
-    try {
-      const target = interaction.options.getUser("user");
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    let target;
 
-      // Prevent laughing at yourself - villains don't mock themselves!
-      if (target?.id === interaction.user.id) {
-        await interaction.editReply({
+    if (isPrefix) {
+      const message = interaction as Message;
+      await message.channel.sendTyping();
+
+      const mentionedUser = message.mentions.users.first();
+      if (!mentionedUser) {
+        const prefix = process.env.PREFIX || "jam!";
+        await message.reply({
           embeds: [
             new EmbedBuilder()
               .setColor("#ff3838")
-              .setDescription(
-                "❌ A true villain laughs at others, not themselves! Choose a worthy victim! 😈",
-              )
-              .setFooter({
-                text: "Evil 101: Always target someone else!",
+              .setDescription("❌ You must mention a user to laugh at! 😈")
+              .addFields({
+                name: "Usage",
+                value: command.prefix.aliases
+                  .map((alias) => `${prefix}${alias} <@user>`)
+                  .concat("Example: `jam!evil @user`")
+                  .join("\n"),
               }),
           ],
         });
+        return;
+      }
+      target = mentionedUser;
+    } else {
+      const slashInteraction = interaction as ChatInputCommandInteraction;
+      await slashInteraction.deferReply();
+      target = slashInteraction.options.getUser("user");
+    }
+
+    try {
+      // Prevent laughing at yourself
+      if (
+        target?.id ===
+        (isPrefix
+          ? (interaction as Message).author.id
+          : (interaction as ChatInputCommandInteraction).user.id)
+      ) {
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription(
+            "❌ A true villain laughs at others, not themselves! Choose a worthy victim! 😈",
+          )
+          .setFooter({ text: "Evil 101: Always target someone else!" });
+
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [errorEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [errorEmbed],
+          });
+        }
         return;
       }
 
@@ -110,39 +153,54 @@ export const command: Command = {
         Promise.resolve(
           getRandomMessage(
             evilMessages,
-            interaction.user.toString(),
+            isPrefix
+              ? (interaction as Message).author.toString()
+              : (interaction as ChatInputCommandInteraction).user.toString(),
             target.toString(),
           ),
         ),
       ]);
 
-      // Create evil decorative borders
       const topDecorations = getRandomDecorations(3);
       const bottomDecorations = getRandomDecorations(3);
 
       const embed = new EmbedBuilder()
-        .setColor("#800080") // Purple for evil vibes
+        .setColor("#800080")
         .setTitle(`${topDecorations} EVIL LAUGHTER UNLEASHED ${topDecorations}`)
         .setDescription(`${message}\n\n${bottomDecorations}`)
         .setImage(gifUrl)
         .setFooter({
           text: `"All villains have an evil laugh!" ${getRandomDecorations(1)}`,
-          iconURL: interaction.user.displayAvatarURL(),
+          iconURL: isPrefix
+            ? (interaction as Message).author.displayAvatarURL()
+            : (
+                interaction as ChatInputCommandInteraction
+              ).user.displayAvatarURL(),
         })
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [embed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
+        });
+      }
     } catch (error) {
       Logger.error("Evil laugh command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              "❌ Your evil laugh turned into a squeak... How UN-villainous! 😱",
-            ),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          "❌ Your evil laugh turned into a squeak... How UN-villainous! 😱",
+        );
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };

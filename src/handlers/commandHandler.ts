@@ -4,6 +4,7 @@ import {
   REST,
   Routes,
   ChatInputCommandInteraction,
+  Message,
   EmbedBuilder,
   MessageFlags,
 } from "discord.js";
@@ -14,8 +15,11 @@ import type { Command } from "../types/Command";
 
 export class CommandHandler {
   private commands: Collection<string, Command> = new Collection();
+  private aliases: Collection<string, string> = new Collection();
   private client: Client;
   private disabledCommands: Set<string>;
+  private cooldowns: Collection<string, Collection<string, number>> =
+    new Collection();
 
   constructor(client: Client) {
     this.client = client;
@@ -50,9 +54,17 @@ export class CommandHandler {
           const { command } = await import(filePath);
 
           if ("data" in command && "execute" in command) {
+            // Store main command
             this.commands.set(command.data.name, command);
             loadedCommands.push(command.data.name);
             totalLoaded++;
+
+            // Store aliases if prefix configuration exists
+            if (command.prefix && Array.isArray(command.prefix.aliases)) {
+              command.prefix.aliases.forEach((alias) => {
+                this.aliases.set(alias.toLowerCase(), command.data.name);
+              });
+            }
           }
         } catch (error) {
           Logger.error(`Error loading command ${file}:`, error);
@@ -68,7 +80,6 @@ export class CommandHandler {
     for (const [category, commands] of categoryCommands) {
       const commandList = commands
         .map((cmd) => {
-          // Check both main command and subcommands
           const isDisabled = Array.from(this.disabledCommands).some(
             (disabled) => disabled.startsWith(cmd.toLowerCase()),
           );
@@ -82,9 +93,8 @@ export class CommandHandler {
       Logger.info(`${commandList} (${category})`);
     }
 
-    const totalDisabled = this.disabledCommands.size;
     Logger.success(
-      `\nTotal: ${totalLoaded} commands loaded (${totalDisabled} disabled)\n`,
+      `\nTotal: ${totalLoaded} commands loaded (${this.disabledCommands.size} disabled)\n`,
     );
   }
 
@@ -113,7 +123,6 @@ export class CommandHandler {
     if (!command) return;
 
     try {
-      // Log the command execution with user ID
       const commandName = interaction.commandName;
       const subCommand = interaction.options.getSubcommand(false);
       const fullCommand = subCommand
@@ -125,17 +134,14 @@ export class CommandHandler {
         `${interaction.user.tag} [${interaction.user.id}] used /${fullCommand} in ${location}`,
       );
 
-      // Check if either the main command or the specific subcommand is disabled
       const commandString = interaction.options.getSubcommand(false)
         ? `${interaction.commandName} ${interaction.options.getSubcommand()}`
         : interaction.commandName;
 
       if (this.isCommandDisabled(commandString)) {
         if (interaction.user.id === process.env.OWNER_ID) {
-          // For owner, just execute without warning
           await command.execute(interaction);
         } else {
-          // For regular users, show disabled message
           await interaction.reply({
             embeds: [
               new EmbedBuilder()
@@ -161,7 +167,7 @@ export class CommandHandler {
             new EmbedBuilder()
               .setColor("#ff3838")
               .setDescription(
-                "❌ An error occurred while executing this command.",
+                "An error occurred while executing this command.",
               ),
           ],
           flags: MessageFlags.Ephemeral,
@@ -175,6 +181,88 @@ export class CommandHandler {
       } catch (followUpError) {
         Logger.error("Error sending error message:", followUpError);
       }
+    }
+  }
+
+  async handlePrefixCommand(message: Message) {
+    if (!process.env.ENABLE_PREFIX_COMMANDS?.toLowerCase() === "true") return;
+
+    const prefix = process.env.PREFIX || "jam!";
+    if (!message.content.startsWith(prefix)) return;
+
+    const args = message.content.slice(prefix.length).trim().split(/ +/);
+    const commandName = args.shift()?.toLowerCase();
+    if (!commandName) return;
+
+    // Get command from either direct name or alias
+    const command =
+      this.commands.get(commandName) ||
+      this.commands.get(this.aliases.get(commandName) || "");
+
+    if (!command) return;
+
+    // Check if command is disabled
+    if (
+      this.isCommandDisabled(commandName) &&
+      message.author.id !== process.env.OWNER_ID
+    ) {
+      await message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("#ff3838")
+            .setDescription("This command is currently disabled."),
+        ],
+      });
+      return;
+    }
+
+    // Handle cooldowns
+    if (command.cooldown) {
+      if (!this.cooldowns.has(command.data.name)) {
+        this.cooldowns.set(command.data.name, new Collection());
+      }
+
+      const now = Date.now();
+      const timestamps = this.cooldowns.get(command.data.name);
+      const cooldownAmount = command.cooldown * 1000;
+
+      if (timestamps?.has(message.author.id)) {
+        const expirationTime =
+          timestamps.get(message.author.id)! + cooldownAmount;
+
+        if (now < expirationTime) {
+          const timeLeft = (expirationTime - now) / 1000;
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription(
+                  `Please wait ${timeLeft.toFixed(1)} more seconds before using this command again.`,
+                ),
+            ],
+          });
+          return;
+        }
+      }
+
+      timestamps?.set(message.author.id, now);
+      setTimeout(() => timestamps?.delete(message.author.id), cooldownAmount);
+    }
+
+    try {
+      Logger.command(
+        `${message.author.tag} [${message.author.id}] used ${prefix}${commandName} in ${message.guild?.name || "DM"}`,
+      );
+      await command.execute(message, true);
+    } catch (error) {
+      Logger.error(`Error executing prefix command ${commandName}:`, error);
+      await message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("#ff3838")
+            .setDescription("An error occurred while executing this command."),
+        ],
+      });
     }
   }
 
@@ -193,11 +281,27 @@ export class CommandHandler {
     return this.disabledCommands.has(commandString.toLowerCase());
   }
 
-  getCommands() {
+  public getCommands(): Collection<string, Command> {
     return this.commands;
   }
 
-  getDisabledCommands() {
+  public getAliases(): Collection<string, string> {
+    return this.aliases;
+  }
+
+  public isPrefixEnabled(): boolean {
+    return process.env.ENABLE_PREFIX_COMMANDS?.toLowerCase() === "true";
+  }
+
+  public isSlashEnabled(): boolean {
+    return process.env.ENABLE_SLASH_COMMANDS?.toLowerCase() === "true";
+  }
+
+  public getPrefix(): string {
+    return process.env.PREFIX || "jam!";
+  }
+
+  public getDisabledCommands(): string[] {
     return Array.from(this.disabledCommands);
   }
 }

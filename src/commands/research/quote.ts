@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
 } from "discord.js";
@@ -57,10 +58,16 @@ export const command: Command = {
     .setDescription("Get an inspirational quote")
     .setDMPermission(true),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
-
+  async execute(interaction: ChatInputCommandInteraction | Message) {
     try {
+      // Check if the interaction is a prefix command (Message) or a slash command (ChatInputCommandInteraction)
+      const isPrefix = interaction instanceof Message;
+
+      // For prefix commands, no need to defer the reply
+      if (!isPrefix) {
+        await interaction.deferReply();
+      }
+
       const apiUrl = getRandomElement(Object.values(QUOTE_APIS));
       const response = await fetch(apiUrl);
 
@@ -99,10 +106,15 @@ export const command: Command = {
         embed.setTitle(getRandomElement(headers));
       }
 
-      await interaction.editReply({ embeds: [embed] });
+      // Reply with the embed for both Message and ChatInputCommandInteraction
+      if (isPrefix) {
+        await interaction.reply({ embeds: [embed] });
+      } else {
+        await interaction.editReply({ embeds: [embed] });
+      }
     } catch (error) {
       Logger.error("Quote command failed:", error);
-      await interaction.editReply({
+      await interaction.reply({
         embeds: [
           new EmbedBuilder()
             .setColor("#ff3838")

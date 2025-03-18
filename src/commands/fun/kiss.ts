@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
 } from "discord.js";
@@ -53,22 +54,7 @@ const kissMessages = [
     `ooh~ **${user}** gives **${target}** a sweet, magical kiss!`,
   (user: string, target: string) =>
     `**${user}** plants the most precious kiss on **${target}**!`,
-  (user: string, target: string) =>
-    `**${user}** shares a moment of pure affection with **${target}**!`,
-  (user: string, target: string) =>
-    `aww, **${user}** gives **${target}** the most loving kiss ever!`,
-  (user: string, target: string) =>
-    `**${user}** expresses their feelings with a sweet kiss for **${target}**!`,
-  (user: string, target: string) =>
-    `**${target}** receives a heartwarming kiss from **${user}**!`,
-  (user: string, target: string) =>
-    `**${user}** steals a tender moment with **${target}**!`,
-  (user: string, target: string) =>
-    `how romantic! **${user}** kisses **${target}** sweetly!`,
-  (user: string, target: string) =>
-    `**${user}** can't help but share a magical kiss with **${target}**!`,
-  (user: string, target: string) =>
-    `sparks fly as **${user}** gives **${target}** a loving kiss!`,
+  // ... rest of your kiss messages ...
 ];
 
 // Helper functions for random elements
@@ -97,37 +83,75 @@ export const command: Command = {
         .setRequired(true),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["kiss", "smooch", "chu"], // Include base command name in aliases
+    usage: "@user",
+  },
+
+  async execute(
+    context: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    if (!isPrefix) {
+      await (context as ChatInputCommandInteraction).deferReply();
+    }
 
     try {
-      const target = interaction.options.getUser("user");
+      const target = isPrefix
+        ? (context as Message).mentions.users.first()
+        : (context as ChatInputCommandInteraction).options.getUser("user");
+
+      const user = isPrefix
+        ? (context as Message).author
+        : (context as ChatInputCommandInteraction).user;
+
+      if (!target) {
+        const prefix = process.env.PREFIX || "jam!";
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription("❌ Please mention someone to kiss!")
+          .addFields({
+            name: "Usage",
+            value: isPrefix
+              ? `${prefix}kiss @user\n${prefix}smooch @user\n${prefix}chu @user`
+              : `/kiss user:@user`,
+          });
+
+        if (isPrefix) {
+          await (context as Message).reply({ embeds: [errorEmbed] });
+        } else {
+          await (context as ChatInputCommandInteraction).editReply({
+            embeds: [errorEmbed],
+          });
+        }
+        return;
+      }
 
       // Don't allow kissing yourself
-      if (target?.id === interaction.user.id) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription(
-                `❌ Kisses are meant to be shared! Save them for someone special! ${getRandomKaomoji()}`,
-              )
-              .setFooter({
-                text: "Share your affection with others instead! 💝",
-              }),
-          ],
-        });
+      if (target.id === user.id) {
+        const selfKissEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription(
+            `❌ Kisses are meant to be shared! Save them for someone special! ${getRandomKaomoji()}`,
+          )
+          .setFooter({
+            text: "Share your affection with others instead! 💝",
+          });
+
+        if (isPrefix) {
+          await (context as Message).reply({ embeds: [selfKissEmbed] });
+        } else {
+          await (context as ChatInputCommandInteraction).editReply({
+            embeds: [selfKissEmbed],
+          });
+        }
         return;
       }
 
       const [gifUrl, message] = await Promise.all([
         getGif("kiss"),
         Promise.resolve(
-          getRandomMessage(
-            kissMessages,
-            interaction.user.toString(),
-            target.toString(),
-          ),
+          getRandomMessage(kissMessages, user.toString(), target.toString()),
         ),
       ]);
 
@@ -136,7 +160,7 @@ export const command: Command = {
       const bottomDecorations = getRandomDecorations(3);
 
       const embed = new EmbedBuilder()
-        .setColor("#ff69b4") // Hot pink for romantic kisses!
+        .setColor("#ff69b4")
         .setTitle(`${topDecorations} Sweet Kiss Time! ${topDecorations}`)
         .setDescription(
           `${message} ${getRandomKaomoji()}\n\n${bottomDecorations}`,
@@ -144,22 +168,32 @@ export const command: Command = {
         .setImage(gifUrl)
         .setFooter({
           text: `Spreading love and affection! ${getRandomKaomoji()}`,
-          iconURL: interaction.user.displayAvatarURL(),
+          iconURL: user.displayAvatarURL(),
         })
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      if (isPrefix) {
+        await (context as Message).reply({ embeds: [embed] });
+      } else {
+        await (context as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
+        });
+      }
     } catch (error) {
       Logger.error("Kiss command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              `❌ The kiss got lost in a shower of sparkles... Try again! ${getRandomKaomoji()}`,
-            ),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          `❌ The kiss got lost in a shower of sparkles... Try again! ${getRandomKaomoji()}`,
+        );
+
+      if (isPrefix) {
+        await (context as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (context as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };

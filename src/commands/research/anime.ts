@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
   ActionRowBuilder,
@@ -110,127 +111,263 @@ export const command: Command = {
         ),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["anime", "ani", "a"],
+    usage: "<search/random/top> [query/type]",
+  },
 
-    try {
-      const subcommand = interaction.options.getSubcommand();
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    if (isPrefix) {
+      const message = interaction as Message;
+      const args = message.content.trim().split(/ +/).slice(1);
+      const subcommand = args[0]?.toLowerCase();
+
+      if (!subcommand) {
+        const prefix = process.env.PREFIX || "jam!";
+        await message.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor("#ff3838")
+              .setDescription("❌ Please specify a subcommand!")
+              .addFields({
+                name: "Usage",
+                value: [
+                  `${prefix}anime search <title> - Search for an anime`,
+                  `${prefix}anime random - Get a random anime`,
+                  `${prefix}anime top [tv/movie/ova/special] - View top anime`,
+                ].join("\n"),
+                inline: false,
+              })
+              .addFields({
+                name: "Examples",
+                value: [
+                  `${prefix}anime search "One Piece"`,
+                  `${prefix}anime random`,
+                  `${prefix}anime top tv`,
+                ].join("\n"),
+                inline: false,
+              }),
+          ],
+        });
+        return;
+      }
+
+      await message.channel.sendTyping();
+
+      switch (subcommand) {
+        case "search": {
+          const title = args.slice(1).join(" ");
+          if (!title) {
+            await message.reply({
+              embeds: [
+                new EmbedBuilder()
+                  .setColor("#ff3838")
+                  .setDescription(
+                    "❌ Please provide an anime title to search for!",
+                  ),
+              ],
+            });
+            return;
+          }
+          await handleAnimeSearch(message, title);
+          break;
+        }
+        case "random":
+          await handleRandomAnime(message);
+          break;
+        case "top": {
+          const type = args[1]?.toLowerCase();
+          if (type && !["tv", "movie", "ova", "special"].includes(type)) {
+            await message.reply({
+              embeds: [
+                new EmbedBuilder()
+                  .setColor("#ff3838")
+                  .setDescription(
+                    "❌ Invalid type! Use: tv, movie, ova, or special",
+                  ),
+              ],
+            });
+            return;
+          }
+          await handleTopAnime(message, type);
+          break;
+        }
+        default:
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription(
+                  "❌ Invalid subcommand! Use: search, random, or top",
+                ),
+            ],
+          });
+          break;
+      }
+    } else {
+      await (interaction as ChatInputCommandInteraction).deferReply();
+      const subcommand = (
+        interaction as ChatInputCommandInteraction
+      ).options.getSubcommand();
 
       switch (subcommand) {
         case "search":
-          const title = interaction.options.getString("title", true);
+          const title = (
+            interaction as ChatInputCommandInteraction
+          ).options.getString("title", true);
           await handleAnimeSearch(interaction, title);
           break;
         case "random":
           await handleRandomAnime(interaction);
           break;
         case "top":
-          const type = interaction.options.getString("type");
+          const type = (
+            interaction as ChatInputCommandInteraction
+          ).options.getString("type");
           await handleTopAnime(interaction, type);
           break;
       }
-    } catch (error) {
-      Logger.error("Anime command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              "❌ Failed to fetch anime information. Please try again later.",
-            ),
-        ],
-      });
     }
   },
 };
 
 async function handleAnimeSearch(
-  interaction: ChatInputCommandInteraction,
+  interaction: ChatInputCommandInteraction | Message,
   title: string,
 ) {
-  const response = await fetch(
-    `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&sfw=true&limit=10`,
-  );
+  try {
+    const response = await fetch(
+      `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&sfw=true&limit=10`,
+    );
 
-  if (!response.ok) {
-    throw new Error(`Jikan API returned ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`Jikan API returned ${response.status}`);
+    }
+
+    const data: AnimeResponse = await response.json();
+
+    if (!data.data || data.data.length === 0) {
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(`❌ No results found for "${title}"`);
+
+      if (interaction instanceof Message) {
+        await interaction.reply({ embeds: [errorEmbed] });
+      } else {
+        await interaction.editReply({ embeds: [errorEmbed] });
+      }
+      return;
+    }
+
+    await showPaginatedResults(interaction, data.data, "search");
+  } catch (error) {
+    Logger.error("Anime search failed:", error);
+    const errorEmbed = new EmbedBuilder()
+      .setColor("#ff3838")
+      .setDescription("❌ Failed to search for anime. Please try again later.");
+
+    if (interaction instanceof Message) {
+      await interaction.reply({ embeds: [errorEmbed] });
+    } else {
+      await interaction.editReply({ embeds: [errorEmbed] });
+    }
   }
-
-  const data: AnimeResponse = await response.json();
-
-  if (!data.data || data.data.length === 0) {
-    await interaction.editReply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor("#ff3838")
-          .setDescription(`❌ No results found for "${title}"`),
-      ],
-    });
-    return;
-  }
-
-  await showPaginatedResults(interaction, data.data, "search");
 }
 
-async function handleRandomAnime(interaction: ChatInputCommandInteraction) {
-  const response = await fetch(
-    "https://api.jikan.moe/v4/random/anime?sfw=true",
-  );
+async function handleRandomAnime(
+  interaction: ChatInputCommandInteraction | Message,
+) {
+  try {
+    const response = await fetch(
+      "https://api.jikan.moe/v4/random/anime?sfw=true",
+    );
 
-  if (!response.ok) {
-    throw new Error(`Jikan API returned ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`Jikan API returned ${response.status}`);
+    }
+
+    const data = await response.json();
+    const anime = data.data;
+
+    if (!anime) {
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription("❌ Failed to get a random anime. Please try again.");
+
+      if (interaction instanceof Message) {
+        await interaction.reply({ embeds: [errorEmbed] });
+      } else {
+        await interaction.editReply({ embeds: [errorEmbed] });
+      }
+      return;
+    }
+
+    await showPaginatedResults(interaction, [anime], "search");
+  } catch (error) {
+    Logger.error("Random anime failed:", error);
+    const errorEmbed = new EmbedBuilder()
+      .setColor("#ff3838")
+      .setDescription("❌ Failed to get random anime. Please try again later.");
+
+    if (interaction instanceof Message) {
+      await interaction.reply({ embeds: [errorEmbed] });
+    } else {
+      await interaction.editReply({ embeds: [errorEmbed] });
+    }
   }
-
-  const data = await response.json();
-  const anime = data.data;
-
-  if (!anime) {
-    await interaction.editReply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor("#ff3838")
-          .setDescription("❌ Failed to get a random anime. Please try again."),
-      ],
-    });
-    return;
-  }
-
-  await sendAnimeEmbed(interaction, anime);
 }
 
 async function handleTopAnime(
-  interaction: ChatInputCommandInteraction,
+  interaction: ChatInputCommandInteraction | Message,
   type: string | null,
 ) {
-  let apiUrl = "https://api.jikan.moe/v4/top/anime?sfw=true&limit=10";
-  if (type) {
-    apiUrl += `&type=${type}`;
+  try {
+    let apiUrl = "https://api.jikan.moe/v4/top/anime?sfw=true&limit=10";
+    if (type) {
+      apiUrl += `&type=${type}`;
+    }
+
+    const response = await fetch(apiUrl);
+
+    if (!response.ok) {
+      throw new Error(`Jikan API returned ${response.status}`);
+    }
+
+    const data: AnimeResponse = await response.json();
+
+    if (!data.data || data.data.length === 0) {
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription("❌ Failed to fetch top anime list.");
+
+      if (interaction instanceof Message) {
+        await interaction.reply({ embeds: [errorEmbed] });
+      } else {
+        await interaction.editReply({ embeds: [errorEmbed] });
+      }
+      return;
+    }
+
+    await showPaginatedResults(interaction, data.data, "top");
+  } catch (error) {
+    Logger.error("Top anime failed:", error);
+    const errorEmbed = new EmbedBuilder()
+      .setColor("#ff3838")
+      .setDescription("❌ Failed to fetch top anime. Please try again later.");
+
+    if (interaction instanceof Message) {
+      await interaction.reply({ embeds: [errorEmbed] });
+    } else {
+      await interaction.editReply({ embeds: [errorEmbed] });
+    }
   }
-
-  const response = await fetch(apiUrl);
-
-  if (!response.ok) {
-    throw new Error(`Jikan API returned ${response.status}`);
-  }
-
-  const data: AnimeResponse = await response.json();
-
-  if (!data.data || data.data.length === 0) {
-    await interaction.editReply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor("#ff3838")
-          .setDescription("❌ Failed to fetch top anime list."),
-      ],
-    });
-    return;
-  }
-
-  await showPaginatedResults(interaction, data.data, "top");
 }
 
 async function showPaginatedResults(
-  interaction: ChatInputCommandInteraction,
+  interaction: ChatInputCommandInteraction | Message,
   animeList: AnimeResult[],
   mode: "search" | "top",
 ) {
@@ -251,22 +388,43 @@ async function showPaginatedResults(
     );
   };
 
-  const message = await interaction.editReply({
-    embeds: [
-      createAnimeEmbed(animeList[currentPage], currentPage, animeList.length),
-    ],
-    components: animeList.length > 1 ? [createButtons(currentPage)] : [],
-  });
+  const message = await (interaction instanceof Message
+    ? interaction.reply({
+        embeds: [
+          createAnimeEmbed(
+            animeList[currentPage],
+            currentPage,
+            animeList.length,
+          ),
+        ],
+        components: animeList.length > 1 ? [createButtons(currentPage)] : [],
+        fetchReply: true,
+      })
+    : interaction.editReply({
+        embeds: [
+          createAnimeEmbed(
+            animeList[currentPage],
+            currentPage,
+            animeList.length,
+          ),
+        ],
+        components: animeList.length > 1 ? [createButtons(currentPage)] : [],
+      }));
 
   if (animeList.length <= 1) return;
 
-  const collector = message.createMessageComponentCollector({
+  const collector = (message as Message).createMessageComponentCollector({
     componentType: ComponentType.Button,
     time: 300000,
   });
 
   collector.on("collect", async (i) => {
-    if (i.user.id !== interaction.user.id) {
+    if (
+      i.user.id !==
+      (interaction instanceof Message
+        ? interaction.author.id
+        : interaction.user.id)
+    ) {
       await i.reply({
         content: "❌ These buttons aren't for you!",
         ephemeral: true,
@@ -288,11 +446,11 @@ async function showPaginatedResults(
     });
   });
 
-  collector.on("end", async () => {
-    try {
-      await message.edit({ components: [] });
-    } catch (error) {
-      // Message may have been deleted
+  collector.on("end", () => {
+    if (interaction instanceof Message) {
+      message.edit({ components: [] }).catch(() => {});
+    } else {
+      interaction.editReply({ components: [] }).catch(() => {});
     }
   });
 }
@@ -301,7 +459,7 @@ function createAnimeEmbed(
   anime: AnimeResult,
   currentPage: number,
   totalPages: number,
-) {
+): EmbedBuilder {
   let synopsis = anime.synopsis || "No synopsis available.";
   if (synopsis.length > 2048) {
     synopsis = synopsis.substring(0, 2045) + "...";
@@ -325,7 +483,6 @@ function createAnimeEmbed(
     embed.setThumbnail(anime.images.jpg.image_url);
   }
 
-  // Add fields in chunks to avoid length issues
   if (anime.score) {
     embed.addFields({
       name: "📊 Rating",

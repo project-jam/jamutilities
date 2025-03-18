@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
 } from "discord.js";
@@ -96,68 +97,111 @@ export const command: Command = {
         .setRequired(true),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["cuddle", "snuggle", "snug"],
+    usage: "@user",
+  },
+
+  async execute(
+    context: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    // Only defer for slash commands. For safety, we check if the function exists.
+    if (
+      !isPrefix &&
+      typeof (context as ChatInputCommandInteraction).deferReply === "function"
+    ) {
+      await (context as ChatInputCommandInteraction).deferReply();
+    }
 
     try {
-      const target = interaction.options.getUser("user");
+      const target = isPrefix
+        ? (context as Message).mentions.users.first()
+        : (context as ChatInputCommandInteraction).options.getUser("user");
+      const user = isPrefix
+        ? (context as Message).author
+        : (context as ChatInputCommandInteraction).user;
 
-      // Don't allow cuddling yourself
-      if (target?.id === interaction.user.id) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription(
-                `❌ Aww, need cuddles? Let someone else wrap you in warmth instead! ${getRandomEmote()}`,
-              )
-              .setFooter({
-                text: "Cuddles are better when shared with others! 💝",
-              }),
-          ],
-        });
+      if (!target) {
+        const prefix = process.env.PREFIX || "jam!";
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription("❌ Please mention someone to cuddle!")
+          .addFields({
+            name: "Usage",
+            value: `${prefix}cuddle @user\n${prefix}snuggle @user\n${prefix}snug @user`,
+          });
+        if (isPrefix) {
+          await (context as Message).reply({ embeds: [errorEmbed] });
+        } else {
+          await (context as ChatInputCommandInteraction).editReply({
+            embeds: [errorEmbed],
+          });
+        }
         return;
       }
 
-      // Get GIF and random message using utility functions
-      const [gifUrl, message] = await Promise.all([
+      // Self-cuddle check
+      if (target.id === user.id) {
+        const selfEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription(
+            `❌ You need cuddles? Let others share their warmth with you! ${getRandomEmote()}`,
+          )
+          .setFooter({ text: "Cuddles are better when shared! 💝" });
+        if (isPrefix) {
+          await (context as Message).reply({ embeds: [selfEmbed] });
+        } else {
+          await (context as ChatInputCommandInteraction).editReply({
+            embeds: [selfEmbed],
+          });
+        }
+        return;
+      }
+
+      // Generate cuddle content
+      const [gifUrl, cuddleMessage] = await Promise.all([
         getGif("cuddle"),
         Promise.resolve(
-          getRandomMessage(
-            cuddleMessages,
-            interaction.user.toString(),
-            target.toString(),
-          ),
+          getRandomMessage(cuddleMessages, user.toString(), target.toString()),
         ),
       ]);
 
-      // Create decorative borders
       const topDecorations = getRandomDecorations(3);
       const bottomDecorations = getRandomDecorations(3);
 
       const embed = new EmbedBuilder()
-        .setColor("#FFB6C1") // Light pink for wholesome cuddles!
+        .setColor("#FFB6C1")
         .setTitle(`${topDecorations} Cozy Cuddle Time! ${topDecorations}`)
-        .setDescription(`${message}\n\n${bottomDecorations}`)
+        .setDescription(`${cuddleMessage}\n\n${bottomDecorations}`)
         .setImage(gifUrl)
         .setFooter({
           text: `Spreading warmth and comfort! ${getRandomEmote()}`,
-          iconURL: interaction.user.displayAvatarURL(),
+          iconURL: user.displayAvatarURL(),
         })
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      if (isPrefix) {
+        await (context as Message).reply({ embeds: [embed] });
+      } else {
+        await (context as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
+        });
+      }
     } catch (error) {
       Logger.error("Cuddle command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              `❌ The cuddles got lost in a cloud of coziness... Try again! ${getRandomEmote()}`,
-            ),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          `❌ The cuddles got lost in a cloud of warmth... Try again! ${getRandomEmote()}`,
+        );
+      if (isPrefix) {
+        await (context as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (context as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };

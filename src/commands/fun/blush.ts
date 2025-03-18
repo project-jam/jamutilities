@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
 } from "discord.js";
@@ -23,7 +24,28 @@ const blushKaomoji = [
 ];
 
 // Decorative sparkles and hearts
-const decorations = ["✿", "❀", "💮", "🌸", "✨", "💫", "⭐", "💝", "💗", "💓"];
+const decorations = [
+  "✿",
+  "❀",
+  "💮",
+  "🌸",
+  "✨",
+  "💫",
+  "⭐",
+  "💝",
+  "💗",
+  "💓",
+  "🎀",
+  "🌺",
+  "🌼",
+  "🌻",
+  "☀️",
+  "🌈",
+  "🦋",
+  "💐",
+  "🍀",
+  "💕",
+];
 
 // Enhanced blush messages with kaomoji
 const blushMessages = [
@@ -40,10 +62,6 @@ const blushMessages = [
   (user: string) =>
     `**${user}** tries to hide their blushing face ${getRandomKaomoji()}`,
   (user: string) => `**${user}** gets all embarrassed ${getRandomKaomoji()}`,
-  (user: string) =>
-    `**${user}** radiates adorable bashfulness ${getRandomKaomoji()}`,
-  (user: string) =>
-    `**${user}**'s face glows with a rosy tint ${getRandomKaomoji()}`,
 ];
 
 // Helper functions for random elements
@@ -61,18 +79,30 @@ function getRandomDecorations(count: number): string {
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("blush")
-    .setDMPermission(true)
-    .setDescription("Show your adorably embarrassed side! (⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄)"),
+    .setDescription("Show your adorably embarrassed side! (⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄)")
+    .setDMPermission(true),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["blush", "shy", "embarrassed", "KYAA!"], // Include base command and fun alternatives
+    usage: "", // No arguments needed
+  },
+
+  async execute(
+    context: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    if (!isPrefix) {
+      await (context as ChatInputCommandInteraction).deferReply();
+    }
 
     try {
+      const user = isPrefix
+        ? (context as Message).author
+        : (context as ChatInputCommandInteraction).user;
+
       const [gifUrl, message] = await Promise.all([
         getGif("blush"),
-        Promise.resolve(
-          getRandomMessage(blushMessages, interaction.user.toString(), ""),
-        ),
+        Promise.resolve(getRandomMessage(blushMessages, user.toString(), "")),
       ]);
 
       // Create decorative borders
@@ -86,22 +116,32 @@ export const command: Command = {
         .setImage(gifUrl)
         .setFooter({
           text: `So kawaii! ${getRandomKaomoji()}`,
-          iconURL: interaction.user.displayAvatarURL(),
+          iconURL: user.displayAvatarURL(),
         })
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      if (isPrefix) {
+        await (context as Message).reply({ embeds: [embed] });
+      } else {
+        await (context as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
+        });
+      }
     } catch (error) {
       Logger.error("Blush command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              `❌ Couldn't show that emotion... How embarrassing! ${getRandomKaomoji()}`,
-            ),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          `❌ Couldn't show that emotion... How embarrassing! ${getRandomKaomoji()}`,
+        );
+
+      if (isPrefix) {
+        await (context as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (context as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };

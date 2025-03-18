@@ -1,5 +1,9 @@
 import { Command } from "../../types/Command";
-import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import {
+  ChatInputCommandInteraction,
+  Message,
+  SlashCommandBuilder,
+} from "discord.js";
 import { spawn } from "child_process";
 import { Logger } from "../../utils/logger";
 import ansi from "ansi-to-html";
@@ -24,26 +28,63 @@ export const command: Command = {
         .setRequired(true),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    if (interaction.user.id !== process.env.OWNER_ID) {
-      await interaction.reply({
-        content: "❌ This command is restricted to the bot owner only!",
-        flags: ["Ephemeral"],
-      });
+  // Add prefix command configuration
+  prefix: {
+    aliases: ["shell", "sh", "cmd", "exec"],
+    usage: "<command>", // Example: jam!shell ls -la
+  },
+
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    // Check owner permission
+    const userId = isPrefix
+      ? (interaction as Message).author.id
+      : (interaction as ChatInputCommandInteraction).user.id;
+    if (userId !== process.env.OWNER_ID) {
+      if (isPrefix) {
+        await (interaction as Message).reply(
+          "❌ This command is restricted to the bot owner only!",
+        );
+      } else {
+        await (interaction as ChatInputCommandInteraction).reply({
+          content: "❌ This command is restricted to the bot owner only!",
+          ephemeral: true,
+        });
+      }
       return;
     }
 
-    const command = interaction.options.getString("command");
-    if (!command) {
-      await interaction.reply({
-        content: "Please specify a command",
-        flags: ["Ephemeral"],
-      });
-      return;
+    // Get command to execute
+    let command: string;
+    if (isPrefix) {
+      const args = (interaction as Message).content
+        .slice(process.env.PREFIX?.length || 0)
+        .trim()
+        .split(/ +/g)
+        .slice(1)
+        .join(" ");
+
+      if (!args) {
+        await (interaction as Message).reply(
+          "Please specify a command to execute",
+        );
+        return;
+      }
+      command = args;
+      await (interaction as Message).channel.sendTyping();
+    } else {
+      await (interaction as ChatInputCommandInteraction).deferReply();
+      command = (interaction as ChatInputCommandInteraction).options.getString(
+        "command",
+        true,
+      );
     }
 
-    await interaction.deferReply();
-    Logger.command(`Executed shell for ${interaction.user.username}.`);
+    Logger.command(
+      `Executed shell for ${isPrefix ? (interaction as Message).author.username : (interaction as ChatInputCommandInteraction).user.username}.`,
+    );
 
     try {
       // Special handling for neofetch
@@ -65,9 +106,15 @@ export const command: Command = {
         // Convert ANSI to HTML and wrap in a code block
         const htmlOutput = converter.toHtml(output);
 
-        await interaction.editReply({
-          content: `**System Information:**\n\`\`\`ansi\n${output}\`\`\``,
-        });
+        if (isPrefix) {
+          await (interaction as Message).reply({
+            content: `**System Information:**\n\`\`\`ansi\n${output}\`\`\``,
+          });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            content: `**System Information:**\n\`\`\`ansi\n${output}\`\`\``,
+          });
+        }
         return;
       }
 
@@ -77,11 +124,7 @@ export const command: Command = {
 
       const childProcess = spawn(program, args, {
         shell: true,
-        env: {
-          ...process.env,
-          TERM: "xterm-256color",
-          FORCE_COLOR: "true",
-        },
+        env: { ...process.env, TERM: "xterm-256color", FORCE_COLOR: "true" },
       });
 
       let stdout = "";
@@ -126,22 +169,43 @@ export const command: Command = {
       // Handle long responses
       if (response.length > 2000) {
         const chunks = splitResponse(response);
-        await interaction.editReply(chunks[0]);
 
-        for (let i = 1; i < chunks.length; i++) {
-          await interaction.followUp({
-            content: chunks[i],
-            flags: ["Ephemeral"],
-          });
+        if (isPrefix) {
+          await (interaction as Message).reply(chunks[0]);
+          for (let i = 1; i < chunks.length; i++) {
+            await (interaction as Message).channel.send(chunks[i]);
+          }
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply(
+            chunks[0],
+          );
+          for (let i = 1; i < chunks.length; i++) {
+            await (interaction as ChatInputCommandInteraction).followUp({
+              content: chunks[i],
+              ephemeral: true,
+            });
+          }
         }
       } else {
-        await interaction.editReply(response);
+        if (isPrefix) {
+          await (interaction as Message).reply(response);
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply(
+            response,
+          );
+        }
       }
     } catch (error) {
       Logger.error("Shell command error:", error);
-      await interaction.editReply({
-        content: `❌ Error executing command:\n\`\`\`\n${error}\`\`\``,
-      });
+      const errorResponse = `❌ Error executing command:\n\`\`\`\n${error}\`\`\``;
+
+      if (isPrefix) {
+        await (interaction as Message).reply(errorResponse);
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply(
+          errorResponse,
+        );
+      }
     }
   },
 };

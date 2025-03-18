@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  Message,
   SlashCommandBuilder,
   EmbedBuilder,
 } from "discord.js";
@@ -17,7 +18,7 @@ interface BlueskyProfile {
   followersCount: number;
   followsCount: number;
   postsCount: number;
-  createdAt: string; // Use createdAt for join date
+  createdAt: string;
   indexedAt: string;
   viewer?: {
     muted: boolean;
@@ -50,29 +51,78 @@ export const command: Command = {
         .setRequired(true),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+  prefix: {
+    aliases: ["bluesky", "bsky"],
+    usage: "<@handle.bsky.social/did:plc:...>", // Example: jam!bluesky @user.bsky.social
+  },
+
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    // Defer reply for slash command
+    if (!isPrefix) {
+      await (interaction as ChatInputCommandInteraction).deferReply();
+    }
 
     try {
-      let identifier = interaction.options
-        .getString("identifier", true)
-        .trim()
-        .toLowerCase();
+      // Get identifier from appropriate source
+      let identifier: string;
+      if (isPrefix) {
+        const args = (interaction as Message).content
+          .slice(process.env.PREFIX?.length || 0)
+          .trim()
+          .split(/ +/g)
+          .slice(1);
+
+        if (args.length === 0) {
+          await (interaction as Message).reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription("❌ Please provide a Bluesky handle or DID!")
+                .addFields({
+                  name: "Usage",
+                  value: [
+                    `${process.env.PREFIX || "jam!"}bluesky <@handle.bsky.social/did:plc:...>`,
+                    "Examples:",
+                    "```",
+                    `${process.env.PREFIX || "jam!"}bluesky @user.bsky.social`,
+                    `${process.env.PREFIX || "jam!"}bluesky did:plc:abcdef123`,
+                    "```",
+                  ].join("\n"),
+                }),
+            ],
+          });
+          return;
+        }
+
+        identifier = args[0].trim();
+        await (interaction as Message).channel.sendTyping();
+      } else {
+        identifier = (
+          interaction as ChatInputCommandInteraction
+        ).options.getString("identifier", true);
+      }
 
       // Remove all "@" symbols if present
       identifier = identifier.replace(/@/g, "");
 
-      // Validate: must be a DID or look like a handle (e.g. username.bsky.social)
+      // Validate: must be a DID or look like a handle
       if (!identifier.startsWith("did:plc:") && !identifier.includes(".")) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#ff3838")
-              .setDescription(
-                "❌ Invalid identifier format. Please use either a handle (e.g., @username.bsky.social) or DID (did:plc:...).",
-              ),
-          ],
-        });
+        const errorEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription(
+            "❌ Invalid identifier format. Please use either a handle (e.g., username.bsky.social) or DID (did:plc:...).",
+          );
+
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [errorEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [errorEmbed],
+          });
+        }
         return;
       }
 
@@ -91,13 +141,17 @@ export const command: Command = {
 
         if (!resolveResponse.ok) {
           if (resolveResponse.status === 404) {
-            await interaction.editReply({
-              embeds: [
-                new EmbedBuilder()
-                  .setColor("#ff3838")
-                  .setDescription("❌ User not found!"),
-              ],
-            });
+            const notFoundEmbed = new EmbedBuilder()
+              .setColor("#ff3838")
+              .setDescription("❌ User not found!");
+
+            if (isPrefix) {
+              await (interaction as Message).reply({ embeds: [notFoundEmbed] });
+            } else {
+              await (interaction as ChatInputCommandInteraction).editReply({
+                embeds: [notFoundEmbed],
+              });
+            }
             return;
           }
           throw new Error(
@@ -109,7 +163,7 @@ export const command: Command = {
         identifier = resolveData.did;
       }
 
-      // Fetch the profile using GET with the actor as a query parameter.
+      // Fetch profile data
       const profileEndpoint =
         "https://api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=" +
         encodeURIComponent(identifier);
@@ -123,13 +177,17 @@ export const command: Command = {
 
       if (!response.ok) {
         if (response.status === 404) {
-          await interaction.editReply({
-            embeds: [
-              new EmbedBuilder()
-                .setColor("#ff3838")
-                .setDescription("❌ User not found!"),
-            ],
-          });
+          const notFoundEmbed = new EmbedBuilder()
+            .setColor("#ff3838")
+            .setDescription("❌ User not found!");
+
+          if (isPrefix) {
+            await (interaction as Message).reply({ embeds: [notFoundEmbed] });
+          } else {
+            await (interaction as ChatInputCommandInteraction).editReply({
+              embeds: [notFoundEmbed],
+            });
+          }
           return;
         }
         throw new Error(`Bluesky API (getProfile) returned ${response.status}`);
@@ -137,7 +195,7 @@ export const command: Command = {
 
       const data = (await response.json()) as BlueskyProfile;
 
-      // Compute the embed color using the banner image (if available)
+      // Get dominant color
       let embedColor = "#0085ff"; // fallback color
       if (data.banner) {
         try {
@@ -153,7 +211,7 @@ export const command: Command = {
         }
       }
 
-      // Build embed with profile information and computed color
+      // Build embed
       const embed = new EmbedBuilder()
         .setColor(embedColor)
         .setTitle(data.displayName || data.handle)
@@ -174,7 +232,6 @@ export const command: Command = {
             value: [
               `🏷️ Handle: ${data.handle}`,
               `🆔 DID: ${data.did}`,
-              // Use createdAt instead of indexedAt for the join date
               `📅 Joined: <t:${Math.floor(new Date(data.createdAt).getTime() / 1000)}:R>`,
             ].join("\n"),
             inline: true,
@@ -209,18 +266,29 @@ export const command: Command = {
         }
       }
 
-      await interaction.editReply({ embeds: [embed] });
+      // Send response
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [embed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [embed],
+        });
+      }
     } catch (error) {
       Logger.error("Bluesky command failed:", error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor("#ff3838")
-            .setDescription(
-              "❌ Failed to fetch Bluesky profile information. Please try again later.",
-            ),
-        ],
-      });
+      const errorEmbed = new EmbedBuilder()
+        .setColor("#ff3838")
+        .setDescription(
+          "❌ Failed to fetch Bluesky profile information. Please try again later.",
+        );
+
+      if (isPrefix) {
+        await (interaction as Message).reply({ embeds: [errorEmbed] });
+      } else {
+        await (interaction as ChatInputCommandInteraction).editReply({
+          embeds: [errorEmbed],
+        });
+      }
     }
   },
 };
