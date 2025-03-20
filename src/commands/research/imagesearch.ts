@@ -16,7 +16,30 @@ import { ProfaneDetect } from "@project-jam-org/profane-detect";
 // Initialize the profanity detector with custom configuration
 const profanityDetector = new ProfaneDetect({
   caseSensitive: false,
-  safeWords: [], // Add any safe words specific to your bot's context
+  safeWords: [
+    "ja",
+    "japan",
+    "japanese",
+    "en",
+    "english",
+    "es",
+    "spanish",
+    "fr",
+    "french",
+    "de",
+    "german",
+    "ko",
+    "korean",
+    "zh",
+    "chinese",
+    "ru",
+    "russian",
+    "pt",
+    "portuguese",
+    "it",
+    "italian",
+    "country",
+  ],
   homoglyphMapping: {}, // Default mappings should be sufficient
 });
 
