@@ -11,7 +11,7 @@ import {
 import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
 import fetch from "node-fetch";
-import { ProfaneDetect } from "@project-jam-org/profane-detect";
+import { ProfaneDetect } from "@projectjam/profane-detect";
 
 // Initialize the profanity detector with expanded safe words including country format
 const profanityDetector = new ProfaneDetect({
