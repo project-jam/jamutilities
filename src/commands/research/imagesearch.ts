@@ -13,32 +13,31 @@ import { Logger } from "../../utils/logger";
 import fetch from "node-fetch";
 import { ProfaneDetect } from "@project-jam-org/profane-detect";
 
-// Initialize the profanity detector with custom configuration
+// Initialize the profanity detector with expanded safe words including country format
 const profanityDetector = new ProfaneDetect({
   caseSensitive: false,
   safeWords: [
-    "ja",
-    "japan",
-    "japanese",
-    "en",
-    "english",
-    "es",
-    "spanish",
-    "fr",
-    "french",
-    "de",
-    "german",
-    "ko",
-    "korean",
-    "zh",
-    "chinese",
-    "ru",
-    "russian",
-    "pt",
-    "portuguese",
-    "it",
-    "italian",
+    "country=ja",
+    "country=en",
+    "country=es",
+    "country=fr",
+    "country=de",
+    "country=ko",
+    "country=zh",
+    "country=ru",
+    "country=pt",
+    "country=it",
     "country",
+    "ja",
+    "en",
+    "es",
+    "fr",
+    "de",
+    "ko",
+    "zh",
+    "ru",
+    "pt",
+    "it",
   ],
   homoglyphMapping: {}, // Default mappings should be sufficient
 });
@@ -85,7 +84,7 @@ export const command: Command = {
     ),
   prefix: {
     aliases: ["imagesearch", "is"],
-    usage: "[language] <query>", // e.g. jam!imagesearch cute cats ja
+    usage: "[country=language] <query>", // Updated usage format
   },
   async execute(
     interaction: ChatInputCommandInteraction | Message,
@@ -114,34 +113,60 @@ export const command: Command = {
                 .addFields({
                   name: "Usage",
                   value: [
-                    `${prefix}imagesearch <query> [language]`,
-                    `${prefix}is <query> [language]`,
+                    `${prefix}imagesearch [country=language] <query>`,
+                    `${prefix}is [country=language] <query>`,
                     "",
                     "Available languages:",
                     "en, ja, es, fr, de, ko, zh, ru, pt, it",
                     "",
                     "Examples:",
-                    `${prefix}imagesearch cute cats`,
-                    `${prefix}is sakura ja`,
-                    `${prefix}imagesearch discord`,
+                    `${prefix}imagesearch country=ja cats`,
+                    `${prefix}is country=en cute dogs`,
+                    `${prefix}imagesearch country=ko music`,
                   ].join("\n"),
                 }),
             ],
           });
           return;
         }
+
         query = args.join(" ");
-        // If the last argument is a valid language code, separate it.
-        const parts = query.split(" ");
-        const possibleLang = parts[parts.length - 1].toLowerCase();
-        if (
-          ["en", "ja", "es", "fr", "de", "ko", "zh", "ru", "pt", "it"].includes(
-            possibleLang,
-          )
-        ) {
-          language = possibleLang;
-          query = parts.slice(0, -1).join(" ");
+        let finalQuery = query;
+
+        // Check for country=language format first
+        const countryMatch = query.match(
+          /country=(ja|en|es|fr|de|ko|zh|ru|pt|it)/i,
+        );
+
+        if (countryMatch) {
+          language = countryMatch[1].toLowerCase();
+          // Remove the country=xx part from query and clean up extra spaces
+          finalQuery = query.replace(/country=[a-z]{2}/i, "").trim();
+        } else {
+          // Fallback to checking last word as language code
+          const parts = query.split(" ");
+          const possibleLang = parts[parts.length - 1].toLowerCase();
+          if (
+            [
+              "en",
+              "ja",
+              "es",
+              "fr",
+              "de",
+              "ko",
+              "zh",
+              "ru",
+              "pt",
+              "it",
+            ].includes(possibleLang)
+          ) {
+            language = possibleLang;
+            finalQuery = parts.slice(0, -1).join(" ");
+          }
         }
+
+        // Update query to final cleaned version
+        query = finalQuery;
         await (interaction as Message).channel.sendTyping();
       } else {
         query = (interaction as ChatInputCommandInteraction).options.getString(
@@ -156,7 +181,7 @@ export const command: Command = {
 
       Logger.info(`Processing image search query: ${query}`);
 
-      // --- Begin Profanity Check using ProfaneDetect ---
+      // Profanity Check
       const profanityResult = profanityDetector.detect(query);
 
       if (profanityResult.found) {
@@ -175,7 +200,6 @@ export const command: Command = {
         }
         return;
       }
-      // --- End Profanity Check ---
 
       let response;
       try {
@@ -188,9 +212,11 @@ export const command: Command = {
         Logger.error("Fetch error:", fetchError);
         throw new Error("Failed to fetch image search results.");
       }
+
       if (!response.ok) {
         throw new Error(`API returned ${response.status}`);
       }
+
       let data;
       try {
         data = (await response.json()) as ImageSearchResponse;
@@ -198,6 +224,7 @@ export const command: Command = {
         Logger.error("JSON parsing error:", jsonError);
         throw new Error("Failed to parse image search results.");
       }
+
       if (!data.images || data.images.length === 0) {
         const noResultsEmbed = new EmbedBuilder()
           .setColor("#ff3838")
@@ -211,9 +238,9 @@ export const command: Command = {
         }
         return;
       }
+
       let currentPage = 0;
 
-      // Determine the correct avatar URL based on the interaction type.
       const avatarURL = isPrefix
         ? (interaction as Message).author.displayAvatarURL({
             format: "png",
@@ -290,7 +317,7 @@ export const command: Command = {
 
       const collector = (message as Message).createMessageComponentCollector({
         componentType: ComponentType.Button,
-        time: 300000, // 5 minutes
+        time: 30000, // 30 seconds
       });
 
       collector.on("collect", async (i) => {
