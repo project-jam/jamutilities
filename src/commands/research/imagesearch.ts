@@ -12,6 +12,10 @@ import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
 import fetch from "node-fetch"; // Import fetch if not available
 
+// Import the unhomoglyph package and a banned words list from the profane-words package.
+import unhomoglyph from "unhomoglyph";
+import profaneWords from "profane-words"; // Assumes this package exports an array of banned words
+
 interface ImageSearchResponse {
   query: string;
   language: string;
@@ -125,10 +129,44 @@ export const command: Command = {
 
       Logger.info(`Processing image search query: ${query}`);
 
+      // --- Begin Profanity & Homoglyph Check using unhomoglyph ---
+      // First, normalize the query and then use unhomoglyph to convert visually similar characters.
+      const normalizedQuery = query.normalize("NFKC");
+      const dehomoglyphedQuery = unhomoglyph(normalizedQuery).toLowerCase();
+
+      let foundProfanity = false;
+      const detectedWords: string[] = [];
+      for (const bannedWord of profaneWords) {
+        // Check using a simple case-insensitive substring search.
+        if (dehomoglyphedQuery.includes(bannedWord.toLowerCase())) {
+          foundProfanity = true;
+          detectedWords.push(bannedWord);
+        }
+      }
+      if (foundProfanity) {
+        const profanityEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setTitle("Profanity Detected")
+          .setDescription(
+            `The search query contains banned word(s): **${detectedWords.join(
+              ", ",
+            )}**`,
+          );
+        if (isPrefix && interaction instanceof Message) {
+          await interaction.reply({ embeds: [profanityEmbed] });
+        } else if (interaction instanceof ChatInputCommandInteraction) {
+          await interaction.editReply({ embeds: [profanityEmbed] });
+        }
+        return;
+      }
+      // --- End Profanity & Homoglyph Check ---
+
       let response;
       try {
         response = await fetch(
-          `https://api.project-jam.is-a.dev/api/v0/image/image-search/google?q=${encodeURIComponent(query)}&lang=${language}`,
+          `https://api.project-jam.is-a.dev/api/v0/image/image-search/google?q=${encodeURIComponent(
+            query,
+          )}&lang=${language}`,
         );
       } catch (fetchError) {
         Logger.error("Fetch error:", fetchError);
@@ -189,7 +227,9 @@ export const command: Command = {
           .setDescription(`🔍 Showing ${data.images.length} results`)
           .setImage(data.images[pageIndex])
           .setFooter({
-            text: `Image ${pageIndex + 1}/${data.images.length} • Language: ${languageNames[language] || language} • Note: SafeSearch is turned on. Please be cautious.`,
+            text: `Image ${pageIndex + 1}/${data.images.length} • Language: ${
+              languageNames[language] || language
+            } • Note: SafeSearch is turned on. Please be cautious.`,
             iconURL: avatarURL,
           });
       };
