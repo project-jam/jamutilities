@@ -16,7 +16,7 @@ import { ProfaneDetect } from "@project-jam-org/profane-detect";
 // Initialize the profanity detector with expanded safe words including country format
 const profanityDetector = new ProfaneDetect({
   caseSensitive: false,
-  safeWords: [],
+  safeWords: ["duck"],
   homoglyphMapping: {}, // Default mappings should be sufficient
 });
 
