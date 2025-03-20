@@ -10,11 +10,15 @@ import {
 } from "discord.js";
 import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
-import fetch from "node-fetch"; // Import fetch if not available
+import fetch from "node-fetch";
+import { ProfaneDetect } from "@project-jam-org/profane-detect";
 
-// Import the unhomoglyph package and a banned words list from the profane-words package.
-import unhomoglyph from "unhomoglyph";
-import profaneWords from "profane-words"; // Assumes this package exports an array of banned words
+// Initialize the profanity detector with custom configuration
+const profanityDetector = new ProfaneDetect({
+  caseSensitive: false,
+  safeWords: [], // Add any safe words specific to your bot's context
+  homoglyphMapping: {}, // Default mappings should be sufficient
+});
 
 interface ImageSearchResponse {
   query: string;
@@ -129,29 +133,18 @@ export const command: Command = {
 
       Logger.info(`Processing image search query: ${query}`);
 
-      // --- Begin Profanity & Homoglyph Check using unhomoglyph ---
-      // First, normalize the query and then use unhomoglyph to convert visually similar characters.
-      const normalizedQuery = query.normalize("NFKC");
-      const dehomoglyphedQuery = unhomoglyph(normalizedQuery).toLowerCase();
+      // --- Begin Profanity Check using ProfaneDetect ---
+      const profanityResult = profanityDetector.detect(query);
 
-      let foundProfanity = false;
-      const detectedWords: string[] = [];
-      for (const bannedWord of profaneWords) {
-        // Check using a simple case-insensitive substring search.
-        if (dehomoglyphedQuery.includes(bannedWord.toLowerCase())) {
-          foundProfanity = true;
-          detectedWords.push(bannedWord);
-        }
-      }
-      if (foundProfanity) {
+      if (profanityResult.found) {
         const profanityEmbed = new EmbedBuilder()
           .setColor("#ff3838")
-          .setTitle("Profanity Detected")
+          .setTitle("⚠️ Content Warning")
           .setDescription(
-            `The search query contains banned word(s): **${detectedWords.join(
-              ", ",
-            )}**`,
-          );
+            "Your search query has been flagged for inappropriate content.\nPlease revise your query and try again.",
+          )
+          .setTimestamp();
+
         if (isPrefix && interaction instanceof Message) {
           await interaction.reply({ embeds: [profanityEmbed] });
         } else if (interaction instanceof ChatInputCommandInteraction) {
@@ -159,7 +152,7 @@ export const command: Command = {
         }
         return;
       }
-      // --- End Profanity & Homoglyph Check ---
+      // --- End Profanity Check ---
 
       let response;
       try {
