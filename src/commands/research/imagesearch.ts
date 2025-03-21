@@ -13,11 +13,9 @@ import { Logger } from "../../utils/logger";
 import fetch from "node-fetch";
 import { ProfaneDetect } from "@projectjam/profane-detect";
 
-// Initialize the profanity detector with expanded safe words including country format
+// Initialize with proper configuration
 const profanityDetector = new ProfaneDetect({
   caseSensitive: false,
-  safeWords: ["duck"],
-  homoglyphMapping: {}, // Default mappings should be sufficient
 });
 
 interface ImageSearchResponse {
@@ -62,8 +60,9 @@ export const command: Command = {
     ),
   prefix: {
     aliases: ["imagesearch", "is"],
-    usage: "[country=language] <query>", // Updated usage format
+    usage: "[country=language] <query>",
   },
+
   async execute(
     interaction: ChatInputCommandInteraction | Message,
     isPrefix = false,
@@ -71,6 +70,7 @@ export const command: Command = {
     if (!isPrefix) {
       await (interaction as ChatInputCommandInteraction).deferReply();
     }
+
     try {
       let query: string;
       let language: string = "en";
@@ -81,6 +81,7 @@ export const command: Command = {
           .trim()
           .split(/ +/g)
           .slice(1);
+
         if (args.length < 1) {
           const prefix = process.env.PREFIX || "jam!";
           await (interaction as Message).reply({
@@ -109,42 +110,14 @@ export const command: Command = {
         }
 
         query = args.join(" ");
-        let finalQuery = query;
-
-        // Check for country=language format first
         const countryMatch = query.match(
           /country=(ja|en|es|fr|de|ko|zh|ru|pt|it)/i,
         );
-
         if (countryMatch) {
           language = countryMatch[1].toLowerCase();
-          // Remove the country=xx part from query and clean up extra spaces
-          finalQuery = query.replace(/country=[a-z]{2}/i, "").trim();
-        } else {
-          // Fallback to checking last word as language code
-          const parts = query.split(" ");
-          const possibleLang = parts[parts.length - 1].toLowerCase();
-          if (
-            [
-              "en",
-              "ja",
-              "es",
-              "fr",
-              "de",
-              "ko",
-              "zh",
-              "ru",
-              "pt",
-              "it",
-            ].includes(possibleLang)
-          ) {
-            language = possibleLang;
-            finalQuery = parts.slice(0, -1).join(" ");
-          }
+          query = query.replace(/country=[a-z]{2}/i, "").trim();
         }
 
-        // Update query to final cleaned version
-        query = finalQuery;
         await (interaction as Message).channel.sendTyping();
       } else {
         query = (interaction as ChatInputCommandInteraction).options.getString(
@@ -161,7 +134,6 @@ export const command: Command = {
 
       // Profanity Check
       const profanityResult = profanityDetector.detect(query);
-
       if (profanityResult.found) {
         const profanityEmbed = new EmbedBuilder()
           .setColor("#ff3838")
@@ -171,54 +143,47 @@ export const command: Command = {
           )
           .setTimestamp();
 
-        if (isPrefix && interaction instanceof Message) {
-          await interaction.reply({ embeds: [profanityEmbed] });
-        } else if (interaction instanceof ChatInputCommandInteraction) {
-          await interaction.editReply({ embeds: [profanityEmbed] });
+        if (isPrefix) {
+          return await (interaction as Message).reply({
+            embeds: [profanityEmbed],
+          });
+        } else {
+          return await (interaction as ChatInputCommandInteraction).editReply({
+            embeds: [profanityEmbed],
+          });
         }
-        return;
       }
 
-      let response;
-      try {
-        response = await fetch(
-          `https://api.project-jam.is-a.dev/api/v0/image/image-search/google?q=${encodeURIComponent(
-            query,
-          )}&lang=${language}`,
-        );
-      } catch (fetchError) {
-        Logger.error("Fetch error:", fetchError);
-        throw new Error("Failed to fetch image search results.");
-      }
+      // API Call
+      const response = await fetch(
+        `https://api.project-jam.is-a.dev/api/v0/image/image-search/google?q=${encodeURIComponent(
+          query,
+        )}&lang=${language}`,
+      );
 
       if (!response.ok) {
         throw new Error(`API returned ${response.status}`);
       }
 
-      let data;
-      try {
-        data = (await response.json()) as ImageSearchResponse;
-      } catch (jsonError) {
-        Logger.error("JSON parsing error:", jsonError);
-        throw new Error("Failed to parse image search results.");
-      }
+      const data = (await response.json()) as ImageSearchResponse;
 
       if (!data.images || data.images.length === 0) {
         const noResultsEmbed = new EmbedBuilder()
           .setColor("#ff3838")
           .setDescription("❌ No images found for your search.");
+
         if (isPrefix) {
-          await (interaction as Message).reply({ embeds: [noResultsEmbed] });
+          return await (interaction as Message).reply({
+            embeds: [noResultsEmbed],
+          });
         } else {
-          await (interaction as ChatInputCommandInteraction).editReply({
+          return await (interaction as ChatInputCommandInteraction).editReply({
             embeds: [noResultsEmbed],
           });
         }
-        return;
       }
 
       let currentPage = 0;
-
       const avatarURL = isPrefix
         ? (interaction as Message).author.displayAvatarURL({
             format: "png",
@@ -242,6 +207,7 @@ export const command: Command = {
           pt: "Portuguese",
           it: "Italian",
         };
+
         return new EmbedBuilder()
           .setColor("#2b2d31")
           .setTitle(`🖼️ Search Results: ${query}`)
@@ -280,22 +246,25 @@ export const command: Command = {
         );
       };
 
-      const embed = createEmbed(currentPage);
-      const buttons = createButtons(currentPage);
+      const initialEmbed = createEmbed(currentPage);
+      const initialButtons = createButtons(currentPage);
+
+      // Send initial message
       const message = isPrefix
         ? await (interaction as Message).reply({
-            embeds: [embed],
-            components: [buttons],
+            embeds: [initialEmbed],
+            components: [initialButtons],
             fetchReply: true,
           })
         : await (interaction as ChatInputCommandInteraction).editReply({
-            embeds: [embed],
-            components: [buttons],
+            embeds: [initialEmbed],
+            components: [initialButtons],
           });
 
+      // Create collector
       const collector = (message as Message).createMessageComponentCollector({
         componentType: ComponentType.Button,
-        time: 30000, // 30 seconds
+        time: 30000,
       });
 
       collector.on("collect", async (i) => {
@@ -311,6 +280,7 @@ export const command: Command = {
           });
           return;
         }
+
         switch (i.customId) {
           case "image_first":
             currentPage = 0;
@@ -325,6 +295,7 @@ export const command: Command = {
             currentPage = data.images.length - 1;
             break;
         }
+
         await i.update({
           embeds: [createEmbed(currentPage)],
           components: [createButtons(currentPage)],
@@ -345,10 +316,11 @@ export const command: Command = {
       const errorEmbed = new EmbedBuilder()
         .setColor("#ff3838")
         .setDescription("❌ An error occurred while processing your request.");
+
       if (isPrefix) {
-        await (interaction as Message).reply({ embeds: [errorEmbed] });
+        return await (interaction as Message).reply({ embeds: [errorEmbed] });
       } else {
-        await (interaction as ChatInputCommandInteraction).editReply({
+        return await (interaction as ChatInputCommandInteraction).editReply({
           embeds: [errorEmbed],
         });
       }

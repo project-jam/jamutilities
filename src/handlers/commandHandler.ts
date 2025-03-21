@@ -212,9 +212,9 @@ export class CommandHandler {
       return;
     }
 
-    // Check if command is disabled
+    // ✅ Check if command is disabled
     if (
-      this.isCommandDisabled(commandName) &&
+      this.isCommandDisabled(command.data.name) &&
       message.author.id !== process.env.OWNER_ID
     ) {
       await message.channel.send({
