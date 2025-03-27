@@ -15,9 +15,7 @@
     "fast-average-color-node": "^3.1.0",
     "figlet": "^1.8.0",
     "gradient-string": "^3.0.0",
-    "moment": "^2.30.1",
-    "profane-words": "^1.6.0",
-    "unhomoglyph": "^1.0.6"
+    "moment": "^2.30.1"
   },
   "devDependencies": {
     "@types/bun": "latest",
