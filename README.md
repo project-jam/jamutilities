@@ -123,7 +123,7 @@ If you want to disable only 1 command, use this:
 
 `DISABLED_COMMANDS=image search,`
 
-and yeah, the `,` is required, otherwise it'll just be a disaster.
+and yeah, the `,` is optionnal.
 
 > [!WARNING]
 > If you don't have the `DISABLED_COMMANDS` env, then the bot will just continue to accept commands by the user, so yeah, be careful on what you're doing.
