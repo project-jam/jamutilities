@@ -3,89 +3,81 @@ import {
   Message,
   SlashCommandBuilder,
   EmbedBuilder,
+  version as discordVersion,
 } from "discord.js";
 import type { Command } from "../../types/Command";
-import { getAverageColor } from "fast-average-color-node";
 
 export const command: Command = {
   data: new SlashCommandBuilder()
-    .setName("avatar")
-    .setDescription("Shows user's profile picture")
+    .setName("about")
     .setDMPermission(true)
-    .addUserOption((option) =>
-      option
-        .setName("user")
-        .setDescription("The user whose profile picture you want to see")
-        .setRequired(false),
-    ),
+    .setDescription("Shows information about the bot"),
 
   prefix: {
-    aliases: ["avatar", "pfp", "profile"],
-    usage: "[@user]",
+    aliases: ["about", "info", "botinfo"],
+    usage: "",
   },
 
-  async execute(interaction: ChatInputCommandInteraction | Message) {
-    // First determine what type of interaction this is
-    const isMessage = interaction instanceof Message;
-
-    try {
-      // Handle typing indicator for Message
-      if (isMessage) {
-        const message = interaction as Message;
-        await message.channel.sendTyping();
-      }
-
-      // Get the target user
-      let user;
-      if (isMessage) {
-        const message = interaction as Message;
-        user = message.mentions.users.first() || message.author;
-      } else {
-        const slashCommand = interaction as ChatInputCommandInteraction;
-        await slashCommand.deferReply();
-        user = slashCommand.options.getUser("user") || slashCommand.user;
-      }
-
-      const avatarUrl = user.displayAvatarURL({ size: 4096 });
-
-      // Get the dominant color from the avatar
-      let color;
-      try {
-        color = await getAverageColor(avatarUrl);
-      } catch {
-        color = { hex: "#2b2d31" }; // Fallback color
-      }
-
-      const embed = new EmbedBuilder()
-        .setTitle(`${user.username}'s Profile Picture`)
-        .setImage(avatarUrl)
-        .setColor(color.hex)
-        .setTimestamp();
-
-      // Send the response based on interaction type
-      if (isMessage) {
-        const message = interaction as Message;
-        await message.reply({ embeds: [embed] });
-      } else {
-        const slashCommand = interaction as ChatInputCommandInteraction;
-        await slashCommand.editReply({ embeds: [embed] });
-      }
-    } catch (error) {
-      const errorEmbed = new EmbedBuilder()
-        .setColor("#ff3838")
-        .setDescription("❌ Something went wrong while fetching the avatar!");
-
-      if (isMessage) {
-        const message = interaction as Message;
-        await message.reply({ embeds: [errorEmbed] });
-      } else {
-        const slashCommand = interaction as ChatInputCommandInteraction;
-        if (!slashCommand.deferred) {
-          await slashCommand.reply({ embeds: [errorEmbed], ephemeral: true });
-        } else {
-          await slashCommand.editReply({ embeds: [errorEmbed] });
-        }
-      }
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
+    if (isPrefix) {
+      await (interaction as Message).reply({ embeds: [createEmbed(interaction)] });
+    } else {
+      await (interaction as ChatInputCommandInteraction).deferReply();
+      await interaction.editReply({ embeds: [createEmbed(interaction)] });
     }
   },
 };
+
+function createEmbed(interaction: ChatInputCommandInteraction | Message) {
+  const client = interaction.client;
+
+  return new EmbedBuilder()
+    .setColor("#2b2d31")
+    .setAuthor({
+      name: client.user?.username || "JamUtilities",
+      iconURL: client.user?.displayAvatarURL(),
+    })
+    .setDescription(
+      "JamUtilities is a feature-rich Discord bot focused on bringing fun interactions and moderation tools to your server! ",
+    )
+    .addFields(
+      { name: "🤖 Version", value: "v2.0.0", inline: true },
+      { name: "📚 Library", value: `Discord.js v${discordVersion}`, inline: true },
+      { name: "👥 Serving", value: `${client.guilds.cache.size} servers`, inline: true },
+      {
+        name: "🔧 Technologies",
+        value: ["• TypeScript", "• Node.js", "• Discord.js", "• Bun Runtime"].join("\n"),
+        inline: true,
+      },
+      {
+        name: "🎮 Features",
+        value: [
+          "• Fun Interactions",
+          "• Moderation Tools",
+          "• Utility Commands",
+          "• Server Management",
+        ].join("\n"),
+        inline: true,
+      },
+      {
+        name: "🔗 Links",
+        value: [
+          "• [Website](https://project-jam.is-a.dev)",
+          "• [GitHub](https://github.com/project-jam/jamutilities)",
+        ].join("\n"),
+        inline: true,
+      },
+      {
+        name: "💝 Special Thanks",
+        value: "Thanks to all our users and contributors who make JamUtilities better every day!",
+      },
+    )
+    .setFooter({
+      text: "Made with ❤️ by Project Jam, an open source project :)",
+      iconURL: client.user?.displayAvatarURL(),
+    })
+    .setTimestamp();
+}
