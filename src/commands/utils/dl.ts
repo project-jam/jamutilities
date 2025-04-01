@@ -3,13 +3,17 @@ import {
   Message,
   SlashCommandBuilder,
   EmbedBuilder,
+  AttachmentBuilder,
 } from "discord.js";
+import axios from "axios";
 import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
 import {
   callJambaltApi,
   type JambaltApiResponse,
 } from "../../utils/jambaltApi";
+
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 
 export const command: Command = {
   data: new SlashCommandBuilder()
@@ -81,6 +85,14 @@ export const command: Command = {
         .setName("twitterbskygif")
         .setDescription("Convert Twitter/Bluesky GIFs to .gif format")
         .setRequired(false),
+    )
+    .addBooleanOption((option) =>
+      option
+        .setName("linkonly")
+        .setDescription(
+          "Always send download link only, do not attach the file",
+        )
+        .setRequired(false),
     ),
 
   prefix: {
@@ -94,6 +106,7 @@ export const command: Command = {
   ) {
     let mediaUrl: string;
     let apiOptions: Record<string, any> = {};
+    let linkOnlyFlag = false;
 
     if (isPrefix) {
       const args = (interaction as Message).content.split(" ");
@@ -107,10 +120,7 @@ export const command: Command = {
               .setColor("#ff3838")
               .setTitle("❌ Error")
               .setDescription("Please provide a URL to download from!")
-              .addFields({
-                name: "Usage",
-                value: `${prefix}dl <url>`,
-              })
+              .addFields({ name: "Usage", value: `${prefix}dl <url>` })
               .addFields({
                 name: "Example",
                 value: `${prefix}dl https://youtube.com/watch?v=...`,
@@ -118,6 +128,12 @@ export const command: Command = {
           ],
         });
       }
+      // Look for a "linkonly" flag (any argument that equals "linkonly")
+      const remainingArgs = args.slice(2);
+      if (remainingArgs.some((arg) => arg.toLowerCase() === "linkonly")) {
+        linkOnlyFlag = true;
+      }
+      // You can further parse additional options from prefix if needed
     } else {
       await (interaction as ChatInputCommandInteraction).deferReply();
       mediaUrl = (interaction as ChatInputCommandInteraction).options.getString(
@@ -150,31 +166,111 @@ export const command: Command = {
         ).options.getBoolean(optionName);
         if (value !== null) apiOptions[optionName] = value;
       }
+
+      // Get the linkonly flag as well
+      const linkOnly = (
+        interaction as ChatInputCommandInteraction
+      ).options.getBoolean("linkonly");
+      if (linkOnly) linkOnlyFlag = true;
     }
 
     try {
-      const apiResponse = await callJambaltApi(mediaUrl, apiOptions);
+      const apiResponse: JambaltApiResponse = await callJambaltApi(
+        mediaUrl,
+        apiOptions,
+      );
       const data = apiResponse?.data;
-
       if (!data) {
         throw new Error("No response data from API.");
       }
-
       if (data.status === "redirect" || data.status === "tunnel") {
         const downloadUrl = data.url;
-        const response = `👋 [Download here](${downloadUrl}) \n(The link expires; run the command again to regenerate.)`;
+        // If the linkonly flag is true, or if file size is too big,
+        // then send the link only
+        if (linkOnlyFlag) {
+          const response = `👋 [Download here](${downloadUrl})\n(The link expires; run the command again to regenerate.)`;
+          if (isPrefix) {
+            await (interaction as Message).reply({ content: response });
+          } else {
+            await (interaction as ChatInputCommandInteraction).editReply({
+              content: response,
+            });
+          }
+          return;
+        }
 
-        if (isPrefix) {
-          await (interaction as Message).reply({ content: response });
-        } else {
-          await (interaction as ChatInputCommandInteraction).editReply({
-            content: response,
+        // Use a HEAD request to get file size from server headers
+        let contentLength = 0;
+        try {
+          const headResponse = await axios.head(downloadUrl);
+          if (headResponse.headers["content-length"]) {
+            contentLength = parseInt(
+              headResponse.headers["content-length"],
+              10,
+            );
+          }
+        } catch (headError) {
+          Logger.warn(
+            "HEAD request failed, defaulting to link-only",
+            headError,
+          );
+          // If HEAD fails, fallback to sending the link only.
+          const response = `👋 [Download here](${downloadUrl})\n(The link expires; run the command again to regenerate.)`;
+          if (isPrefix) {
+            await (interaction as Message).reply({ content: response });
+          } else {
+            await (interaction as ChatInputCommandInteraction).editReply({
+              content: response,
+            });
+          }
+          return;
+        }
+
+        if (contentLength > MAX_FILE_SIZE) {
+          const response = `⚠️ File size (${Math.round(contentLength / (1024 * 1024))}MB) exceeds 25MB.\nDownload here: [link](${downloadUrl})`;
+          if (isPrefix) {
+            await (interaction as Message).reply({ content: response });
+          } else {
+            await (interaction as ChatInputCommandInteraction).editReply({
+              content: response,
+            });
+          }
+          return;
+        }
+
+        // File is within limit; download and upload it.
+        try {
+          const fileResponse = await axios.get(downloadUrl, {
+            responseType: "arraybuffer",
           });
+          const buffer = Buffer.from(fileResponse.data);
+          // Use new AttachmentBuilder from discord.js
+          const attachment = new AttachmentBuilder(buffer, {
+            name: "downloaded_file",
+          });
+          if (isPrefix) {
+            await (interaction as Message).reply({ files: [attachment] });
+          } else {
+            await (interaction as ChatInputCommandInteraction).editReply({
+              files: [attachment],
+            });
+          }
+          // Buffer will be garbage collected once out of scope
+        } catch (downloadError) {
+          Logger.error("Error downloading file:", downloadError);
+          const errorMsg =
+            "❌ Failed to download the file despite being under 25MB.";
+          if (isPrefix) {
+            await (interaction as Message).reply({ content: errorMsg });
+          } else {
+            await (interaction as ChatInputCommandInteraction).editReply({
+              content: errorMsg,
+            });
+          }
         }
       } else if (data.status === "error") {
         const errorCode = data.error?.code || "Unknown Error";
         Logger.warn(`API Error: ${errorCode}`, data.error);
-
         if (
           errorCode === "error.api.service.disabled" ||
           errorCode === "error.api.service.notfound"
@@ -185,7 +281,6 @@ export const command: Command = {
             .setDescription(
               "The requested service is currently not supported or could not be found. Please try a different platform.",
             );
-
           if (isPrefix) {
             await (interaction as Message).reply({ embeds: [embed] });
           } else {
@@ -194,56 +289,35 @@ export const command: Command = {
             });
           }
         } else {
-          const response = `❌ Download failed! API returned error: ${errorCode}`;
+          const embed = new EmbedBuilder()
+            .setColor("#ff3838")
+            .setTitle("❌ Error")
+            .setDescription(`An error occurred: ${errorCode}`);
           if (isPrefix) {
-            await (interaction as Message).reply({ content: response });
+            await (interaction as Message).reply({ embeds: [embed] });
           } else {
             await (interaction as ChatInputCommandInteraction).editReply({
-              content: response,
+              embeds: [embed],
             });
           }
         }
-      } else if (data.status === "picker") {
-        Logger.warn("Picker response received from API.", data);
-        const response =
-          "⚠️ Multiple download options available. Please try a more direct link.";
-
-        if (isPrefix) {
-          await (interaction as Message).reply({ content: response });
-        } else {
-          await (interaction as ChatInputCommandInteraction).editReply({
-            content: response,
-          });
-        }
-      } else {
-        Logger.warn("Unexpected API response:", data);
-        const response = "❌ Download failed! Unexpected API response.";
-
-        if (isPrefix) {
-          await (interaction as Message).reply({ content: response });
-        } else {
-          await (interaction as ChatInputCommandInteraction).editReply({
-            content: response,
-          });
-        }
       }
     } catch (error) {
-      Logger.error("DL command execution error:", error);
-      const errorEmbed = new EmbedBuilder()
+      Logger.error("Error in command execution:", error);
+      const embed = new EmbedBuilder()
         .setColor("#ff3838")
-        .setTitle("❌ Download Failed")
+        .setTitle("❌ Error")
         .setDescription(
           "An unexpected error occurred while processing your request.",
-        )
-        .setTimestamp();
-
+        );
       if (isPrefix) {
-        await (interaction as Message).reply({ embeds: [errorEmbed] });
+        await (interaction as Message).reply({ embeds: [embed] });
       } else {
         await (interaction as ChatInputCommandInteraction).editReply({
-          embeds: [errorEmbed],
+          embeds: [embed],
         });
       }
     }
   },
 };
+
