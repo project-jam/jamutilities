@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////
 ///// WARNING: This file is not being used in the project.     /////
-///// If you want to use it, you need to import it in index.ts /////
+///// Even tho it's a command, don't run it.                   /////
 ///// As this file is not being used, it is not being tested.  /////
 ///// It may or may not work as expected.                      /////
 ///// And it may crash the bot.                                /////
@@ -8,203 +8,245 @@
 ////////////////////////////////////////////////////////////////////
 
 import {
-  joinVoiceChannel,
-  createAudioPlayer,
-  createAudioResource,
-  demuxProbe,
-  entersState,
-  VoiceConnection,
-  VoiceConnectionStatus,
-  VoiceConnectionDisconnectReason,
-  AudioPlayerStatus,
-  AudioPlayer,
-  AudioResource,
-  StreamType,
+    joinVoiceChannel,
+    createAudioPlayer,
+    VoiceConnection,
+    VoiceConnectionStatus,
+    VoiceConnectionDisconnectReason,
+    AudioPlayerStatus,
+    AudioPlayer,
+    getVoiceConnection,
 } from "@discordjs/voice";
-import { CommandInteraction, VoiceChannel } from "discord.js";
-import play from "play-dl";
-import { PassThrough } from "stream";
+import {
+    CommandInteraction,
+    VoiceChannel,
+    Message,
+    GuildResolvable,
+} from "discord.js";
 import { Logger } from "../utils/logger";
 import { Command } from "../types/Command";
 
-/**
- * Converts an async iterable (yielding Buffer chunks) into a Node.js Readable stream
- * in binary mode (objectMode disabled).
- */
-function asyncIterableToStream<T>(
-  iterable: AsyncIterable<T>,
-): NodeJS.ReadableStream {
-  const passThrough = new PassThrough({ objectMode: false });
-  (async () => {
-    for await (const chunk of iterable) {
-      passThrough.write(chunk);
-    }
-    passThrough.end();
-  })();
-  return passThrough;
-}
-
-/**
- * Attempts to return a valid YouTube watch URL.
- * If the query is already a URL and belongs to YouTube, it is returned.
- * Otherwise, it uses play-dl to search for the video.
- */
-export async function getVideoURL(query: string): Promise<string | null> {
-  // Check if query is a valid URL and looks like a YouTube URL.
-  try {
-    const url = new URL(query);
-    if (
-      url.hostname.includes("youtube.com") ||
-      url.hostname.includes("youtu.be")
-    ) {
-      return query;
-    }
-  } catch (error) {
-    // Not a valid URL; continue to search.
-  }
-
-  // Use play-dl's search functionality to find the video.
-  try {
-    const results = await play.search(query, {
-      limit: 1,
-      source: { youtube: "video" },
-    });
-    if (results.length > 0 && results[0].url) {
-      return results[0].url;
-    }
-    return null;
-  } catch (error) {
-    Logger.error("Error searching YouTube:", error);
-    return null;
-  }
-}
-
 export class MusicHandler {
-  private client: any;
-  private commands: Map<string, Command> = new Map();
-  private voiceConnection: VoiceConnection | null = null;
-  private audioPlayer: AudioPlayer;
-  private audioResource: AudioResource | null = null;
+    private client: any;
+    private audioPlayer: AudioPlayer;
+    private voiceConnections: Map<string, VoiceConnection> = new Map();
 
-  constructor(client: any) {
-    this.client = client;
-    this.audioPlayer = createAudioPlayer();
+    constructor(client: any) {
+        this.client = client;
+        this.audioPlayer = createAudioPlayer();
 
-    this.audioPlayer.on(AudioPlayerStatus.Idle, () => {
-      Logger.info("Audio player is idle. Leaving voice channel...");
-      this.voiceConnection?.destroy();
-    });
+        this.audioPlayer.on("error", (error) => {
+            Logger.error("Audio player error: ", error);
+        });
+    }
 
-    this.audioPlayer.on("error", (error) => {
-      Logger.error("Audio player error: ", error);
-    });
+    public async joinVoiceChannel(
+        interaction: CommandInteraction | Message,
+        channel: VoiceChannel,
+    ): Promise<void> {
+        try {
+            // Check if already connected to this channel
+            const existingConnection = getVoiceConnection(channel.guild.id);
+            if (existingConnection) {
+                if (existingConnection.joinConfig.channelId === channel.id) {
+                    // Already connected to this channel
+                    if (interaction instanceof Message) {
+                        await interaction.channel.send(
+                            "✅ Already in this voice channel.",
+                        );
+                    } else {
+                        await interaction.editReply(
+                            "✅ Already in this voice channel.",
+                        );
+                    }
+                    return;
+                } else {
+                    // Connected to a different channel, destroy it first
+                    existingConnection.destroy();
+                }
+            }
 
-    this.audioPlayer.on(AudioPlayerStatus.Playing, () => {
-      Logger.info("Now playing music.");
-    });
-  }
+            // Join the voice channel
+            const connection = joinVoiceChannel({
+                channelId: channel.id,
+                guildId: channel.guild.id,
+                adapterCreator: channel.guild.voiceAdapterCreator as any,
+            });
 
-  public async joinVoiceChannel(
-    interaction: CommandInteraction,
-    channel: VoiceChannel,
-  ): Promise<void> {
-    this.voiceConnection = joinVoiceChannel({
-      channelId: channel.id,
-      guildId: channel.guild.id,
-      adapterCreator: channel.guild.voiceAdapterCreator as any,
-    });
+            // Store the connection
+            this.voiceConnections.set(channel.guild.id, connection);
 
-    this.voiceConnection.on(VoiceConnectionStatus.Ready, () => {
-      Logger.info("Successfully joined voice channel.");
-    });
+            // Set up event handlers
+            connection.on(VoiceConnectionStatus.Ready, () => {
+                Logger.info(
+                    `Successfully joined voice channel ${channel.name} in ${channel.guild.name}`,
+                );
+            });
 
-    this.voiceConnection.on(
-      VoiceConnectionStatus.Disconnected,
-      async (_, reason) => {
-        Logger.info(`Voice connection disconnected: ${reason}`);
-        if (
-          reason === VoiceConnectionDisconnectReason.WebSocketClose &&
-          reason.code === 4014
-        ) {
-          Logger.info(
-            "WebSocket closed with code 4014, attempting to reconnect...",
-          );
-          try {
-            await entersState(
-              this.voiceConnection!,
-              VoiceConnectionStatus.Connecting,
-              5000,
+            connection.on(
+                VoiceConnectionStatus.Disconnected,
+                async (_, reason) => {
+                    Logger.info(
+                        `Voice connection disconnected from ${channel.name}: ${reason}`,
+                    );
+                    try {
+                        if (
+                            reason ===
+                                VoiceConnectionDisconnectReason.WebSocketClose &&
+                            reason.code === 4014
+                        ) {
+                            // If the WebSocket closed with a 4014 code, reconnect
+                            await Promise.race([
+                                entersState(
+                                    connection,
+                                    VoiceConnectionStatus.Connecting,
+                                    5000,
+                                ),
+                                new Promise((_, reject) =>
+                                    setTimeout(reject, 5000),
+                                ),
+                            ]).catch(() => {
+                                // Remove the connection from our map
+                                this.voiceConnections.delete(channel.guild.id);
+                                connection.destroy();
+                            });
+                        } else {
+                            // Otherwise, destroy the connection
+                            this.voiceConnections.delete(channel.guild.id);
+                            connection.destroy();
+                        }
+                    } catch (error) {
+                        Logger.error(
+                            "Error handling voice disconnection:",
+                            error,
+                        );
+                        this.voiceConnections.delete(channel.guild.id);
+                        connection.destroy();
+                    }
+                },
             );
-          } catch {
-            this.voiceConnection?.destroy();
-          }
-        } else if (this.voiceConnection) {
-          this.voiceConnection.destroy();
+
+            // Subscribe the audio player to the voice connection
+            connection.subscribe(this.audioPlayer);
+
+            // Send success message
+            if (interaction instanceof Message) {
+                await interaction.channel.send(
+                    `✅ Successfully joined the voice channel: ${channel.name}`,
+                );
+            } else {
+                await interaction.editReply(
+                    `✅ Successfully joined the voice channel: ${channel.name}`,
+                );
+            }
+        } catch (error) {
+            Logger.error("Error joining voice channel:", error);
+            const errorMessage =
+                "❌ Failed to join the voice channel. Please try again later.";
+
+            if (interaction instanceof Message) {
+                await interaction.channel.send(errorMessage);
+            } else {
+                await interaction.editReply(errorMessage);
+            }
         }
-      },
-    );
-
-    this.voiceConnection.subscribe(this.audioPlayer);
-    await interaction.editReply("✅ Successfully joined voice channel.");
-  }
-
-  public async play(
-    query: string,
-    channel: VoiceChannel,
-    interaction: CommandInteraction,
-  ): Promise<void> {
-    let videoUrl: string | null;
-    try {
-      videoUrl = await getVideoURL(query);
-    } catch (error) {
-      Logger.error("Error fetching YouTube video info:", error);
-      await interaction.editReply(
-        "❌ Error fetching YouTube video info. Please try again later.",
-      );
-      return;
     }
 
-    if (!videoUrl) {
-      await interaction.editReply("❌ Invalid video URL or search query.");
-      return;
+    public async leaveVoiceChannel(
+        guildId: string,
+        interaction: CommandInteraction | Message,
+    ): Promise<boolean> {
+        try {
+            // Get the voice connection
+            const connection =
+                getVoiceConnection(guildId) ||
+                this.voiceConnections.get(guildId);
+
+            if (!connection) {
+                const notConnectedMessage =
+                    "❌ I'm not connected to any voice channel in this server.";
+
+                if (interaction instanceof Message) {
+                    await interaction.channel.send(notConnectedMessage);
+                } else {
+                    await interaction.editReply(notConnectedMessage);
+                }
+                return false;
+            }
+
+            // Stop the audio player if it's playing
+            if (this.audioPlayer.state.status !== AudioPlayerStatus.Idle) {
+                this.audioPlayer.stop(true);
+            }
+
+            // Destroy the connection and remove it from our map
+            connection.destroy();
+            this.voiceConnections.delete(guildId);
+
+            const successMessage = "👋 Successfully left the voice channel.";
+
+            if (interaction instanceof Message) {
+                await interaction.channel.send(successMessage);
+            } else {
+                await interaction.editReply(successMessage);
+            }
+
+            Logger.info(`Left voice channel in guild: ${guildId}`);
+            return true;
+        } catch (error) {
+            Logger.error("Error leaving voice channel:", error);
+            const errorMessage =
+                "❌ An error occurred while trying to leave the voice channel.";
+
+            if (interaction instanceof Message) {
+                await interaction.channel.send(errorMessage);
+            } else {
+                await interaction.editReply(errorMessage);
+            }
+            return false;
+        }
     }
 
-    await this.joinVoiceChannel(interaction, channel);
+    // Helper method for entersState
+    private async entersState(
+        connection: VoiceConnection,
+        status: VoiceConnectionStatus,
+        timeout: number,
+    ): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const onStateChange = (oldState: any, newState: any) => {
+                if (newState.status === status) {
+                    connection.off("stateChange", onStateChange);
+                    resolve();
+                }
+            };
 
-    try {
-      // Fetch the stream data from play-dl using the valid YouTube URL.
-      const streamData = await play.stream(videoUrl, {
-        type: StreamType.Arbitrary,
-      });
+            connection.on("stateChange", onStateChange);
 
-      // Convert the async iterable stream into a Node.js Readable stream in binary mode.
-      const nodeStream = asyncIterableToStream(streamData.stream);
+            // If the connection already has the status, resolve immediately
+            if (connection.state.status === status) {
+                connection.off("stateChange", onStateChange);
+                resolve();
+            }
 
-      // Probe the stream to detect its format.
-      const probe = await demuxProbe(nodeStream);
-      const resource = createAudioResource(probe.stream, {
-        inputType: probe.type,
-      });
+            // Set a timeout to reject the promise
+            const timeoutHandle = setTimeout(() => {
+                connection.off("stateChange", onStateChange);
+                reject(
+                    new Error(
+                        `Connection failed to reach state ${status} within ${timeout}ms`,
+                    ),
+                );
+            }, timeout);
 
-      this.audioPlayer.play(resource);
-      this.audioResource = resource;
-      this.voiceConnection?.subscribe(this.audioPlayer);
-
-      await interaction.editReply(`🎵 Now playing: ${videoUrl}`);
-    } catch (error) {
-      Logger.error("Error while playing music: ", error);
-      await interaction.editReply("❌ Failed to play music.");
+            // Clear the timeout when the promise resolves
+            new Promise(
+                (res) =>
+                    (resolve = (value) => {
+                        clearTimeout(timeoutHandle);
+                        res(value);
+                    }),
+            );
+        });
     }
-  }
-
-  public async stop(): Promise<void> {
-    if (this.audioPlayer.state.status !== AudioPlayerStatus.Idle) {
-      this.audioPlayer.stop();
-    }
-    if (this.voiceConnection) {
-      this.voiceConnection.destroy();
-      this.voiceConnection = null;
-    }
-    Logger.info("Music stopped and voice connection destroyed.");
-  }
 }
