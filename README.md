@@ -1,7 +1,7 @@
 > [!CAUTION]
 > The `/stop` command is intended for use by the bot owner only and should not be used on a public server. Executing this command will stop the bot and may prevent it from restarting. If you need to stop the bot, you can use the `/shutdown` command (coming soon), which will safely stop the bot and allow it to be restarted later.
 >
-> Exercise caution when using the bot. It is still in development and not yet suitable for public use. For best results, please use it on your own server. If you have any questions, feel free to reach out to us via [email](mailto:contact@project-jam.is-a.dev).
+> Exercise caution when using the bot. It is still in development and not yet suitable for public use. For best results, please use it on your own private server. If you have any questions, feel free to reach out to us via [email](mailto:contact@project-jam.is-a.dev).
 
 > [!NOTE]
 > For future cases, i added a `.env.example` file, so you can rename the `.env.example` file to `.env` and fill in the required/optional values. This will help you to keep your `.env` file safe and secure, as well as preventing you from accidentally committing it to the repository.
