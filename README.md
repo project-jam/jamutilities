@@ -4,7 +4,7 @@
 > Exercise caution when using the bot. It is still in development and not yet suitable for public use. For best results, please use it on your own server. If you have any questions, feel free to reach out to us via [email](mailto:contact@project-jam.is-a.dev).
 
 > [!NOTE]
-> For future cases, i added a `.env.example` file, so you can rename the `.env.example` file to `.env` and fill in the required/optional values. This will help you to keep your `.env` file safe and secure, as well as prevent you from accidentally committing it to the repository.
+> For future cases, i added a `.env.example` file, so you can rename the `.env.example` file to `.env` and fill in the required/optional values. This will help you to keep your `.env` file safe and secure, as well as preventing you from accidentally committing it to the repository.
 >
 > AND there will be an auto-update and shards feature if we managed to add it, but it's coming soon.
 >
