@@ -41,7 +41,7 @@ irm project-jam.is-a.dev/jamutilities.ps1 | iex
 Since it is interactive, you can follow the steps.
 
 > [!NOTE]
-> Make sure to restart your terminal after using the scripts **IF** and **IF** (yes, twice, stfu) the packages or commands were missing
+> Make sure to restart your terminal after using the scripts **IF** and **IF** (yes, twice, stfu) the packages or commands were NOT responding.
 >
 > Linux interactive installer is coming soon, stay tuned!
 
