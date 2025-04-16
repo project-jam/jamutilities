@@ -64,6 +64,8 @@ For some reasons, we use Bun (https://bun.sh) to speed up the process of install
 > [!NOTE]
 > You can also use pnpm, we recommend Bun if you have a new processor (up to 2015 or 2013, depending if it has that 1 FUCKING CP INSTRUCTION) AS for older processors can use pnpm rather than Bun.
 >
+> Try and use the Intel SDE and configure it, it WILL maybe and SOMEHOW work, but depends if the virtualisation is enabled.
+>
 > See [this](https://github.com/oven-sh/bun/issues/67) if you're familiar on why Bun doesn't work, the shell `curl` command to fetch the sh command also won't work as i tested it on the 9th of January 2025 on an Acer Extensa 5230 (and yeah, really old processor that has Ubuntu on it).
 
 # Blacklist
