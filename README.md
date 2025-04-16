@@ -66,7 +66,7 @@ For some reasons, we use Bun (https://bun.sh) to speed up the process of install
 >
 > Try and use the Intel SDE and configure it, it WILL maybe and SOMEHOW work, but depends if the virtualisation is enabled.
 >
-> See [this](https://github.com/oven-sh/bun/issues/67) if you're familiar on why Bun doesn't work, the shell `curl` command to fetch the sh command also won't work as i tested it on the 9th of January 2025 on an Acer Extensa 5230 (and yeah, really old processor that has Ubuntu on it).
+> See [this](https://github.com/oven-sh/bun/issues/67) if you're familiar on why Bun doesn't work, the shell `curl` command to fetch the sh command responded with a 404 means Not Found, so yeah the Intel SDE IS recommended
 
 # Blacklist
 
