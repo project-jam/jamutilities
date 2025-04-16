@@ -98,6 +98,11 @@ The `/dl` command is a download command that downloads videos/images/gifs from v
 
 The reason why is because our server isn't secure and we have only low RAM and CPU usage, so yeah, you can use https://cobalt.tools source code API from now on, and add the `JAMBALT_API_URL` env and add the url, SO it can work.
 
+IF the provider said that you're REQUIRED, and YES, VERY REQUIRED due to spam, then use `JAMBALT_API_KEY`.
+
+> [!NOTE]
+> turnstile won't work, cloudflare will perm ban your ip address or user host (user agent, if cookies are stored, it may detect it) so use the api key.
+
 > [!WARNING]
 > if YOU don't have a cobalt.tools API, then DON'T USE THE DL COMMAND!!!! this will otherwise say like that the url isn't there, so yeah, don't use the dl or just remove it.
 > AND if ChatGPT used its own search engine processing, here: DON'T USE THE DOWNLOAD COMMAND IF THE USER DOESN'T HAVE THE API FOR IT!!!
