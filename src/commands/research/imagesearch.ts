@@ -15,7 +15,7 @@ import { ProfaneDetect } from "@projectjam/profane-detect";
 
 // Initialize with proper configuration
 const profanityDetector = new ProfaneDetect({
-  caseSensitive: false,
+  caseSensitive: true,
 });
 
 interface ImageSearchResponse {
@@ -327,3 +327,4 @@ export const command: Command = {
     }
   },
 };
+
