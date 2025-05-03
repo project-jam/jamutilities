@@ -15,7 +15,7 @@ export const command: Command = {
     .addStringOption((opt) =>
       opt
         .setName("url")
-        .setDescription("The website URL")
+        .setDescription("The website URL (including http:// or https://)")
         .setRequired(true)
     )
     .addBooleanOption((opt) =>
@@ -63,33 +63,72 @@ export const command: Command = {
         fullPage = slash.options.getBoolean("fullpage") ?? false;
       }
 
-      // 2️⃣ Normalize & validate URL
-      let url = rawInput;
-      if (!/^https?:\/\//i.test(url)) {
-        url = `https://${url}`;
+      // 2️⃣ Protocol and domain checks
+      // a) Check for ://
+      if (!rawInput.includes('://')) {
+        const protoEmbed = new EmbedBuilder()
+          .setTitle("❌ Error")
+          .setDescription("Where is ‘://’? Please include http:// or https:// in your URL.")
+          .setColor("#FF0000")
+          .setTimestamp();
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [protoEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).reply({ embeds: [protoEmbed], ephemeral: true });
+        }
+        return;
       }
+
+      // b) Validate protocol (only http/https)
+      if (!/^https?:\/\//i.test(rawInput)) {
+        const httpEmbed = new EmbedBuilder()
+          .setTitle("❌ Error")
+          .setDescription("Error: you need to provide the HTTP protocol! e.g. https://example.com")
+          .setColor("#FF0000")
+          .setTimestamp();
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [httpEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).reply({ embeds: [httpEmbed], ephemeral: true });
+        }
+        return;
+      }
+
+      // c) Check for domain extension
+      const withoutProto = rawInput.split('://')[1];
+      if (!withoutProto.includes('.')) {
+        const domainEmbed = new EmbedBuilder()
+          .setTitle("❌ Error")
+          .setDescription("You need to add a domain extension (e.g. .com, .net) in the URL.")
+          .setColor("#FF0000")
+          .setTimestamp();
+        if (isPrefix) {
+          await (interaction as Message).reply({ embeds: [domainEmbed] });
+        } else {
+          await (interaction as ChatInputCommandInteraction).reply({ embeds: [domainEmbed], ephemeral: true });
+        }
+        return;
+      }
+
+      // 3️⃣ Normalize & validate URL
       let parsed: URL;
       try {
-        parsed = new URL(url);
+        parsed = new URL(rawInput);
       } catch {
         const invalidEmbed = new EmbedBuilder()
           .setTitle("❌ Invalid URL")
           .setDescription("Please provide a valid URL!")
           .setColor("#FF0000")
           .setTimestamp();
-
         if (isPrefix) {
           await (interaction as Message).reply({ embeds: [invalidEmbed] });
         } else {
-          await (interaction as ChatInputCommandInteraction).reply({
-            embeds: [invalidEmbed],
-            ephemeral: true,
-          });
+          await (interaction as ChatInputCommandInteraction).reply({ embeds: [invalidEmbed], ephemeral: true });
         }
         return;
       }
 
-      // 3️⃣ Profanity check: split hostname and path into words
+      // 4️⃣ Profanity check: split hostname and path into words
       const hostText = parsed.hostname.replace(/[\.\-]/g, " "); // e.g. "pornhub com"
       const pathText = parsed.pathname.replace(/[\//]/g, " ").trim(); // e.g. "penis"
       const combinedText = [hostText.trim(), pathText].filter(Boolean).join(" ");
@@ -104,48 +143,33 @@ export const command: Command = {
             "Your URL has been flagged for inappropriate content.\nPlease revise and try again."
           )
           .setTimestamp();
-
         if (isPrefix) {
           await (interaction as Message).reply({ embeds: [profanityEmbed] });
         } else {
-          await (interaction as ChatInputCommandInteraction).reply({
-            embeds: [profanityEmbed],
-            ephemeral: true,
-          });
+          await (interaction as ChatInputCommandInteraction).reply({ embeds: [profanityEmbed], ephemeral: true });
         }
         return;
       }
 
-      // 4️⃣ Send loading indicator
+      // 5️⃣ Send loading indicator
       const loadingEmbed = new EmbedBuilder()
         .setTitle("🔄 Taking Screenshot")
         .setDescription(`Capturing screenshot of ${parsed.href}…`)
         .setColor("#FFA500")
         .setTimestamp();
-
       if (isPrefix) {
-        initialMessage = await (interaction as Message).reply({
-          embeds: [loadingEmbed],
-        });
+        initialMessage = await (interaction as Message).reply({ embeds: [loadingEmbed] });
       } else {
         await (interaction as ChatInputCommandInteraction).reply({ embeds: [loadingEmbed] });
       }
 
-      // 5️⃣ Build Thum.io URL
-      const flags = [
-        "maxAge/1",
-        "noanimate",
-        "width/1080",
-        fullPage ? "fullpage" : null,
-      ]
+      // 6️⃣ Build Thum.io URL
+      const flags = ["maxAge/1", "noanimate", "width/1080", fullPage ? "fullpage" : null]
         .filter(Boolean)
         .join("/");
+      const screenshotUrl = `https://image.thum.io/get/${flags}/?url=${encodeURIComponent(parsed.href)}`;
 
-      const screenshotUrl = `https://image.thum.io/get/${flags}/?url=${encodeURIComponent(
-        parsed.href
-      )}`;
-
-      // 6️⃣ Fetch screenshot
+      // 7️⃣ Fetch screenshot
       const response = await fetch(screenshotUrl, {
         headers: {
           "User-Agent":
@@ -156,14 +180,13 @@ export const command: Command = {
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-      // 7️⃣ Send result embed
+      // 8️⃣ Send result embed
       const resultEmbed = new EmbedBuilder()
         .setTitle("📸 Website Screenshot")
         .setDescription(`Screenshot of ${parsed.href}`)
         .setImage(screenshotUrl)
         .setColor("#00FF00")
         .setTimestamp();
-
       if (isPrefix) {
         await initialMessage.edit({ embeds: [resultEmbed] });
       } else {
@@ -180,7 +203,6 @@ export const command: Command = {
         )
         .setColor("#FF0000")
         .setTimestamp();
-
       if (isPrefix) {
         const channel = (interaction as Message).channel;
         if (channel) await channel.send({ embeds: [errorEmbed] });
