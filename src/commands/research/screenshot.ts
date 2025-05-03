@@ -13,12 +13,15 @@ export const command: Command = {
     .setDMPermission(true)
     .setDescription("Take a screenshot of a website")
     .addStringOption((opt) =>
-      opt.setName("url").setDescription("The website URL").setRequired(true)
+      opt
+        .setName("url")
+        .setDescription("The website URL")
+        .setRequired(true)
     )
     .addBooleanOption((opt) =>
       opt
         .setName("fullpage")
-        .setDescription("Capture the full page (better-plan only)")
+        .setDescription("Capture the full page (BetterPlan only)")
         .setRequired(false)
     ),
 
@@ -35,6 +38,7 @@ export const command: Command = {
       // 1️⃣ Parse arguments
       let rawInput: string;
       let fullPage = false;
+      let initialMessage: Message;
 
       if (isPrefix) {
         const msg = interaction as Message;
@@ -62,80 +66,76 @@ export const command: Command = {
       // 2️⃣ Normalize & validate URL
       let url = rawInput;
       if (!/^https?:\/\//i.test(url)) {
-        url = "https://" + url;
+        url = `https://${url}`;
       }
       let parsed: URL;
       try {
         parsed = new URL(url);
       } catch {
-        const invalid = new EmbedBuilder()
+        const invalidEmbed = new EmbedBuilder()
           .setTitle("❌ Invalid URL")
           .setDescription("Please provide a valid URL!")
           .setColor("#FF0000")
           .setTimestamp();
 
         if (isPrefix) {
-          await (interaction as Message).reply({ embeds: [invalid] });
+          await (interaction as Message).reply({ embeds: [invalidEmbed] });
         } else {
           await (interaction as ChatInputCommandInteraction).reply({
-            embeds: [invalid],
+            embeds: [invalidEmbed],
             ephemeral: true,
           });
         }
         return;
       }
 
-      // 3️⃣ Extract user-controlled parts and normalize separators
-      const hostText = parsed.hostname.replace(/[-.]/g, " ");
-      const pathText = parsed.pathname.replace(/[\/;]/g, " ");
-      const queryText = parsed.search.replace(/[?&=]/g, " ");
-      const hashText = parsed.hash.replace(/#/g, " ");
-      const combined = [hostText, pathText, queryText, hashText].join(" ");
+      // 3️⃣ Profanity check: split hostname and path into words
+      const hostText = parsed.hostname.replace(/[\.\-]/g, " "); // e.g. "pornhub com"
+      const pathText = parsed.pathname.replace(/[\//]/g, " ").trim(); // e.g. "penis"
+      const combinedText = [hostText.trim(), pathText].filter(Boolean).join(" ");
 
-      // 4️⃣ Profanity check
-      const detector = new ProfaneDetect({ useFastLookup: true });
-      const detection: DetectionResult = detector.detect(combined);
-      if (detection.found) {
-        const profaneEmbed = new EmbedBuilder()
-          .setTitle("❌ Profanity Detected in URL")
+      const profanityDetector = new ProfaneDetect({ useFastLookup: true });
+      const profanityResult: DetectionResult = profanityDetector.detect(combinedText);
+      if (profanityResult.found) {
+        const profanityEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setTitle("⚠️ Content Warning")
           .setDescription(
-            `Disallowed terms found: \`${detection.matches.join(", ")}\``
+            "Your URL has been flagged for inappropriate content.\nPlease revise and try again."
           )
-          .setColor("#FF0000")
           .setTimestamp();
 
         if (isPrefix) {
-          await (interaction as Message).reply({ embeds: [profaneEmbed] });
+          await (interaction as Message).reply({ embeds: [profanityEmbed] });
         } else {
           await (interaction as ChatInputCommandInteraction).reply({
-            embeds: [profaneEmbed],
+            embeds: [profanityEmbed],
             ephemeral: true,
           });
         }
         return;
       }
 
-      // 5️⃣ Send loading indicator
+      // 4️⃣ Send loading indicator
       const loadingEmbed = new EmbedBuilder()
         .setTitle("🔄 Taking Screenshot")
         .setDescription(`Capturing screenshot of ${parsed.href}…`)
         .setColor("#FFA500")
         .setTimestamp();
 
-      let initialMessage: Message | void;
       if (isPrefix) {
         initialMessage = await (interaction as Message).reply({
           embeds: [loadingEmbed],
         });
       } else {
-        await (interaction as ChatInputCommandInteraction).deferReply();
+        await (interaction as ChatInputCommandInteraction).reply({ embeds: [loadingEmbed] });
       }
 
-      // 6️⃣ Build Thum.io URL
+      // 5️⃣ Build Thum.io URL
       const flags = [
-        "maxAge/1", // cache for 1 hour
-        "noanimate", // disable animated GIF
-        "width/1080", // 1080px width
+        "maxAge/1",
+        "noanimate",
+        "width/1080",
         fullPage ? "fullpage" : null,
       ]
         .filter(Boolean)
@@ -145,7 +145,7 @@ export const command: Command = {
         parsed.href
       )}`;
 
-      // 7️⃣ Fetch the screenshot
+      // 6️⃣ Fetch screenshot
       const response = await fetch(screenshotUrl, {
         headers: {
           "User-Agent":
@@ -154,11 +154,9 @@ export const command: Command = {
             "Chrome/114.0.0.0 Safari/537.36",
         },
       });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-      // 8️⃣ Send result embed
+      // 7️⃣ Send result embed
       const resultEmbed = new EmbedBuilder()
         .setTitle("📸 Website Screenshot")
         .setDescription(`Screenshot of ${parsed.href}`)
@@ -167,16 +165,11 @@ export const command: Command = {
         .setTimestamp();
 
       if (isPrefix) {
-        if (initialMessage) {
-          await initialMessage.edit({ embeds: [resultEmbed] });
-        }
+        await initialMessage.edit({ embeds: [resultEmbed] });
       } else {
-        await (interaction as ChatInputCommandInteraction).editReply({
-          embeds: [resultEmbed],
-        });
+        await (interaction as ChatInputCommandInteraction).editReply({ embeds: [resultEmbed] });
       }
     } catch (err) {
-      // 9️⃣ Error handling
       console.error("Error in screenshot command:", err);
       const errorEmbed = new EmbedBuilder()
         .setTitle("❌ Error")
@@ -192,9 +185,7 @@ export const command: Command = {
         const channel = (interaction as Message).channel;
         if (channel) await channel.send({ embeds: [errorEmbed] });
       } else {
-        await (interaction as ChatInputCommandInteraction).editReply({
-          embeds: [errorEmbed],
-        });
+        await (interaction as ChatInputCommandInteraction).editReply({ embeds: [errorEmbed] });
       }
     }
   },
