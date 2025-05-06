@@ -1,3 +1,4 @@
+// commands/dl.ts
 import {
   ChatInputCommandInteraction,
   Message,
@@ -6,81 +7,57 @@ import {
 } from "discord.js";
 import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
-import {
-  callJambaltApi,
-  type JambaltApiResponse,
-} from "../../utils/jambaltApi";
+import { callJambaltApi, type JambaltApiResponse } from "../../utils/jambaltApi";
 
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("dl")
     .setDescription("Generates a download link")
     .setDMPermission(true)
-    .addStringOption((option) =>
-      option
-        .setName("url")
-        .setDescription("The URL of the media to download (required)")
-        .setRequired(true),
+    .addStringOption((o) =>
+      o.setName("url").setDescription("The URL to download").setRequired(true)
     )
-    .addStringOption((option) =>
-      option
+    .addStringOption((o) =>
+      o
         .setName("videoquality")
-        .setDescription("Video quality (e.g., 720, 1080, max)")
-        .setRequired(false),
+        .setDescription("144 / ... / max")
+        .setRequired(false)
     )
-    .addStringOption((option) =>
-      option
-        .setName("audioformat")
-        .setDescription("Audio format (mp3, ogg, wav, opus, best)")
-        .setRequired(false),
+    .addStringOption((o) =>
+      o.setName("audioformat").setDescription("best / mp3 / ogg / wav / opus")
     )
-    .addStringOption((option) =>
-      option
+    .addStringOption((o) =>
+      o
         .setName("audiobitrate")
-        .setDescription("Audio bitrate (e.g., 128, 256, 320)")
-        .setRequired(false),
+        .setDescription("320 / 256 / 128 / 96 / 64 / 8")
     )
-    .addStringOption((option) =>
-      option
+    .addStringOption((o) =>
+      o
         .setName("filenamestyle")
-        .setDescription("Filename style (classic, pretty, basic, nerdy)")
-        .setRequired(false),
+        .setDescription("classic / pretty / basic / nerdy")
     )
-    .addStringOption((option) =>
-      option
+    .addStringOption((o) =>
+      o
         .setName("downloadmode")
-        .setDescription("Download mode (auto, audio, mute)")
-        .setRequired(false),
+        .setDescription("auto / audio / mute")
     )
-    .addBooleanOption((option) =>
-      option
-        .setName("alwaysproxy")
-        .setDescription("Always tunnel download through proxy")
-        .setRequired(false),
+    .addBooleanOption((o) =>
+      o.setName("alwaysproxy").setDescription("true / false")
     )
-    .addBooleanOption((option) =>
-      option
-        .setName("disablemetadata")
-        .setDescription("Disable file metadata (e.g., Artist, MP3 Info)")
-        .setRequired(false),
+    .addBooleanOption((o) =>
+      o.setName("disablemetadata").setDescription("true / false")
     )
-    .addBooleanOption((option) =>
-      option
-        .setName("tiktokfullaudio")
-        .setDescription("Download original TikTok audio (Only for TikTok)")
-        .setRequired(false),
+    .addBooleanOption((o) =>
+      o.setName("tiktokfullaudio").setDescription("true / false")
     )
-    .addBooleanOption((option) =>
-      option
-        .setName("tiktokh265")
-        .setDescription("Allow H265 videos for TikTok/Xiaohongshu")
-        .setRequired(false),
+    .addBooleanOption((o) =>
+      o.setName("tiktokh265").setDescription("true / false")
     )
-    .addBooleanOption((option) =>
-      option
-        .setName("twitterbskygif")
-        .setDescription("Convert Twitter/Bluesky GIFs to .gif format")
-        .setRequired(false),
+    .addBooleanOption((o) =>
+      o.setName("twittergif").setDescription("true / false")
+    )
+    .addBooleanOption((o) =>
+      o.setName("youtubehls").setDescription("true / false"),
     ),
 
   prefix: {
@@ -90,159 +67,129 @@ export const command: Command = {
 
   async execute(
     interaction: ChatInputCommandInteraction | Message,
-    isPrefix = false,
+    isPrefix = false
   ) {
+    // 1) Extract the media URL
     let mediaUrl: string;
-    let apiOptions: Record<string, any> = {};
+    const apiOptions: Record<string, any> = {};
 
     if (isPrefix) {
-      const args = (interaction as Message).content.split(" ");
-      mediaUrl = args[1]; // First argument after command
-
+      const parts = (interaction as Message).content.trim().split(/\s+/);
+      mediaUrl = parts[1];
       if (!mediaUrl) {
-        const prefix = process.env.PREFIX || "jam!";
         return (interaction as Message).reply({
           embeds: [
             new EmbedBuilder()
               .setColor("#ff3838")
               .setTitle("❌ Error")
               .setDescription("Please provide a URL to download from!")
-              .addFields({
-                name: "Usage",
-                value: `${prefix}dl <url>`,
-              })
-              .addFields({
-                name: "Example",
-                value: `${prefix}dl https://youtube.com/watch?v=...`,
-              }),
+              .addFields([
+                { name: "Usage", value: `${process.env.PREFIX || "jam!"}dl <url>` },
+                { name: "Example", value: `${process.env.PREFIX || "jam!"}dl https://youtube.com/watch?v=...` },
+              ]),
           ],
         });
       }
     } else {
       await (interaction as ChatInputCommandInteraction).deferReply();
-      mediaUrl = (interaction as ChatInputCommandInteraction).options.getString(
-        "url",
-        true,
-      );
-
-      // Collect API options dynamically for slash command
-      for (const optionName of [
-        "videoquality",
-        "audioformat",
-        "audiobitrate",
-        "filenamestyle",
-        "downloadmode",
-      ]) {
-        const value = (
-          interaction as ChatInputCommandInteraction
-        ).options.getString(optionName);
-        if (value) apiOptions[optionName] = value;
-      }
-      for (const optionName of [
-        "alwaysproxy",
-        "disablemetadata",
-        "tiktokfullaudio",
-        "tiktokh265",
-        "twitterbskygif",
-      ]) {
-        const value = (
-          interaction as ChatInputCommandInteraction
-        ).options.getBoolean(optionName);
-        if (value !== null) apiOptions[optionName] = value;
-      }
+      mediaUrl = interaction.options.getString("url", true);
     }
 
+    // 2) Map Discord options → Cobalt API keys
+    const stringMap: Record<string, string> = {
+      videoquality: "videoQuality",
+      audioformat: "audioFormat",
+      audiobitrate: "audioBitrate",
+      filenamestyle: "filenameStyle",
+      downloadmode: "downloadMode",
+    };
+    const boolMap: Record<string, string> = {
+      alwaysproxy: "alwaysProxy",
+      disablemetadata: "disableMetadata",
+      tiktokfullaudio: "tiktokFullAudio",
+      tiktokh265: "tiktokH265",
+      twittergif: "twitterGif",
+      youtubehls: "youtubeHLS",
+    };
+
+    for (const [opt, key] of Object.entries(stringMap)) {
+      const val = isPrefix
+        ? undefined
+        : interaction.options.getString(opt);
+      if (val) apiOptions[key] = val;
+    }
+    for (const [opt, key] of Object.entries(boolMap)) {
+      const val = isPrefix
+        ? undefined
+        : interaction.options.getBoolean(opt);
+      if (val !== null) apiOptions[key] = val;
+    }
+
+    // 3) Call the API
     try {
-      const apiResponse = await callJambaltApi(mediaUrl, apiOptions);
-      const data = apiResponse?.data;
+      const { data } = await callJambaltApi(mediaUrl, apiOptions);
 
-      if (!data) {
-        throw new Error("No response data from API.");
-      }
-
-      if (data.status === "redirect" || data.status === "tunnel") {
-        const downloadUrl = data.url;
-        const response = `👋 [Download here](${downloadUrl}) \n(The link expires; run the command again to regenerate.)`;
-
-        if (isPrefix) {
-          await (interaction as Message).reply({ content: response });
-        } else {
-          await (interaction as ChatInputCommandInteraction).editReply({
-            content: response,
-          });
+      switch (data.status) {
+        case "redirect":
+        case "tunnel": {
+          const link = `👋 [Download here](${data.url})\n_(expires soon)_`;
+          if (isPrefix) {
+            await (interaction as Message).reply({ content: link });
+          } else {
+            await (interaction as ChatInputCommandInteraction).editReply({ content: link });
+          }
+          break;
         }
-      } else if (data.status === "error") {
-        const errorCode = data.error?.code || "Unknown Error";
-        Logger.warn(`API Error: ${errorCode}`, data.error);
-
-        if (
-          errorCode === "error.api.service.disabled" ||
-          errorCode === "error.api.service.notfound"
-        ) {
-          const embed = new EmbedBuilder()
-            .setColor("#ff3838")
-            .setTitle("Service Unavailable")
-            .setDescription(
-              "The requested service is currently not supported or could not be found. Please try a different platform.",
-            );
+        case "error": {
+          const code = data.error?.code || "Unknown Error";
+          Logger.warn(`API Error (${code})`, data.error);
+          const msg =
+            code === "error.api.service.disabled" ||
+            code === "error.api.service.notfound"
+              ? new EmbedBuilder()
+                  .setColor("#ff3838")
+                  .setTitle("Service Unavailable")
+                  .setDescription(
+                    "This platform is not supported or currently disabled."
+                  )
+              : { content: `❌ Download failed! API returned error: ${code}` };
 
           if (isPrefix) {
-            await (interaction as Message).reply({ embeds: [embed] });
+            await (interaction as Message).reply(msg);
           } else {
-            await (interaction as ChatInputCommandInteraction).editReply({
-              embeds: [embed],
-            });
+            await (interaction as ChatInputCommandInteraction).editReply(msg);
           }
-        } else {
-          const response = `❌ Download failed! API returned error: ${errorCode}`;
+          break;
+        }
+        case "picker": {
+          const warning = "⚠️ Multiple items found. Try a more direct URL.";
           if (isPrefix) {
-            await (interaction as Message).reply({ content: response });
+            await (interaction as Message).reply({ content: warning });
           } else {
-            await (interaction as ChatInputCommandInteraction).editReply({
-              content: response,
-            });
+            await (interaction as ChatInputCommandInteraction).editReply({ content: warning });
           }
+          break;
         }
-      } else if (data.status === "picker") {
-        Logger.warn("Picker response received from API.", data);
-        const response =
-          "⚠️ Multiple download options available. Please try a more direct link.";
-
-        if (isPrefix) {
-          await (interaction as Message).reply({ content: response });
-        } else {
-          await (interaction as ChatInputCommandInteraction).editReply({
-            content: response,
-          });
-        }
-      } else {
-        Logger.warn("Unexpected API response:", data);
-        const response = "❌ Download failed! Unexpected API response.";
-
-        if (isPrefix) {
-          await (interaction as Message).reply({ content: response });
-        } else {
-          await (interaction as ChatInputCommandInteraction).editReply({
-            content: response,
-          });
+        default: {
+          const unexpected = "❌ Download failed due to unexpected response.";
+          if (isPrefix) {
+            await (interaction as Message).reply({ content: unexpected });
+          } else {
+            await (interaction as ChatInputCommandInteraction).editReply({ content: unexpected });
+          }
         }
       }
-    } catch (error) {
-      Logger.error("DL command execution error:", error);
-      const errorEmbed = new EmbedBuilder()
+    } catch (err) {
+      Logger.error("DL command error:", err);
+      const embed = new EmbedBuilder()
         .setColor("#ff3838")
         .setTitle("❌ Download Failed")
-        .setDescription(
-          "An unexpected error occurred while processing your request.",
-        )
+        .setDescription("An unexpected error occurred.")
         .setTimestamp();
-
       if (isPrefix) {
-        await (interaction as Message).reply({ embeds: [errorEmbed] });
+        await (interaction as Message).reply({ embeds: [embed] });
       } else {
-        await (interaction as ChatInputCommandInteraction).editReply({
-          embeds: [errorEmbed],
-        });
+        await (interaction as ChatInputCommandInteraction).editReply({ embeds: [embed] });
       }
     }
   },

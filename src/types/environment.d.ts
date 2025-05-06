@@ -9,6 +9,7 @@ declare global {
       PREFIX?: string;
       ENABLE_PREFIX_COMMANDS?: string;
       ENABLE_SLASH_COMMANDS?: string;
+      GROQ_API_TOKEN?: string;
     }
   }
 }
