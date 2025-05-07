@@ -17,7 +17,6 @@ interface TranslationResponse {
   confidence: number;
 }
 
-// Language configurations with emojis and full names
 const languages = {
   en: { name: "English", emoji: "🇬🇧" },
   es: { name: "Spanish", emoji: "🇪🇸" },
@@ -52,12 +51,10 @@ function normalizeLanguageName(input: string): string {
 function matchLanguage(input: string): string | null {
   const normalizedInput = normalizeLanguageName(input);
 
-  // Direct match for language codes
   if (languages[normalizedInput as keyof typeof languages]) {
     return normalizedInput;
   }
 
-  // Check for full language names
   for (const [code, lang] of Object.entries(languages)) {
     if (normalizeLanguageName(lang.name) === normalizedInput) {
       return code;
@@ -108,88 +105,98 @@ export const command: Command = {
   ) {
     try {
       if (isPrefix) {
-        const message = interaction as Message;
-        const args = message.content
-          .slice(process.env.PREFIX?.length || 0)
-          .trim()
-          .split(/ +/);
+  const message = interaction as Message;
 
-        args.shift(); // Remove command name
+  const args = message.content
+    .slice(process.env.PREFIX?.length || 0)
+    .trim()
+    .split(/ +/);
 
-        if (args.length < 2) {
-          await message.reply({
-            embeds: [
-              new EmbedBuilder()
-                .setColor("#ff3838")
-                .setDescription(
-                  "❌ Please provide both a language and text to translate!",
-                )
-                .addFields({
-                  name: "Usage",
-                  value: [
-                    `${process.env.PREFIX || "jam!"}translate <language/code> <text>`,
-                    `${process.env.PREFIX || "jam!"}tr <language/code> <text>`,
-                    "",
-                    "Available Languages:",
-                    getLanguagesDisplay(),
-                    "",
-                    "Examples:",
-                    `${process.env.PREFIX || "jam!"}tr japanese Hello, how are you?`,
-                    `${process.env.PREFIX || "jam!"}translate english こんにちは`,
-                    `${process.env.PREFIX || "jam!"}tl fr What's your name?`,
-                  ].join("\n"),
-                }),
-            ],
-          });
-          return;
-        }
+  args.shift(); // Remove command name
 
-        const targetLangInput = args[0];
-        const textToTranslate = args.slice(1).join(" ");
+  let textToTranslate = "";
+  let targetLangInput = "en"; // Default language
 
-        const targetLang = matchLanguage(targetLangInput);
+  // Handle reply logic
+  if (message.reference && !args.length) {
+    const replied = await message.channel.messages.fetch(message.reference.messageId!);
+    if (!replied || !replied.content) {
+      return message.reply("❌ Couldn't find the replied message content.");
+    }
+    textToTranslate = replied.content;
+  } else if (message.reference && args.length === 1) {
+    const replied = await message.channel.messages.fetch(message.reference.messageId!);
+    if (!replied || !replied.content) {
+      return message.reply("❌ Couldn't find the replied message content.");
+    }
+    targetLangInput = args[0];
+    textToTranslate = replied.content;
+  } else if (args.length >= 2) {
+    targetLangInput = args[0];
+    textToTranslate = args.slice(1).join(" ");
+  } else {
+    await message.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription("❌ Please provide both a language and text to translate!")
+          .addFields({
+            name: "Usage",
+            value: [
+              `${process.env.PREFIX || "jam!"}translate <language/code> <text>`,
+              `${process.env.PREFIX || "jam!"}tr <language/code> <text>`,
+              "",
+              "Available Languages:",
+              getLanguagesDisplay(),
+              "",
+              "Examples:",
+              `${process.env.PREFIX || "jam!"}tr japanese Hello, how are you?`,
+              `${process.env.PREFIX || "jam!"}translate english こんにちは`,
+              `${process.env.PREFIX || "jam!"}tl fr What's your name?`,
+            ].join("\n"),
+          }),
+      ],
+    });
+    return;
+  }
 
-        if (!targetLang) {
-          await message.reply({
-            embeds: [
-              new EmbedBuilder()
-                .setColor("#ff3838")
-                .setDescription(
-                  "❌ Invalid language! You can use either the language code or full name.",
-                )
-                .addFields({
-                  name: "Available Languages",
-                  value: getLanguagesDisplay(),
-                }),
-            ],
-          });
-          return;
-        }
+  const targetLang = matchLanguage(targetLangInput);
 
-        await handleTranslation(message, textToTranslate, targetLang);
-      } else {
-        const slashInteraction = interaction as ChatInputCommandInteraction;
-        await slashInteraction.deferReply();
+  if (!targetLang) {
+    await message.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription("❌ Invalid language! You can use either the language code or full name.")
+          .addFields({
+            name: "Available Languages",
+            value: getLanguagesDisplay(),
+          }),
+      ],
+    });
+    return;
+  }
 
-        const text = slashInteraction.options.getString("text", true);
-        const targetLang = slashInteraction.options.getString("to", true);
+  await handleTranslation(message, textToTranslate, targetLang);
+} else {
+  const slashInteraction = interaction as ChatInputCommandInteraction;
+  await slashInteraction.deferReply();
 
-        await handleTranslation(slashInteraction, text, targetLang);
-      }
+  const text = slashInteraction.options.getString("text", true);
+  const targetLang = slashInteraction.options.getString("to", true);
+
+  await handleTranslation(slashInteraction, text, targetLang);
+}
     } catch (error) {
       Logger.error("Translation command failed:", error);
       const errorEmbed = new EmbedBuilder()
         .setColor("#ff3838")
-        .setDescription(
-          "❌ Failed to translate the text. Please try again later.",
-        );
+        .setDescription("❌ Failed to translate the text. Please try again later.");
 
       if (isPrefix) {
         await (interaction as Message).reply({ embeds: [errorEmbed] });
       } else {
-        await (interaction as ChatInputCommandInteraction).editReply({
-          embeds: [errorEmbed],
-        });
+        await (interaction as ChatInputCommandInteraction).editReply({ embeds: [errorEmbed] });
       }
     }
   },
@@ -201,7 +208,6 @@ async function handleTranslation(
   targetLang: string,
 ) {
   try {
-    // Add typing indicator for prefix commands
     if (interaction instanceof Message) {
       await interaction.channel.sendTyping();
     }
@@ -214,9 +220,8 @@ async function handleTranslation(
       throw new Error(`API returned ${response.status}`);
     }
 
-    const data = await response.json();
+    const data: TranslationResponse = await response.json();
     const langInfo = languages[targetLang as keyof typeof languages];
-
     const sourceCode = data.src.toLowerCase();
     const sourceLangInfo = languages[sourceCode as keyof typeof languages];
 
@@ -224,16 +229,8 @@ async function handleTranslation(
       .setColor("#00AE86")
       .setTitle(`${langInfo.emoji} Translation to ${langInfo.name}`)
       .addFields(
-        {
-          name: "Original Text",
-          value: text,
-          inline: false,
-        },
-        {
-          name: "Translated Text",
-          value: data.sentences[0].trans,
-          inline: false,
-        },
+        { name: "Original Text", value: text, inline: false },
+        { name: "Translated Text", value: data.sentences.map(s => s.trans).join(" "), inline: false },
         {
           name: "Source Language",
           value: sourceLangInfo
@@ -248,7 +245,9 @@ async function handleTranslation(
         },
       )
       .setFooter({
-        text: `Requested by ${interaction instanceof Message ? interaction.author.tag : interaction.user.tag}`,
+        text: `Requested by ${
+          interaction instanceof Message ? interaction.author.tag : interaction.user.tag
+        }`,
         iconURL:
           interaction instanceof Message
             ? interaction.author.displayAvatarURL()
@@ -266,3 +265,5 @@ async function handleTranslation(
     throw error;
   }
 }
+
+

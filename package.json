@@ -11,7 +11,7 @@
     "@discordjs/ws": "^2.0.1",
     "@distube/yt-dlp": "^2.0.1",
     "@distube/ytdl-core": "^4.16.6",
-    "@projectjam/profane-detect": "1.5.9",
+    "@projectjam/profane-detect": "^1.6.1",
     "@types/node": "^22.12.0",
     "ansi-to-html": "^0.7.2",
     "axios": "^1.8.4",
