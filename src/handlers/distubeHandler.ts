@@ -1,13 +1,3 @@
-////////////////////////////////////////////////////////////////////
-///// WARNING: This file is not being used in the project.     /////
-///// If you want to use it, you need to import it in index.ts /////
-///// Even tho it's a command, don't run it.                   /////
-///// As this file is not being used, it is not being tested.  /////
-///// It may or may not work as expected.                      /////
-///// And it may crash the bot.                                /////
-///// You have been warned.                                    /////
-////////////////////////////////////////////////////////////////////
-
 import { Client, EmbedBuilder, TextChannel } from "discord.js";
 import { DisTube } from "distube";
 import { YtDlpPlugin } from "@distube/yt-dlp";
@@ -114,89 +104,121 @@ export class DistubeHandler {
         });
 
         // Error event - with robust error handling
-        this.distube.on("error", (channel, error) => {
-            Logger.error(`DisTube error:`, error);
+        this.distube.on("error", (...args: any[]) => {
+            let eventChannel: TextChannel | undefined | null = null;
+            let eventError: Error;
+
+            if (args.length === 1 && args[0] instanceof Error) {
+                // Signature: error(e: Error)
+                eventError = args[0];
+            } else if (args.length === 2 && args[1] instanceof Error) {
+                // Signature: error(channel: GuildTextBasedChannel, e: Error)
+                if (args[0] && typeof args[0].send === "function") {
+                    eventChannel = args[0] as TextChannel;
+                } else {
+                    Logger.warn(
+                        `DisTube 'error' event: Expected channel as first arg when two args present, got ${typeof args[0]}`,
+                    );
+                }
+                eventError = args[1];
+            } else {
+                // Fallback for unknown signature or unexpected arguments
+                Logger.error(
+                    "DisTube error event received with unexpected arguments:",
+                    args,
+                );
+                const foundError = args.find((arg) => arg instanceof Error);
+                // Truncate JSON string to avoid excessively long log messages
+                eventError =
+                    foundError ||
+                    new Error(
+                        `Unknown DisTube error. Args: ${JSON.stringify(args).substring(0, 250)}`,
+                    );
+                const foundChannel = args.find(
+                    (arg) => arg && typeof arg.send === "function",
+                );
+                if (foundChannel) eventChannel = foundChannel as TextChannel;
+            }
+
+            Logger.error("DisTube error processed:", eventError); // This should now consistently log an Error object.
 
             try {
-                // If channel is a valid Discord channel
+                let targetChannel: TextChannel | undefined | null =
+                    eventChannel;
+
+                // Attempt to find a text channel from the error's queue if no direct channel was provided or valid
+                // DisTube errors often have a 'queue' property that might contain the original textChannel.
+                const queueFromError = (eventError as any).queue;
                 if (
-                    channel &&
-                    typeof channel === "object" &&
-                    typeof channel.send === "function"
+                    (!targetChannel ||
+                        typeof targetChannel.send !== "function") &&
+                    queueFromError?.textChannel
                 ) {
-                    channel
+                    if (
+                        queueFromError.textChannel &&
+                        typeof queueFromError.textChannel.send === "function"
+                    ) {
+                        targetChannel =
+                            queueFromError.textChannel as TextChannel;
+                        Logger.info(
+                            "Using textChannel from error.queue for DisTube error message.",
+                        );
+                    }
+                }
+
+                if (targetChannel && typeof targetChannel.send === "function") {
+                    targetChannel
                         .send({
                             embeds: [
                                 new EmbedBuilder()
                                     .setColor("#ff3838")
-                                    .setTitle("❌ Error")
+                                    .setTitle("❌ Music Error")
                                     .setDescription(
-                                        "An error occurred while playing music: " +
-                                            (error?.message || "Unknown error"),
+                                        eventError.message ||
+                                            "An unknown error occurred with the music player.",
                                     )
                                     .setTimestamp(),
                             ],
                         })
                         .catch((e) =>
-                            Logger.error("Failed to send error message:", e),
+                            Logger.error(
+                                "Failed to send DisTube error message to determined channel:",
+                                e,
+                            ),
                         );
                 } else {
-                    // If channel is not valid, log it
                     Logger.warn(
-                        "Received invalid channel in error event:",
-                        typeof channel,
+                        "Could not determine a valid channel to send the DisTube error message. Error content: " +
+                            eventError.message,
                     );
-
-                    // Check if error contains a queue with a text channel
-                    if (error && error.queue && error.queue.textChannel) {
-                        try {
-                            const textChannel = error.queue.textChannel;
-                            if (
-                                textChannel &&
-                                typeof textChannel.send === "function"
-                            ) {
-                                textChannel
-                                    .send({
-                                        embeds: [
-                                            new EmbedBuilder()
-                                                .setColor("#ff3838")
-                                                .setTitle("❌ Error")
-                                                .setDescription(
-                                                    "An error occurred while playing music: " +
-                                                        (error?.message ||
-                                                            "Unknown error"),
-                                                )
-                                                .setTimestamp(),
-                                        ],
-                                    })
-                                    .catch((e) =>
-                                        Logger.error(
-                                            "Failed to send error message to queue text channel:",
-                                            e,
-                                        ),
-                                    );
-                            }
-                        } catch (e) {
-                            Logger.error("Failed to handle DisTube error:", e);
-                        }
-                    }
                 }
             } catch (e) {
-                Logger.error("Critical error in DisTube error handler:", e);
+                // This catch is for errors within the error handling logic itself.
+                Logger.error(
+                    "Critical error within the DisTube 'error' event handler's own try-catch block:",
+                    e,
+                );
             }
         });
 
         // Empty channel event
         this.distube.on("empty", (channel) => {
+            // queue type is actually VoiceBasedChannel here, but DisTube types say "any" for channel. It refers to the voice channel.
             try {
-                if (channel && typeof channel.send === "function") {
-                    channel
+                // This event gives the voice channel. We need the queue to find the text channel.
+                const queue = this.distube.getQueue(channel.guildId);
+                if (
+                    queue &&
+                    queue.textChannel &&
+                    typeof queue.textChannel.send === "function"
+                ) {
+                    queue.textChannel
                         .send({
                             embeds: [
                                 new EmbedBuilder()
                                     .setColor("#2b2d31")
                                     .setDescription(
-                                        "👋 Everyone left the voice channel, leaving the channel.",
+                                        `👋 Everyone left the voice channel ${channel.name}, leaving.`,
                                     )
                                     .setTimestamp(),
                             ],
@@ -207,6 +229,11 @@ export class DistubeHandler {
                                 err,
                             );
                         });
+                } else {
+                    Logger.warn(
+                        "Could not find text channel for 'empty' event notification in guild " +
+                            channel.guildId,
+                    );
                 }
             } catch (error) {
                 Logger.error("Error in empty event:", error);
@@ -245,8 +272,10 @@ export class DistubeHandler {
         this.distube.on("initQueue", (queue) => {
             try {
                 // Set default volume
-                queue.setVolume(80);
-                Logger.info("Initialized new queue with default settings");
+                queue.setVolume(80); // Default volume
+                Logger.info(
+                    `Initialized new queue in ${queue.voiceChannel?.guild?.name || "a guild"} with default volume ${queue.volume}%`,
+                );
             } catch (error) {
                 Logger.error("Error in initQueue event:", error);
             }
@@ -255,25 +284,67 @@ export class DistubeHandler {
         // Debug disconnection events
         this.distube.on("disconnect", (queue) => {
             Logger.info(
-                `DisTube disconnected from ${queue.voiceChannel?.name || "Unknown channel"}`,
+                `DisTube disconnected from ${queue.voiceChannel?.name || "Unknown channel"} in guild ${queue.voiceChannel?.guild?.name || "Unknown Guild"}`,
+            );
+        });
+
+        this.distube.on("deleteQueue", (queue) => {
+            Logger.info(
+                `Queue deleted for guild ${queue.voiceChannel?.guild?.name || "Unknown Guild"}`,
             );
         });
 
         // Search result event (optional, for more detailed search feedback)
-        this.distube.on("searchResult", (message, result) => {
-            Logger.info(`Search results found: ${result.length} items`);
+        this.distube.on("searchResult", (message, result, query) => {
+            Logger.info(
+                `Search for \"${query}\" found ${result.length} items. Sent by ${message.author.tag}`,
+            );
         });
 
-        this.distube.on("searchCancel", (message) => {
-            Logger.info("Search was canceled");
+        this.distube.on("searchCancel", (message, query) => {
+            Logger.info(
+                `Search for \"${query}\" was canceled by ${message.author.tag}`,
+            );
         });
 
-        this.distube.on("searchInvalidAnswer", (message) => {
-            Logger.info("Invalid search answer received");
+        this.distube.on("searchInvalidAnswer", (message, answer, query) => {
+            Logger.info(
+                `Invalid search answer \"${answer}\" for query \"${query}\" from ${message.author.tag}`,
+            );
         });
 
-        this.distube.on("searchDone", () => {
-            Logger.info("Search completed");
+        this.distube.on("searchNoResult", (message, query) => {
+            try {
+                const textChannel = message.channel as TextChannel;
+                if (textChannel && typeof textChannel.send === "function") {
+                    textChannel
+                        .send({
+                            embeds: [
+                                new EmbedBuilder()
+                                    .setColor("#ff3838")
+                                    .setDescription(
+                                        `❌ No results found for \`${query}\`!`,
+                                    )
+                                    .setTimestamp(),
+                            ],
+                        })
+                        .catch((e) =>
+                            Logger.error(
+                                "Failed to send 'searchNoResult' message:",
+                                e,
+                            ),
+                        );
+                }
+            } catch (error) {
+                Logger.error("Error in searchNoResult event:", error);
+            }
+        });
+
+        this.distube.on("searchDone", (message, answer, query) => {
+            // This seems to be for when a choice is made from multiple search results
+            Logger.info(
+                `Search for \"${query}\" completed with answer \"${answer}\" by ${message.author.tag}`,
+            );
         });
     }
 }

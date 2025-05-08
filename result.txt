@@ -1,0 +1,860 @@
+[0.12ms] ".env"
+bun pm trust v1.2.11 (cb6abd21)
+make: Entering directory '/home/panel/jamutilities/node_modules/ref/build'
+  CXX(target) Release/obj.target/binding/src/binding.o
+make: Leaving directory '/home/panel/jamutilities/node_modules/ref/build'
+
+gyp info it worked if it ends with ok
+gyp info using node-gyp@9.3.0
+gyp info using node@18.20.8 | linux | x64
+gyp info find Python using Python version 3.12.3 found at "/usr/bin/python3"
+gyp info spawn /usr/bin/python3
+gyp info spawn args [
+gyp info spawn args   '/usr/share/nodejs/node-gyp/gyp/gyp_main.py',
+gyp info spawn args   'binding.gyp',
+gyp info spawn args   '-f',
+gyp info spawn args   'make',
+gyp info spawn args   '-I',
+gyp info spawn args   '/home/panel/jamutilities/node_modules/ref/build/config.gypi',
+gyp info spawn args   '-I',
+gyp info spawn args   '/usr/share/nodejs/node-gyp/addon.gypi',
+gyp info spawn args   '-I',
+gyp info spawn args   '/usr/include/nodejs/common.gypi',
+gyp info spawn args   '-Dlibrary=shared_library',
+gyp info spawn args   '-Dvisibility=default',
+gyp info spawn args   '-Dnode_root_dir=/usr/include/nodejs',
+gyp info spawn args   '-Dnode_gyp_dir=/usr/share/nodejs/node-gyp',
+gyp info spawn args   '-Dnode_lib_file=/usr/include/nodejs/<(target_arch)/node.lib',
+gyp info spawn args   '-Dmodule_root_dir=/home/panel/jamutilities/node_modules/ref',
+gyp info spawn args   '-Dnode_engine=v8',
+gyp info spawn args   '--depth=.',
+gyp info spawn args   '--no-parallel',
+gyp info spawn args   '--generator-output',
+gyp info spawn args   'build',
+gyp info spawn args   '-Goutput_dir=.'
+gyp info spawn args ]
+gyp info spawn make
+gyp info spawn args [ 'BUILDTYPE=Release', '-C', 'build' ]
+../src/binding.cc:17: warning: "__STDC_FORMAT_MACROS" redefined
+   17 |   #define __STDC_FORMAT_MACROS
+      | 
+<command-line>: note: this is the location of the previous definition
+../src/binding.cc: In function ‘Nan::NAN_METHOD_RETURN_TYPE {anonymous}::WriteObject(Nan::NAN_METHOD_ARGS_TYPE)’:
+../src/binding.cc:222:42: error: no matching function for call to ‘v8::Value::BooleanValue()’
+  222 |   bool persistent = info[3]->BooleanValue();
+      |                     ~~~~~~~~~~~~~~~~~~~~~^~
+In file included from /usr/include/nodejs/deps/v8/include/v8-primitive.h:11,
+                 from /usr/include/nodejs/deps/v8/include/v8-object.h:11,
+                 from /usr/include/nodejs/deps/v8/include/v8-array-buffer.h:13,
+                 from /usr/include/nodejs/deps/v8/include/v8.h:24,
+                 from /usr/include/nodejs/src/node.h:73,
+                 from ../src/binding.cc:5:
+/usr/include/nodejs/deps/v8/include/v8-value.h:408:8: note: candidate: ‘bool v8::Value::BooleanValue(v8::Isolate*) const’
+  408 |   bool BooleanValue(Isolate* isolate) const;
+      |        ^~~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-value.h:408:8: note:   candidate expects 1 argument, 0 provided
+../src/binding.cc:229:11: warning: ‘void* memcpy(void*, const void*, size_t)’ writing to an object of type ‘class Nan::Persistent<v8::Object>’ with no trivial copy-assignment; use copy-assignment or copy-initialization instead [-Wclass-memaccess]
+  229 |     memcpy(pptr, &p2, sizeof(Nan::Persistent<Object>));
+      |     ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from ../../nan/nan.h:423,
+                 from ../src/binding.cc:7:
+../../nan/nan_persistent_12_inl.h:12:40: note: ‘class Nan::Persistent<v8::Object>’ declared here
+   12 | template<typename T, typename M> class Persistent :
+      |                                        ^~~~~~~~~~
+../src/binding.cc: In function ‘Nan::NAN_METHOD_RETURN_TYPE {anonymous}::ReadPointer(Nan::NAN_METHOD_ARGS_TYPE)’:
+../src/binding.cc:253:37: error: no matching function for call to ‘v8::Value::Uint32Value()’
+  253 |   size_t size = info[2]->Uint32Value();
+      |                 ~~~~~~~~~~~~~~~~~~~~^~
+/usr/include/nodejs/deps/v8/include/v8-value.h:416:41: note: candidate: ‘v8::Maybe<unsigned int> v8::Value::Uint32Value(v8::Local<v8::Context>) const’
+  416 |   V8_WARN_UNUSED_RESULT Maybe<uint32_t> Uint32Value(
+      |                                         ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-value.h:416:41: note:   candidate expects 1 argument, 0 provided
+../src/binding.cc: In function ‘Nan::NAN_METHOD_RETURN_TYPE {anonymous}::WriteInt64(Nan::NAN_METHOD_ARGS_TYPE)’:
+../src/binding.cc:360:30: error: no matching function for call to ‘v8::String::Utf8Value::Utf8Value(v8::Local<v8::Value>&)’
+  360 |     String::Utf8Value _str(in);
+      |                              ^
+/usr/include/nodejs/deps/v8/include/v8-primitive.h:510:5: note: candidate: ‘v8::String::Utf8Value::Utf8Value(v8::Isolate*, v8::Local<v8::Value>)’
+  510 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj);
+      |     ^~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-primitive.h:510:5: note:   candidate expects 2 arguments, 1 provided
+../src/binding.cc: In function ‘Nan::NAN_METHOD_RETURN_TYPE {anonymous}::WriteUInt64(Nan::NAN_METHOD_ARGS_TYPE)’:
+../src/binding.cc:447:30: error: no matching function for call to ‘v8::String::Utf8Value::Utf8Value(v8::Local<v8::Value>&)’
+  447 |     String::Utf8Value _str(in);
+      |                              ^
+/usr/include/nodejs/deps/v8/include/v8-primitive.h:510:5: note: candidate: ‘v8::String::Utf8Value::Utf8Value(v8::Isolate*, v8::Local<v8::Value>)’
+  510 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj);
+      |     ^~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-primitive.h:510:5: note:   candidate expects 2 arguments, 1 provided
+../src/binding.cc: In function ‘Nan::NAN_METHOD_RETURN_TYPE {anonymous}::ReinterpretBuffer(Nan::NAN_METHOD_ARGS_TYPE)’:
+../src/binding.cc:521:37: error: no matching function for call to ‘v8::Value::Uint32Value()’
+  521 |   size_t size = info[1]->Uint32Value();
+      |                 ~~~~~~~~~~~~~~~~~~~~^~
+/usr/include/nodejs/deps/v8/include/v8-value.h:416:41: note: candidate: ‘v8::Maybe<unsigned int> v8::Value::Uint32Value(v8::Local<v8::Context>) const’
+  416 |   V8_WARN_UNUSED_RESULT Maybe<uint32_t> Uint32Value(
+      |                                         ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-value.h:416:41: note:   candidate expects 1 argument, 0 provided
+../src/binding.cc: In function ‘Nan::NAN_METHOD_RETURN_TYPE {anonymous}::ReinterpretBufferUntilZeros(Nan::NAN_METHOD_ARGS_TYPE)’:
+../src/binding.cc:550:43: error: no matching function for call to ‘v8::Value::Uint32Value()’
+  550 |   uint32_t numZeros = info[1]->Uint32Value();
+      |                       ~~~~~~~~~~~~~~~~~~~~^~
+/usr/include/nodejs/deps/v8/include/v8-value.h:416:41: note: candidate: ‘v8::Maybe<unsigned int> v8::Value::Uint32Value(v8::Local<v8::Context>) const’
+  416 |   V8_WARN_UNUSED_RESULT Maybe<uint32_t> Uint32Value(
+      |                                         ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-value.h:416:41: note:   candidate expects 1 argument, 0 provided
+../src/binding.cc: In function ‘void init(Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE)’:
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:582:3: note: in expansion of macro ‘SET_SIZEOF’
+  582 |   SET_SIZEOF(int8, int8_t);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:583:3: note: in expansion of macro ‘SET_SIZEOF’
+  583 |   SET_SIZEOF(uint8, uint8_t);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:584:3: note: in expansion of macro ‘SET_SIZEOF’
+  584 |   SET_SIZEOF(int16, int16_t);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:585:3: note: in expansion of macro ‘SET_SIZEOF’
+  585 |   SET_SIZEOF(uint16, uint16_t);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:586:3: note: in expansion of macro ‘SET_SIZEOF’
+  586 |   SET_SIZEOF(int32, int32_t);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:587:3: note: in expansion of macro ‘SET_SIZEOF’
+  587 |   SET_SIZEOF(uint32, uint32_t);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:588:3: note: in expansion of macro ‘SET_SIZEOF’
+  588 |   SET_SIZEOF(int64, int64_t);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:589:3: note: in expansion of macro ‘SET_SIZEOF’
+  589 |   SET_SIZEOF(uint64, uint64_t);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:590:3: note: in expansion of macro ‘SET_SIZEOF’
+  590 |   SET_SIZEOF(float, float);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:591:3: note: in expansion of macro ‘SET_SIZEOF’
+  591 |   SET_SIZEOF(double, double);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:593:3: note: in expansion of macro ‘SET_SIZEOF’
+  593 |   SET_SIZEOF(bool, bool);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:594:3: note: in expansion of macro ‘SET_SIZEOF’
+  594 |   SET_SIZEOF(byte, unsigned char);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:595:3: note: in expansion of macro ‘SET_SIZEOF’
+  595 |   SET_SIZEOF(char, char);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:596:3: note: in expansion of macro ‘SET_SIZEOF’
+  596 |   SET_SIZEOF(uchar, unsigned char);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:597:3: note: in expansion of macro ‘SET_SIZEOF’
+  597 |   SET_SIZEOF(short, short);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:598:3: note: in expansion of macro ‘SET_SIZEOF’
+  598 |   SET_SIZEOF(ushort, unsigned short);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:599:3: note: in expansion of macro ‘SET_SIZEOF’
+  599 |   SET_SIZEOF(int, int);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:600:3: note: in expansion of macro ‘SET_SIZEOF’
+  600 |   SET_SIZEOF(uint, unsigned int);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:601:3: note: in expansion of macro ‘SET_SIZEOF’
+  601 |   SET_SIZEOF(long, long);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:602:3: note: in expansion of macro ‘SET_SIZEOF’
+  602 |   SET_SIZEOF(ulong, unsigned long);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:603:3: note: in expansion of macro ‘SET_SIZEOF’
+  603 |   SET_SIZEOF(longlong, long long);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:604:3: note: in expansion of macro ‘SET_SIZEOF’
+  604 |   SET_SIZEOF(ulonglong, unsigned long long);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:605:3: note: in expansion of macro ‘SET_SIZEOF’
+  605 |   SET_SIZEOF(pointer, char *);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:606:3: note: in expansion of macro ‘SET_SIZEOF’
+  606 |   SET_SIZEOF(size_t, size_t);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:581:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  581 |   smap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(sizeof(type))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:608:3: note: in expansion of macro ‘SET_SIZEOF’
+  608 |   SET_SIZEOF(Object, Nan::Persistent<Object>);
+      |   ^~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:615:3: note: in expansion of macro ‘SET_ALIGNOF’
+  615 |   SET_ALIGNOF(int8, int8_t);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:616:3: note: in expansion of macro ‘SET_ALIGNOF’
+  616 |   SET_ALIGNOF(uint8, uint8_t);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:617:3: note: in expansion of macro ‘SET_ALIGNOF’
+  617 |   SET_ALIGNOF(int16, int16_t);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:618:3: note: in expansion of macro ‘SET_ALIGNOF’
+  618 |   SET_ALIGNOF(uint16, uint16_t);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:619:3: note: in expansion of macro ‘SET_ALIGNOF’
+  619 |   SET_ALIGNOF(int32, int32_t);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:620:3: note: in expansion of macro ‘SET_ALIGNOF’
+  620 |   SET_ALIGNOF(uint32, uint32_t);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:621:3: note: in expansion of macro ‘SET_ALIGNOF’
+  621 |   SET_ALIGNOF(int64, int64_t);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:622:3: note: in expansion of macro ‘SET_ALIGNOF’
+  622 |   SET_ALIGNOF(uint64, uint64_t);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:623:3: note: in expansion of macro ‘SET_ALIGNOF’
+  623 |   SET_ALIGNOF(float, float);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:624:3: note: in expansion of macro ‘SET_ALIGNOF’
+  624 |   SET_ALIGNOF(double, double);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:625:3: note: in expansion of macro ‘SET_ALIGNOF’
+  625 |   SET_ALIGNOF(bool, bool);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:626:3: note: in expansion of macro ‘SET_ALIGNOF’
+  626 |   SET_ALIGNOF(char, char);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:627:3: note: in expansion of macro ‘SET_ALIGNOF’
+  627 |   SET_ALIGNOF(uchar, unsigned char);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:628:3: note: in expansion of macro ‘SET_ALIGNOF’
+  628 |   SET_ALIGNOF(short, short);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:629:3: note: in expansion of macro ‘SET_ALIGNOF’
+  629 |   SET_ALIGNOF(ushort, unsigned short);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:630:3: note: in expansion of macro ‘SET_ALIGNOF’
+  630 |   SET_ALIGNOF(int, int);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:631:3: note: in expansion of macro ‘SET_ALIGNOF’
+  631 |   SET_ALIGNOF(uint, unsigned int);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:632:3: note: in expansion of macro ‘SET_ALIGNOF’
+  632 |   SET_ALIGNOF(long, long);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:633:3: note: in expansion of macro ‘SET_ALIGNOF’
+  633 |   SET_ALIGNOF(ulong, unsigned long);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:634:3: note: in expansion of macro ‘SET_ALIGNOF’
+  634 |   SET_ALIGNOF(longlong, long long);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:635:3: note: in expansion of macro ‘SET_ALIGNOF’
+  635 |   SET_ALIGNOF(ulonglong, unsigned long long);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:636:3: note: in expansion of macro ‘SET_ALIGNOF’
+  636 |   SET_ALIGNOF(pointer, char *);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:637:3: note: in expansion of macro ‘SET_ALIGNOF’
+  637 |   SET_ALIGNOF(size_t, size_t);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:614:12: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, Nan::imp::FactoryBase<v8::Uint32>::return_t)’
+  614 |   amap->Set(Nan::New<v8::String>( #name ).ToLocalChecked(), Nan::New<v8::Uint32>(static_cast<uint32_t>(__alignof__(struct s_##name))));
+      |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/binding.cc:638:3: note: in expansion of macro ‘SET_ALIGNOF’
+  638 |   SET_ALIGNOF(Object, Nan::Persistent<Object>);
+      |   ^~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:641:14: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, v8::Local<v8::Object>&)’
+  641 |   target->Set(Nan::New<v8::String>("sizeof").ToLocalChecked(), smap);
+      |   ~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:642:14: error: no matching function for call to ‘v8::Object::Set(v8::Local<v8::String>, v8::Local<v8::Object>&)’
+  642 |   target->Set(Nan::New<v8::String>("alignof").ToLocalChecked(), amap);
+      |   ~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)’
+  244 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:244:37: note:   candidate expects 3 arguments, 2 provided
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note: candidate: ‘v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)’
+  247 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+      |                                     ^~~
+/usr/include/nodejs/deps/v8/include/v8-object.h:247:37: note:   candidate expects 3 arguments, 2 provided
+../src/binding.cc:643:16: warning: ‘Nan::Maybe<bool> Nan::ForceSet(v8::Local<v8::Object>, v8::Local<v8::Value>, v8::Local<v8::Value>, v8::PropertyAttribute)’ is deprecated [-Wdeprecated-declarations]
+  643 |   Nan::ForceSet(target, Nan::New<v8::String>("endianness").ToLocalChecked(), Nan::New<v8::String>(CheckEndianness()).ToLocalChecked(), static_cast<PropertyAttribute>(ReadOnly|DontDelete));
+      |   ~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from ../../nan/nan.h:302:
+../../nan/nan_maybe_43_inl.h:117:35: note: declared here
+  117 | NAN_DEPRECATED inline Maybe<bool> ForceSet(
+      |                                   ^~~~~~~~
+../src/binding.cc:644:16: warning: ‘Nan::Maybe<bool> Nan::ForceSet(v8::Local<v8::Object>, v8::Local<v8::Value>, v8::Local<v8::Value>, v8::PropertyAttribute)’ is deprecated [-Wdeprecated-declarations]
+  644 |   Nan::ForceSet(target, Nan::New<v8::String>("NULL").ToLocalChecked(), WrapNullPointer(), static_cast<PropertyAttribute>(ReadOnly|DontDelete));
+      |   ~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../../nan/nan_maybe_43_inl.h:117:35: note: declared here
+  117 | NAN_DEPRECATED inline Maybe<bool> ForceSet(
+      |                                   ^~~~~~~~
+../src/binding.cc: At global scope:
+/usr/include/nodejs/src/node.h:1014:7: warning: cast between incompatible function types from ‘void (*)(Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE)’ {aka ‘void (*)(v8::Local<v8::Object>)’} to ‘node::addon_register_func’ {aka ‘void (*)(v8::Local<v8::Object>, v8::Local<v8::Value>, void*)’} [-Wcast-function-type]
+ 1014 |       (node::addon_register_func) (regfunc),                          \
+      |       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/include/nodejs/src/node.h:1048:3: note: in expansion of macro ‘NODE_MODULE_X’
+ 1048 |   NODE_MODULE_X(modname, regfunc, NULL, 0)  // NOLINT (readability/null_usage)
+      |   ^~~~~~~~~~~~~
+../src/binding.cc:660:1: note: in expansion of macro ‘NODE_MODULE’
+  660 | NODE_MODULE(binding, init);
+      | ^~~~~~~~~~~
+In file included from ../../nan/nan.h:2937:
+../../nan/nan_weak.h: In instantiation of ‘Nan::WeakCallbackInfo<P>::WeakCallbackInfo(Nan::Persistent<v8::Value>*, Callback, void*, void*, void*) [with T = void; Callback = void (*)(const Nan::WeakCallbackInfo<void>&)]’:
+../../nan/nan_weak.h:264:12:   required from ‘void Nan::Persistent<T, M>::SetWeak(P*, typename Nan::WeakCallbackInfo<P>::Callback, Nan::WeakCallbackType) [with P = void; T = v8::Object; M = v8::NonCopyablePersistentTraits<v8::Object>; typename Nan::WeakCallbackInfo<P>::Callback = void (*)(const Nan::WeakCallbackInfo<void>&); Nan::WeakCallbackType = v8::WeakCallbackType]’
+../src/binding.cc:228:15:   required from here
+../../nan/nan_weak.h:58:16: warning: ‘void* memcpy(void*, const void*, size_t)’ writing to an object of type ‘class v8::Persistent<v8::Value>’ with no trivial copy-assignment; use copy-assignment or copy-initialization instead [-Wclass-memaccess]
+   58 |     std::memcpy(&persistent_, persistent, sizeof (v8::Persistent<v8::Value>));
+      |     ~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/include/nodejs/deps/v8/include/v8-object.h:10:
+/usr/include/nodejs/deps/v8/include/v8-persistent-handle.h:276:7: note: ‘class v8::Persistent<v8::Value>’ declared here
+  276 | class Persistent : public PersistentBase<T> {
+      |       ^~~~~~~~~~
+make: *** [binding.target.mk:113: Release/obj.target/binding/src/binding.o] Error 1
+gyp ERR! build error 
+gyp ERR! stack Error: `make` failed with exit code: 2
+gyp ERR! stack     at ChildProcess.onExit (/usr/share/nodejs/node-gyp/lib/build.js:203:23)
+gyp ERR! stack     at ChildProcess.emit (node:events:517:28)
+gyp ERR! stack     at ChildProcess._handle.onexit (node:internal/child_process:292:12)
+gyp ERR! System Linux 6.8.0-58-generic
+gyp ERR! command "/home/panel/.nvm/versions/node/v18.20.8/bin/node" "/usr/bin/node-gyp" "rebuild"
+gyp ERR! cwd /home/panel/jamutilities/node_modules/ref
+gyp ERR! node -v v18.20.8
+gyp ERR! node-gyp -v v9.3.0
+gyp ERR! not ok 
+
+error: install script from "ref" exited with 1

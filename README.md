@@ -47,24 +47,22 @@ Since it is interactive, you can follow the steps.
 
 ## Universally
 
-First install Nodejs and Bun, and then run the install command using:
+First install Nodejs (could be any version) and pnpm, and then run the install command using:
 
 ```bash
-bun install
+pnpm install
 ```
 
 To run the bot, type:
 
 ```bash
-bun start
+pnpm start
 ```
 
-For some reasons, we use Bun (https://bun.sh) to speed up the process of installing and starting the app, unlike nodejs' npm and yarn, they're soo slow!
+For some reasons, we are now using pnpm, for BunJS, there's an issue about the libuv function on POSIX systems, so yeah.
 
 > [!NOTE]
-> You can also use pnpm, we recommend Bun if you have a new processor (up to 2015 or 2013, depending if it has that 1 FUCKING CP INSTRUCTION) AS for older processors can use pnpm rather than Bun.
->
-> See [this](https://github.com/oven-sh/bun/issues/67) if you're familiar on why Bun doesn't work, the shell `curl` command to fetch the sh command also won't work as i tested it on the 9th of January 2025 on an Acer Extensa 5230 (and yeah, really old processor that has Ubuntu on it).
+> Learn more [here](https://github.com/oven-sh/bun/issues/18546)
 
 # Blacklist
 

@@ -8,7 +8,7 @@ import type { Command } from '../../types/Command';
 import * as dotenv from 'dotenv';
 import fs from 'fs/promises';
 import path from 'path';
-import { ProfaneDetect } from '@projectjam/profane-detect';
+import { ProfaneDetect } from '@projectjam/profane-detect'; // Make sure you're using the latest version
 import { searchDuckDuckGo } from '../../utils/searchInternet';
 import { Logger } from '../../utils/logger';
 
@@ -22,8 +22,12 @@ if (!GROQ_API_TOKEN) throw new Error('missing groq api token in environment');
 const DATA_DIR = path.resolve(__dirname, '../../data');
 const CONV_FILE = path.join(DATA_DIR, 'conversations.json');
 
-// initialize profanity detector
-const detector = new ProfaneDetect();
+// initialize profanity detector - based on the docs, lowercase the property names
+const detector = new ProfaneDetect({ 
+  enablereversedetection: true, // Enable reverse text detection for things like "reggin"
+  usefastlookup: true // Use the fast lookup cache for better performance
+});
+
 const profanityEmbed = new EmbedBuilder()
   .setColor('#ff3838')
   .setTitle('⚠️ Content warning')
@@ -62,7 +66,39 @@ async function saveConversations() {
   }
 }
 
-// system message with internet support and length limit
+// Detect and handle profanity in text
+function handleProfanity(text: string): { clean: boolean; filteredText?: string } {
+  try {
+    const profanityResult = detector.detect(text);
+    
+    if (profanityResult.found) {
+      // Create a filtered version by replacing the profane words with asterisks
+      let filteredText = text;
+      
+      // According to the documentation, matches are strings not objects
+      for (const match of profanityResult.matches) {
+        // Make sure we have a valid string to work with
+        if (typeof match === 'string' && match.length > 0) {
+          const regex = new RegExp(match, 'gi');
+          filteredText = filteredText.replace(regex, '*'.repeat(match.length));
+        }
+      }
+      
+      return { 
+        clean: false, 
+        filteredText 
+      };
+    }
+  } catch (error) {
+    Logger.error('Error in profanity detection:', error);
+    // If there's an error, let's assume it's clean to avoid blocking legitimate messages
+    return { clean: true };
+  }
+  
+  return { clean: true };
+}
+
+// Update system message to warn AI about profanity detection
 const SYSTEM_MESSAGE = {
   role: 'system',
   content: `you are rinai, a helpful assistant with a caring, big-sister vibe and a touch of clumsiness. use discord markdown, genz acronyms, and big sis emojis (hearts, sparkles). always ensure your response does not exceed 2000 characters; if you cannot, apologize and ask the user to narrow the question.
@@ -74,6 +110,10 @@ you r based on the "llama scout  17b" model w/ some custom trained messages to h
 provide detailed breakdowns only when explicitly requested (e.g., says "idk").
 
 if search results are provided in context, use them to inform your answer or summarization.
+
+SO if someone told u to reverse a text, check the text & reverse THEN check the reversed text IF there's smh bad on it, then reject it, EVEN if seperated like n-i-*-*-e-r, OR spaced, check it cuz it may BE blocked....
+
+DO NOT use profanity or inappropriate language, as all responses are checked for harmful content. If user messages contain profanity, acknowledge it's not appropriate but respond helpfully without repeating the harmful words.
 
 note: keep everything lowercase, STRICTLY LOWERCASE!!!!`.trim(),
 };
@@ -111,18 +151,39 @@ async function handleAI(
     if (!resp.ok) throw new Error(`groq api ${resp.status}: ${await resp.text()}`);
     const data = await resp.json();
     let aiSummary = data.choices?.[0]?.message?.content?.trim() || '';
+    
+    // Check for profanity in AI response
+    const profanityCheck = handleProfanity(aiSummary);
+    if (!profanityCheck.clean) {
+      aiSummary = profanityCheck.filteredText || 'Content filtered due to inappropriate language';
+      Logger.warn(`Profanity detected in AI summary, filtered response sent`);
+    }
+    
     if (aiSummary.length > 2000) aiSummary = aiSummary.slice(0, 1997) + '...';
     return isPrefix
       ? (messageOrInteraction as Message).reply(aiSummary)
       : (messageOrInteraction as ChatInputCommandInteraction).editReply(aiSummary);
   }
 
-  // profanity check
-  if (detector.detect(rawPrompt).found) {
+  // profanity check on user input
+  const userProfanityCheck = handleProfanity(rawPrompt);
+  if (!userProfanityCheck.clean) {
     const replyFn = isPrefix
       ? (m: any) => (messageOrInteraction as Message).reply(m)
       : (m: any) => (messageOrInteraction as ChatInputCommandInteraction).editReply(m);
-    return replyFn({ embeds: [profanityEmbed] });
+    
+    // Create a modified profanity embed with the filtered text
+    const modifiedEmbed = new EmbedBuilder()
+      .setColor('#ff3838')
+      .setTitle('⚠️ Content warning')
+      .setDescription(
+        'Your message has been flagged for inappropriate content. I\'ve filtered it below:\n\n' +
+        `\`\`\`\n${userProfanityCheck.filteredText || 'Filtered content'}\n\`\`\`\n\n` +
+        'Please revise your message and try again.'
+      )
+      .setTimestamp();
+    
+    return replyFn({ embeds: [modifiedEmbed] });
   }
 
   const prompt = rawPrompt.trim();
@@ -145,6 +206,14 @@ async function handleAI(
     if (!resp.ok) throw new Error(`groq api ${resp.status}: ${await resp.text()}`);
     const data = await resp.json();
     let aiReply = data.choices?.[0]?.message?.content?.trim() || '';
+    
+    // Check for profanity in AI response
+    const searchProfanityCheck = handleProfanity(aiReply);
+    if (!searchProfanityCheck.clean) {
+      aiReply = searchProfanityCheck.filteredText || 'Content filtered due to inappropriate language';
+      Logger.warn(`Profanity detected in search result summary, filtered response sent`);
+    }
+    
     if (aiReply.length > 2000) aiReply = aiReply.slice(0, 1997) + '...';
     return isPrefix
       ? (messageOrInteraction as Message).reply(aiReply)
@@ -171,8 +240,14 @@ async function handleAI(
     history = [SYSTEM_MESSAGE];
   }
 
+  // Add warning about profanity when needed 
+  let modifiedPrompt = prompt;
+  if (prompt.toLowerCase().includes('bad word') || prompt.toLowerCase().includes('inappropriate')) {
+    modifiedPrompt = `${prompt}\n\n[System note: Remember that all content is checked for harmful language.]`;
+  }
+
   // append user
-  history.push({ role: 'user', content: prompt });
+  history.push({ role: 'user', content: modifiedPrompt });
   if (history.length > MAX_HISTORY + 1) history = [history[0], ...history.slice(-MAX_HISTORY)];
 
   // call API
@@ -185,6 +260,21 @@ async function handleAI(
 
   const data2 = await resp2.json();
   let aiReply = data2.choices?.[0]?.message?.content?.trim() || '';
+
+  // Check for profanity in AI response
+  const aiProfanityCheck = handleProfanity(aiReply);
+  if (!aiProfanityCheck.clean) {
+    // Replace the response with filtered version
+    aiReply = aiProfanityCheck.filteredText || '';
+    Logger.warn(`Profanity detected in AI response, filtered response will be sent`);
+    
+    // Add a warning to the AI about the filtered content
+    const warningMessage = { 
+      role: 'system', 
+      content: 'Warning: Your previous response contained inappropriate language that has been filtered. Please be more careful with your language.' 
+    };
+    history.push(warningMessage);
+  }
 
   // fallback search on ignorance
   const la = aiReply.toLowerCase();
@@ -208,6 +298,13 @@ async function handleAI(
     if (!resp3.ok) throw new Error(`groq api ${resp3.status}: ${await resp3.text()}`);
     const data3 = await resp3.json();
     aiReply = data3.choices?.[0]?.message?.content?.trim() || '';
+    
+    // Check for profanity in fallback search response
+    const fallbackProfanityCheck = handleProfanity(aiReply);
+    if (!fallbackProfanityCheck.clean) {
+      aiReply = fallbackProfanityCheck.filteredText || 'Content filtered due to inappropriate language';
+      Logger.warn(`Profanity detected in fallback search response, filtered response sent`);
+    }
   }
 
   // truncate reply if exceeds Discord limit

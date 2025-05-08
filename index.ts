@@ -9,6 +9,7 @@ import { Logger } from "./src/utils/logger";
 import { CommandHandler } from "./src/handlers/commandHandler";
 import { BlacklistManager } from "./src/handlers/blacklistMembers";
 // import { DistubeHandler } from "./src/handlers/distubeHandler";
+import "dotenv/config";
 
 // Add CommandHandler to Client type
 declare module "discord.js" {

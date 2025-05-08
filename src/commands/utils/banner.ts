@@ -6,22 +6,29 @@ import {
 } from "discord.js";
 import type { Command } from "../../types/Command";
 import { getAverageColor } from "fast-average-color-node";
+import fetch from "node-fetch";
 
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("banner")
-    .setDescription("Shows user's banner")
+    .setDescription("Shows user's banner or generated background")
     .setDMPermission(true)
-    .addUserOption((option) =>
-      option
+    .addUserOption((opt) =>
+      opt
         .setName("user")
-        .setDescription("The user whose banner you want to see")
-        .setRequired(false),
+        .setDescription("The user whose banner/background to show")
+        .setRequired(false)
+    )
+    .addBooleanOption((opt) =>
+      opt
+        .setName("usrbg")
+        .setDescription("Show generated background when no banner (default true)")
+        .setRequired(false)
     ),
 
   prefix: {
     aliases: ["banner", "userbanner"],
-    usage: "[@user]",
+    usage: "[@user] [usrbg:false]",
   },
 
   async execute(
@@ -29,64 +36,85 @@ export const command: Command = {
     isPrefix = false,
   ) {
     try {
-      // Handle different command types
       let user;
+      let showUsrbg = true;
+
       if (interaction instanceof Message) {
-        // Prefix command
         user = interaction.mentions.users.first() || interaction.author;
+        const content = interaction.content.toLowerCase();
+        if (content.includes("usrbg:false") || content.includes("usrbg=0")) {
+          showUsrbg = false;
+        }
       } else {
-        // Slash command
         await interaction.deferReply();
         user = interaction.options.getUser("user") || interaction.user;
+        showUsrbg = interaction.options.getBoolean("usrbg") ?? true;
       }
 
-      // Fetch the full user to get banner information
-      const fetchedUser = await user.fetch();
-      const bannerUrl = fetchedUser.bannerURL({ size: 4096 });
+      const fetched = await user.fetch();
+      const discordBanner = fetched.bannerURL({ size: 4096, dynamic: true });
 
-      if (!bannerUrl) {
-        const errorEmbed = new EmbedBuilder()
-          .setColor("#ff3838")
-          .setDescription(`❌ ${user.username} doesn't have a banner!`);
-
-        if (interaction instanceof Message) {
-          await interaction.reply({ embeds: [errorEmbed] });
-        } else {
-          await interaction.editReply({ embeds: [errorEmbed] });
+      let finalUrl: string | null = null;
+      if (discordBanner) {
+        finalUrl = discordBanner;
+      } else if (showUsrbg) {
+        const accentHex = fetched.accentColor?.toString(16);
+        const usrbgUrl = `https://usrbg.is-hardly.online/usrbg/v2/${user.id}${accentHex ? `?${accentHex}` : ""}`;
+        try {
+          const res = await fetch(usrbgUrl);
+          const ct = res.headers.get("content-type") || "";
+          // Accept GIFs as well as other images
+          if (
+            res.ok &&
+            (ct === "image/gif" || ct.startsWith("image/"))
+          ) {
+            finalUrl = usrbgUrl;
+          }
+        } catch {
+          // treat as no background
         }
-        return;
       }
 
-      // Get the dominant color from the banner
-      let color;
+      if (!finalUrl) {
+        const noEmbed = new EmbedBuilder()
+          .setColor("#ff3838")
+          .setDescription(`❌ ${user.username} has no banner.`);
+        if (interaction instanceof Message) {
+          return await interaction.reply({ embeds: [noEmbed] });
+        }
+        return await interaction.editReply({ embeds: [noEmbed] });
+      }
+
+      // Fetch average color
+      let colorHex = "#2b2d31";
       try {
-        color = await getAverageColor(bannerUrl);
+        const color = await getAverageColor(finalUrl);
+        colorHex = color.hex;
       } catch {
-        color = { hex: "#2b2d31" }; // Fallback color
+        /* fallback */
       }
 
       const embed = new EmbedBuilder()
         .setTitle(`${user.username}'s Banner`)
-        .setImage(bannerUrl)
-        .setColor(color.hex)
+        .setImage(finalUrl)
+        .setColor(colorHex)
         .setTimestamp();
 
-      // Send the response
       if (interaction instanceof Message) {
         await interaction.reply({ embeds: [embed] });
       } else {
         await interaction.editReply({ embeds: [embed] });
       }
-    } catch (error) {
-      const errorEmbed = new EmbedBuilder()
+    } catch (err) {
+      const errEmbed = new EmbedBuilder()
         .setColor("#ff3838")
-        .setDescription("❌ Something went wrong while fetching the banner!");
-
+        .setDescription("❌ Error fetching banner/background.");
       if (interaction instanceof Message) {
-        await interaction.reply({ embeds: [errorEmbed] });
+        await interaction.reply({ embeds: [errEmbed] });
       } else {
-        await interaction.editReply({ embeds: [errorEmbed] });
+        await interaction.editReply({ embeds: [errEmbed] });
       }
     }
   },
 };
+
