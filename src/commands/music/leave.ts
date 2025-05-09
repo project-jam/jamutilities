@@ -3,10 +3,11 @@ import {
     Message,
     SlashCommandBuilder,
     EmbedBuilder,
+    GuildMember,
 } from "discord.js";
 import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
-import { MusicHandler } from "../../handlers/musicHandler";
+import { DistubeHandler } from "../../handlers/distubeHandler";
 
 export const command: Command = {
     data: new SlashCommandBuilder()
@@ -24,96 +25,121 @@ export const command: Command = {
         isPrefix = false,
     ) {
         try {
-            // Get the guild ID
-            const guildId = isPrefix
-                ? (interaction as Message).guild?.id
-                : (interaction as ChatInputCommandInteraction).guild?.id;
-
-            if (!guildId) {
-                const notInGuildMessage =
-                    "This command can only be used in a server!";
-
-                if (isPrefix) {
-                    await (interaction as Message).reply(notInGuildMessage);
-                } else {
-                    await (interaction as ChatInputCommandInteraction).reply({
-                        content: notInGuildMessage,
-                        ephemeral: true,
-                    });
-                }
-                return;
-            }
+            let guild;
+            let member: GuildMember | null | undefined;
+            let replyFunction: (options: any) => Promise<any>;
+            let deferReplyFunction: (() => Promise<any>) | null = null;
 
             if (isPrefix) {
                 const message = interaction as Message;
-
-                // Check if user is in a voice channel
-                if (!message.member?.voice.channel) {
-                    await message.reply({
-                        embeds: [
-                            new EmbedBuilder()
-                                .setColor("#ff3838")
-                                .setDescription(
-                                    "❌ You need to be in a voice channel to use this command!",
-                                ),
-                        ],
-                    });
+                if (!message.guild || !message.member) {
+                    await message.reply("This command can only be used in a server by a member!");
                     return;
                 }
-
-                // Initialize music handler
-                const musicHandler = new MusicHandler(message.client);
-                await musicHandler.leaveVoiceChannel(guildId, message);
+                guild = message.guild;
+                member = message.member;
+                replyFunction = message.reply.bind(message);
             } else {
-                const slashInteraction =
-                    interaction as ChatInputCommandInteraction;
-                await slashInteraction.deferReply();
+                const slashInteraction = interaction as ChatInputCommandInteraction;
+                if (!slashInteraction.guild || !slashInteraction.member) {
+                    await slashInteraction.reply({ content: "This command can only be used in a server by a member!", ephemeral: true });
+                    return;
+                }
+                guild = slashInteraction.guild;
+                member = slashInteraction.member as GuildMember;
+                replyFunction = slashInteraction.editReply.bind(slashInteraction);
+                deferReplyFunction = slashInteraction.deferReply.bind(slashInteraction);
+                await deferReplyFunction();
+            }
 
-                // Check if user is in a voice channel
-                const member = await slashInteraction.guild!.members.fetch(
-                    slashInteraction.user.id,
-                );
+            const userVoiceChannel = member?.voice.channel;
+            if (!userVoiceChannel) {
+                await replyFunction({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor("#ff3838")
+                            .setDescription("❌ You need to be in a voice channel to use this command!"),
+                    ],
+                });
+                return;
+            }
 
-                if (!member.voice.channel) {
-                    await slashInteraction.editReply({
+            const distube = DistubeHandler.getInstance(interaction.client).distube;
+            const botVoiceConnection = distube.voices.get(guild.id);
+
+            if (!botVoiceConnection) {
+                await replyFunction({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor("#ff3838")
+                            .setDescription("❌ I'm not currently in a voice channel."),
+                    ],
+                });
+                return;
+            }
+
+            if (userVoiceChannel.id !== botVoiceConnection.channel.id) {
+                await replyFunction({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor("#ff3838")
+                            .setDescription("❌ You must be in the same voice channel as me to use this command."),
+                    ],
+                });
+                return;
+            }
+
+            const queue = distube.getQueue(guild.id);
+
+            // Check if music is playing and others are listening
+            if (queue && (queue.playing || queue.songs.length > 0)) {
+                const otherHumanListeners = botVoiceConnection.channel.members.filter(
+                    (m) => !m.user.bot && m.id !== member!.id,
+                ).size;
+
+                if (otherHumanListeners > 0) {
+                    await replyFunction({
                         embeds: [
                             new EmbedBuilder()
-                                .setColor("#ff3838")
-                                .setDescription(
-                                    "❌ You need to be in a voice channel to use this command!",
-                                ),
+                                .setColor("#ffae42") // Orange for warning
+                                .setDescription("🎶 Others are still listening! I can't leave yet."),
                         ],
                     });
                     return;
                 }
-
-                // Initialize music handler
-                const musicHandler = new MusicHandler(slashInteraction.client);
-                await musicHandler.leaveVoiceChannel(guildId, slashInteraction);
+                await queue.stop();
+                await replyFunction({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor("#2b2d31")
+                            .setDescription("👋 Stopping music and leaving the voice channel."),
+                    ],
+                });
+            } else {
+                await distube.voices.leave(guild.id);
+                await replyFunction({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor("#2b2d31")
+                            .setDescription("👋 Leaving the voice channel."),
+                    ],
+                });
             }
+            Logger.info(`Left voice channel in guild: ${guild.name} (ID: ${guild.id}) by request of ${member.user.tag}`);
+
         } catch (error) {
             Logger.error("Error in leave command:", error);
-
             const errorEmbed = new EmbedBuilder()
                 .setColor("#ff3838")
-                .setDescription(
-                    "❌ An error occurred while trying to leave the voice channel.",
-                );
+                .setDescription("❌ An error occurred while trying to leave the voice channel.");
 
             if (isPrefix) {
                 await (interaction as Message).reply({ embeds: [errorEmbed] });
             } else {
-                if ((interaction as ChatInputCommandInteraction).deferred) {
-                    await (
-                        interaction as ChatInputCommandInteraction
-                    ).editReply({
-                        embeds: [errorEmbed],
-                    });
+                if ((interaction as ChatInputCommandInteraction).deferred || (interaction as ChatInputCommandInteraction).replied) {
+                    await (interaction as ChatInputCommandInteraction).editReply({ embeds: [errorEmbed] });
                 } else {
-                    await (interaction as ChatInputCommandInteraction).reply({
-                        embeds: [errorEmbed],
-                        ephemeral: true,
-                    });
+                    await (interaction as ChatInputCommandInteraction).reply({ embeds: [errorEmbed], ephemeral: true });
                 }
             }
         }
