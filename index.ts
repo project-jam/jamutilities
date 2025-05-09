@@ -8,7 +8,6 @@ import {
 import { Logger } from "./src/utils/logger";
 import { CommandHandler } from "./src/handlers/commandHandler";
 import { BlacklistManager } from "./src/handlers/blacklistMembers";
-// import { DistubeHandler } from "./src/handlers/distubeHandler";
 import "dotenv/config";
 
 // Add CommandHandler to Client type
@@ -35,9 +34,6 @@ const client = new Client({
 // Attach command handler to client
 const commandHandler = new CommandHandler(client);
 client.commandHandler = commandHandler;
-
-// Run distube w/ the client itself (no don't)
-// DistubeHandler.getInstance(client);
 
 // Fun status messages with emojis
 const statusMessages = [
