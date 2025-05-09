@@ -17,11 +17,12 @@ import { Logger } from "../../utils/logger";
 
 dotenv.config();
 
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_API_TOKEN = process.env.GROQ_API_TOKEN;
-if (!GROQ_API_TOKEN) throw new Error("missing groq api token in environment");
+const CHUTES_API_URL = "https://llm.chutes.ai/v1/chat/completions";
+const CHUTES_API_TOKEN = process.env.CHUTES_API_TOKEN;
+if (!CHUTES_API_TOKEN)
+    throw new Error("missing chutes api token in environment");
 
-// conversation persistence
+// conversation persistenceg
 const DATA_DIR = path.resolve(__dirname, "../../data");
 const CONV_FILE = path.join(DATA_DIR, "conversations.json");
 
@@ -171,19 +172,21 @@ async function handleAI(
             ...history,
             { role: "user", content: summaryPrompt },
         ];
-        const resp = await fetch(GROQ_API_URL, {
+        const resp = await fetch(CHUTES_API_URL, {
             method: "POST",
             headers: {
-                Authorization: `Bearer ${GROQ_API_TOKEN}`,
+                Authorization: `Bearer ${CHUTES_API_TOKEN}`,
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                model: process.env.GROQ_MODEL || "llama3-8b-8192",
+                model:
+                    process.env.CHUTES_MODEL ||
+                    "chutesai/Llama-4-Scout-17B-16E-Instruct",
                 messages,
+                max_tokens: 2000,
             }),
         });
-        if (!resp.ok)
-            throw new Error(`groq api ${resp.status}: ${await resp.text()}`);
+        if (!resp.ok) throw new Error(`${resp.status}: ${await resp.text()}`);
         const data = await resp.json();
         let aiSummary = data.choices?.[0]?.message?.content?.trim() || "";
 
@@ -247,19 +250,21 @@ async function handleAI(
             { role: "system", content: formatted },
             { role: "user", content: searchSummaryPrompt },
         ];
-        const resp = await fetch(GROQ_API_URL, {
+        const resp = await fetch(CHUTES_API_URL, {
             method: "POST",
             headers: {
-                Authorization: `Bearer ${GROQ_API_TOKEN}`,
+                Authorization: `Bearer ${CHUTES_API_TOKEN}`,
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                model: process.env.GROQ_MODEL || "llama3-8b-8192",
+                model:
+                    process.env.CHUTES_MODEL ||
+                    "chutesai/Llama-4-Scout-17B-16E-Instruct",
                 messages,
+                max_tokens: 2000,
             }),
         });
-        if (!resp.ok)
-            throw new Error(`groq api ${resp.status}: ${await resp.text()}`);
+        if (!resp.ok) throw new Error(`${resp.status}: ${await resp.text()}`);
         const data = await resp.json();
         let aiReply = data.choices?.[0]?.message?.content?.trim() || "";
 
@@ -317,19 +322,21 @@ async function handleAI(
         history = [history[0], ...history.slice(-MAX_HISTORY)];
 
     // call API
-    const resp2 = await fetch(GROQ_API_URL, {
+    const resp2 = await fetch(CHUTES_API_URL, {
         method: "POST",
         headers: {
-            Authorization: `Bearer ${GROQ_API_TOKEN}`,
+            Authorization: `Bearer ${CHUTES_API_TOKEN}`,
             "Content-Type": "application/json",
         },
         body: JSON.stringify({
-            model: process.env.GROQ_MODEL || "llama3-8b-8192",
+            model:
+                process.env.CHUTES_MODEL ||
+                "chutesai/Llama-4-Scout-17B-16E-Instruct",
             messages: history,
+            max_tokens: 2000,
         }),
     });
-    if (!resp2.ok)
-        throw new Error(`groq api ${resp2.status}: ${await resp2.text()}`);
+    if (!resp2.ok) throw new Error(`${resp2.status}: ${await resp2.text()}`);
 
     const data2 = await resp2.json();
     let aiReply = data2.choices?.[0]?.message?.content?.trim() || "";
@@ -372,19 +379,20 @@ async function handleAI(
             { role: "system", content: formatted },
             { role: "user", content: fallbackPrompt },
         ];
-        const resp3 = await fetch(GROQ_API_URL, {
+        const resp3 = await fetch(CHUTES_API_URL, {
             method: "POST",
             headers: {
-                Authorization: `Bearer ${GROQ_API_TOKEN}`,
+                Authorization: `Bearer ${CHUTES_API_TOKEN}`,
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                model: process.env.GROQ_MODEL || "llama3-8b-8192",
+                model: process.env.CHUTES_MODEL || "llama3.1-8b",
                 messages: msg3,
+                max_tokens: 2000,
             }),
         });
         if (!resp3.ok)
-            throw new Error(`groq api ${resp3.status}: ${await resp3.text()}`);
+            throw new Error(`${resp3.status}: ${await resp3.text()}`);
         const data3 = await resp3.json();
         aiReply = data3.choices?.[0]?.message?.content?.trim() || "";
 
