@@ -15,7 +15,7 @@ export const command: Command = {
         .setDescription("Shows a random cat picture."),
 
     prefix: {
-        aliases: ["cat", "kitty", "cta"],
+        aliases: ["cat", "kitty"],
         usage: "",
     },
 
