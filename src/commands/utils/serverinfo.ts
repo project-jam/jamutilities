@@ -97,7 +97,7 @@ export const command: Command = {
       const embed = new EmbedBuilder()
         .setTitle(`${guild.name} Server Information`)
         .setColor(dominantColor)
-        .setThumbnail(guild.iconURL({ size: 1024 }) || "")
+        .setThumbnail(guild.iconURL({ size: 1024 }) ?? null)
         .addFields(
           {
             name: "📑 General Information",

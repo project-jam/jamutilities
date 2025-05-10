@@ -19,7 +19,6 @@ export class DistubeHandler {
     private constructor(client: Client) {
         this.client = client;
         this.inactivityTimers = new Map();
-
         this.distube = new DisTube(client, {
             plugins: [new YtDlpPlugin({ update: false })],
             // v5 no longer supports leaveOnEmpty/emptyCooldown, so we handle it manually
@@ -28,7 +27,6 @@ export class DistubeHandler {
             savePreviousSongs: false,
             nsfw: false,
         });
-
         this.setupEventListeners();
         Logger.info("DisTube handler initialized with custom inactivity logic");
     }
@@ -54,7 +52,6 @@ export class DistubeHandler {
         textChannel: TextChannel | undefined,
     ): void {
         this.clearInactivityTimer(guildId);
-
         Logger.info(
             `[Inactivity] Setting 1-minute timer for guild ${guildId} in VC ${voiceChannelId}`,
         );
@@ -62,7 +59,6 @@ export class DistubeHandler {
             try {
                 const currentVoiceConnection = this.distube.voices.get(guildId);
                 const currentQueue = this.distube.getQueue(guildId);
-
                 // still in the same VC?
                 if (
                     currentVoiceConnection &&
@@ -78,7 +74,6 @@ export class DistubeHandler {
                             `[Inactivity] Timeout reached for guild ${guildId}. Leaving VC ${voiceChannelId}.`,
                         );
                         await this.distube.voices.leave(guildId);
-
                         if (textChannel) {
                             textChannel
                                 .send({
@@ -116,7 +111,6 @@ export class DistubeHandler {
                 this.inactivityTimers.delete(guildId);
             }
         }, INACTIVITY_TIMEOUT_MS);
-
         this.inactivityTimers.set(guildId, timer);
     }
 
@@ -141,6 +135,9 @@ export class DistubeHandler {
         this.distube.on("playSong", (queue: Queue, song: Song) => {
             this.clearInactivityTimer(queue.id);
             try {
+                // Create a progress bar for the beginning of the song
+                const progressBar = "🔘▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬";
+
                 const embed = new EmbedBuilder()
                     .setColor("#2b2d31")
                     .setTitle("🎵 Now Playing")
@@ -153,12 +150,21 @@ export class DistubeHandler {
                         },
                         {
                             name: "Requested By",
-                            value: song.user?.tag || "Unknown",
+                            value:
+                                song.user?.tag ||
+                                song.member?.user.tag ||
+                                "Unknown",
                             inline: true,
                         },
+                        {
+                            name: "Progress",
+                            value: progressBar,
+                            inline: false,
+                        },
                     )
-                    .setThumbnail(song.thumbnail || null)
+                    .setImage(song.thumbnail || null) // Use setImage instead of setThumbnail for banner style
                     .setTimestamp();
+
                 queue.textChannel
                     ?.send({ embeds: [embed] })
                     .catch((err) =>
@@ -185,7 +191,10 @@ export class DistubeHandler {
                         },
                         {
                             name: "Requested By",
-                            value: song.user?.tag || "Unknown",
+                            value:
+                                song.user?.tag ||
+                                song.member?.user.tag ||
+                                "Unknown",
                             inline: true,
                         },
                         {
@@ -196,6 +205,7 @@ export class DistubeHandler {
                     )
                     .setThumbnail(song.thumbnail || null)
                     .setTimestamp();
+
                 queue.textChannel
                     ?.send({ embeds: [embed] })
                     .catch((err) =>
@@ -294,6 +304,7 @@ export class DistubeHandler {
         this.distube.on("disconnect", (queue: Queue) => {
             this.clearInactivityTimer(queue.id);
         });
+
         this.distube.on("deleteQueue", (queue: Queue) => {
             this.clearInactivityTimer(queue.id);
         });
@@ -331,6 +342,7 @@ export class DistubeHandler {
                 `DisTube error in guild ${queueIdForError}:`,
                 eventError,
             );
+
             if (queueIdForError) this.clearInactivityTimer(queueIdForError);
 
             try {
@@ -358,9 +370,11 @@ export class DistubeHandler {
                 `Search for "${query}" returned ${result.length} items.`,
             );
         });
+
         this.distube.on("searchCancel", (message, query) => {
             Logger.info(`Search for "${query}" was canceled.`);
         });
+
         this.distube.on("searchNoResult", (message, query) => {
             message.channel
                 .send({
@@ -377,9 +391,11 @@ export class DistubeHandler {
                     Logger.error("Failed to send no-result embed:", e),
                 );
         });
+
         this.distube.on("searchInvalidAnswer", (message, answer, query) => {
             Logger.info(`Invalid search answer "${answer}" for "${query}".`);
         });
+
         this.distube.on("searchDone", (message, answer, query) => {
             Logger.info(`Search "${query}" completed with choice "${answer}".`);
         });

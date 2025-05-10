@@ -7,34 +7,7 @@ import {
 } from "discord.js";
 import type { Command } from "../../types/Command";
 import { Logger } from "../../utils/logger";
-
-// Duration conversion utilities
-const MINUTE = 60 * 1000;
-const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
-const WEEK = 7 * DAY;
-
-// Parse duration string helper
-const parseDuration = (dur: string): number | null => {
-  const match = dur.match(/^(\d+)([mhdw])$/);
-  if (!match) return null;
-
-  const [, amount, unit] = match;
-  const value = parseInt(amount);
-
-  switch (unit) {
-    case "m":
-      return value * MINUTE;
-    case "h":
-      return value * HOUR;
-    case "d":
-      return value * DAY;
-    case "w":
-      return value * WEEK;
-    default:
-      return null;
-  }
-};
+import ms from "ms"; // Using ms library for duration parsing
 
 export const command: Command = {
   data: new SlashCommandBuilder()
@@ -152,12 +125,16 @@ export const command: Command = {
         return;
       }
 
-      const duration = parseDuration(durationString);
-
-      if (!duration) {
+      let durationMs: number | undefined;
+      try {
+        durationMs = ms(durationString);
+        if (durationMs === undefined || isNaN(durationMs) || durationMs <= 0) {
+          throw new Error("Invalid or non-positive duration string");
+        }
+      } catch (e) {
         const errorEmbed = new EmbedBuilder()
           .setColor("#ff3838")
-          .setDescription("❌ Invalid duration format! Use: 1m, 1h, 1d, or 1w");
+          .setDescription("❌ Invalid duration format! Use formats like '10m', '2h30m', '1d'. Must be a positive duration.");
 
         if (isPrefix) {
           await (interaction as Message).reply({ embeds: [errorEmbed] });
@@ -169,11 +146,11 @@ export const command: Command = {
         return;
       }
 
-      // Check if duration is within Discord's limits
-      if (duration > 28 * DAY) {
+      const MAX_TIMEOUT_MS = 28 * 24 * 60 * 60 * 1000; // 28 days in milliseconds
+      if (durationMs > MAX_TIMEOUT_MS) {
         const errorEmbed = new EmbedBuilder()
           .setColor("#ff3838")
-          .setDescription("❌ Timeout duration cannot exceed 28 days!");
+          .setDescription(`❌ Timeout duration cannot exceed 28 days (currently ${ms(durationMs, { long: true })}).`);
 
         if (isPrefix) {
           await (interaction as Message).reply({ embeds: [errorEmbed] });
@@ -207,7 +184,7 @@ export const command: Command = {
           .setTitle("You've Been Timed Out")
           .setDescription(`You have been timed out in ${guild.name}`)
           .addFields(
-            { name: "Duration", value: durationString },
+            { name: "Duration", value: ms(durationMs, { long: true }) }, // Display parsed duration
             { name: "Reason", value: reason },
             { name: "Timed out By", value: executorTag },
           )
@@ -219,10 +196,10 @@ export const command: Command = {
       }
 
       // Apply the timeout
-      await targetMember.timeout(duration, formattedReason);
+      await targetMember.timeout(durationMs, formattedReason);
 
       // Calculate when the timeout will end
-      const timeoutEnd = new Date(Date.now() + duration);
+      const timeoutEnd = new Date(Date.now() + durationMs);
 
       // Create success embed
       const timeoutEmbed = new EmbedBuilder()
@@ -236,7 +213,7 @@ export const command: Command = {
             inline: true,
           },
           { name: "Timed Out By", value: executorTag, inline: true },
-          { name: "Duration", value: durationString, inline: true },
+          { name: "Duration", value: ms(durationMs, { long: true }), inline: true }, // Display parsed duration
           {
             name: "Expires",
             value: `<t:${Math.floor(timeoutEnd.getTime() / 1000)}:R>`,
