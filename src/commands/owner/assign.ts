@@ -58,7 +58,7 @@ export const command: Command = {
         .setDescription(
             "Assigns a user to the team or removes them (persists in .env).",
         )
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator) // This is a default, runtime check is more critical
         .addSubcommand((subcommand) =>
             subcommand
                 .setName("add")
@@ -91,12 +91,14 @@ export const command: Command = {
     async execute(
         interactionOrMessage: ChatInputCommandInteraction | Message,
         isPrefix = false,
+        argsFromPrefix?: string[],
     ) {
         const ownerId = process.env.OWNER_ID;
         const executorId = isPrefix
             ? (interactionOrMessage as Message).author.id
             : (interactionOrMessage as ChatInputCommandInteraction).user.id;
 
+        // Reverted: Only OWNER_ID can use this command
         if (executorId !== ownerId) {
             const replyContent =
                 "You do not have permission to use this command.";
@@ -111,17 +113,21 @@ export const command: Command = {
         }
 
         let action: string;
-        let targetUser: User;
+        let targetUser: User | undefined;
         const prefixVal = process.env.PREFIX || "jam!";
 
         if (isPrefix) {
             const message = interactionOrMessage as Message;
-            const args = message.content
-                .slice(prefixVal.length)
-                .trim()
-                .split(/ +/);
-            action = args[1]?.toLowerCase();
-            const userIdentifier = args[2];
+            const args =
+                argsFromPrefix ||
+                message.content
+                    .slice(prefixVal.length)
+                    .trim()
+                    .split(/ +/)
+                    .slice(1);
+
+            action = args[0]?.toLowerCase();
+            const userIdentifier = args[1];
 
             if (!action || (action !== "add" && action !== "remove")) {
                 await message.reply(
@@ -152,13 +158,9 @@ export const command: Command = {
             targetUser = interaction.options.getUser("user", true);
         }
 
-        const targetUserId = targetUser.id;
-
-        if (targetUserId === ownerId) {
-            const replyContent =
-                action === "add"
-                    ? "The owner is implicitly part of the team and cannot be explicitly added."
-                    : "You cannot remove the owner from the team. The owner has inherent privileges.";
+        if (!targetUser) {
+            Logger.error("Target user was not resolved in assign command.");
+            const replyContent = "Could not determine the target user.";
             if (isPrefix) {
                 await (interactionOrMessage as Message).reply(replyContent);
             } else {
@@ -169,7 +171,25 @@ export const command: Command = {
             return;
         }
 
-        let teamIds = (process.env.TEAM_ID || "")
+        const targetUserId = targetUser.id;
+
+        // This logic correctly prevents adding/removing the owner from the TEAM_ID list
+        if (targetUserId === ownerId) {
+            const replyContent =
+                action === "add"
+                    ? "The owner is implicitly part of the team and cannot be explicitly added or managed by this command."
+                    : "You cannot remove the owner from the team using this command. The owner has inherent privileges.";
+            if (isPrefix) {
+                await (interactionOrMessage as Message).reply(replyContent);
+            } else {
+                await (
+                    interactionOrMessage as ChatInputCommandInteraction
+                ).reply({ content: replyContent, ephemeral: true });
+            }
+            return;
+        }
+
+        let currentTeamIds = (process.env.TEAM_ID || "")
             .split(",")
             .filter((id) => id.length > 0);
         const embed = new EmbedBuilder().setColor("#0099ff");
@@ -177,11 +197,11 @@ export const command: Command = {
         let baseSuccessMessage = "";
 
         if (action === "add") {
-            if (teamIds.includes(targetUserId)) {
+            if (currentTeamIds.includes(targetUserId)) {
                 baseSuccessMessage = `${targetUser.tag} is already in the assigned team.`;
             } else {
-                teamIds.push(targetUserId);
-                teamIds = [...new Set(teamIds)];
+                currentTeamIds.push(targetUserId);
+                currentTeamIds = [...new Set(currentTeamIds)];
                 envUpdateNeeded = true;
                 baseSuccessMessage = `Added ${targetUser.tag} to the team.`;
                 Logger.info(
@@ -189,10 +209,12 @@ export const command: Command = {
                 );
             }
         } else if (action === "remove") {
-            if (!teamIds.includes(targetUserId)) {
+            if (!currentTeamIds.includes(targetUserId)) {
                 baseSuccessMessage = `${targetUser.tag} is not in the team.`;
             } else {
-                teamIds = teamIds.filter((id) => id !== targetUserId);
+                currentTeamIds = currentTeamIds.filter(
+                    (id) => id !== targetUserId,
+                );
                 envUpdateNeeded = true;
                 baseSuccessMessage = `Removed ${targetUser.tag} from the team.`;
                 Logger.info(
@@ -201,7 +223,7 @@ export const command: Command = {
             }
         }
 
-        const newTeamIdString = teamIds.join(",");
+        const newTeamIdString = currentTeamIds.join(",");
         if (envUpdateNeeded) {
             try {
                 await updateEnvFile("TEAM_ID", newTeamIdString);
@@ -225,13 +247,14 @@ export const command: Command = {
             embed.setDescription(baseSuccessMessage);
         }
 
-        const replyOptions = { embeds: [embed], ephemeral: !isPrefix };
+        const replyOptions = { embeds: [embed] };
         if (isPrefix) {
             await (interactionOrMessage as Message).reply(replyOptions);
         } else {
-            await (interactionOrMessage as ChatInputCommandInteraction).reply(
-                replyOptions,
-            );
+            await (interactionOrMessage as ChatInputCommandInteraction).reply({
+                ...replyOptions,
+                ephemeral: true,
+            });
         }
     },
 };

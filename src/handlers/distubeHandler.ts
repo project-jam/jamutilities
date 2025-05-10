@@ -22,6 +22,11 @@ export class DistubeHandler {
 
         this.distube = new DisTube(client, {
             plugins: [new YtDlpPlugin({ update: false })],
+            // v5 no longer supports leaveOnEmpty/emptyCooldown, so we handle it manually
+            emitNewSongOnly: true,
+            joinNewVoiceChannel: false,
+            savePreviousSongs: false,
+            nsfw: false,
         });
 
         this.setupEventListeners();
@@ -48,7 +53,7 @@ export class DistubeHandler {
         voiceChannelId: string,
         textChannel: TextChannel | undefined,
     ): void {
-        this.clearInactivityTimer(guildId); // Clear any existing timer first
+        this.clearInactivityTimer(guildId);
 
         Logger.info(
             `[Inactivity] Setting 1-minute timer for guild ${guildId} in VC ${voiceChannelId}`,
@@ -58,23 +63,23 @@ export class DistubeHandler {
                 const currentVoiceConnection = this.distube.voices.get(guildId);
                 const currentQueue = this.distube.getQueue(guildId);
 
+                // still in the same VC?
                 if (
                     currentVoiceConnection &&
                     currentVoiceConnection.channel.id === voiceChannelId
                 ) {
+                    // no queue or nothing playing
                     if (
                         !currentQueue ||
                         (currentQueue.songs.length === 0 &&
                             !currentQueue.playing)
                     ) {
                         Logger.info(
-                            `[Inactivity] Timeout reached for guild ${guildId}. Leaving voice channel ${voiceChannelId}.`,
+                            `[Inactivity] Timeout reached for guild ${guildId}. Leaving VC ${voiceChannelId}.`,
                         );
                         await this.distube.voices.leave(guildId);
-                        if (
-                            textChannel &&
-                            typeof textChannel.send === "function"
-                        ) {
+
+                        if (textChannel) {
                             textChannel
                                 .send({
                                     embeds: [
@@ -87,28 +92,28 @@ export class DistubeHandler {
                                 })
                                 .catch((e) =>
                                     Logger.error(
-                                        "[Inactivity] Failed to send inactivity leave message:",
+                                        "[Inactivity] Failed to send leave message:",
                                         e,
                                     ),
                                 );
                         }
                     } else {
                         Logger.info(
-                            `[Inactivity] Timeout reached for guild ${guildId}, but bot is active. Timer ignored.`,
+                            `[Inactivity] Bot is active after timeout in guild ${guildId}, not leaving.`,
                         );
                     }
                 } else {
                     Logger.info(
-                        `[Inactivity] Timeout reached for guild ${guildId}, but bot not in the expected VC or not in VC. Timer ignored.`,
+                        `[Inactivity] Bot not in expected VC for guild ${guildId} at timeout, not leaving.`,
                     );
                 }
             } catch (error) {
                 Logger.error(
-                    "[Inactivity] Error during inactivity timer execution:",
+                    "[Inactivity] Error during timer execution:",
                     error,
                 );
             } finally {
-                this.inactivityTimers.delete(guildId); // Ensure timer is removed
+                this.inactivityTimers.delete(guildId);
             }
         }, INACTIVITY_TIMEOUT_MS);
 
@@ -116,12 +121,10 @@ export class DistubeHandler {
     }
 
     private setupEventListeners(): void {
+        // When a queue is created, start inactivity timer
         this.distube.on("initQueue", (queue: Queue) => {
             try {
                 queue.setVolume(80);
-                Logger.info(
-                    `Initialized new queue in ${queue.voiceChannel?.guild?.name || "a guild"} with default volume ${queue.volume}%`,
-                );
                 if (queue.voiceChannel) {
                     this.setInactivityTimer(
                         queue.id,
@@ -134,6 +137,7 @@ export class DistubeHandler {
             }
         });
 
+        // Clear timer when a song starts playing
         this.distube.on("playSong", (queue: Queue, song: Song) => {
             this.clearInactivityTimer(queue.id);
             try {
@@ -155,24 +159,17 @@ export class DistubeHandler {
                     )
                     .setThumbnail(song.thumbnail || null)
                     .setTimestamp();
-                if (
-                    queue.textChannel &&
-                    typeof queue.textChannel.send === "function"
-                ) {
-                    queue.textChannel
-                        .send({ embeds: [embed] })
-                        .catch((err) =>
-                            Logger.error(
-                                "Failed to send playSong message:",
-                                err,
-                            ),
-                        );
-                }
+                queue.textChannel
+                    ?.send({ embeds: [embed] })
+                    .catch((err) =>
+                        Logger.error("Failed to send playSong message:", err),
+                    );
             } catch (error) {
                 Logger.error("Error in playSong event:", error);
             }
         });
 
+        // Clear timer when a song is added
         this.distube.on("addSong", (queue: Queue, song: Song) => {
             this.clearInactivityTimer(queue.id);
             try {
@@ -199,35 +196,22 @@ export class DistubeHandler {
                     )
                     .setThumbnail(song.thumbnail || null)
                     .setTimestamp();
-                if (
-                    queue.textChannel &&
-                    typeof queue.textChannel.send === "function"
-                ) {
-                    queue.textChannel
-                        .send({ embeds: [embed] })
-                        .catch((err) =>
-                            Logger.error(
-                                "Failed to send addSong message:",
-                                err,
-                            ),
-                        );
-                }
+                queue.textChannel
+                    ?.send({ embeds: [embed] })
+                    .catch((err) =>
+                        Logger.error("Failed to send addSong message:", err),
+                    );
             } catch (error) {
                 Logger.error("Error in addSong event:", error);
             }
         });
 
+        // Clear timer when a playlist is added
         this.distube.on("addList", (queue: Queue, playlist) => {
             this.clearInactivityTimer(queue.id);
-            Logger.info(
-                `Playlist ${playlist.name} added to queue in guild ${queue.id}`,
-            );
-            if (
-                queue.textChannel &&
-                typeof queue.textChannel.send === "function"
-            ) {
+            try {
                 queue.textChannel
-                    .send({
+                    ?.send({
                         embeds: [
                             new EmbedBuilder()
                                 .setColor("#2b2d31")
@@ -242,13 +226,13 @@ export class DistubeHandler {
                     .catch((err) =>
                         Logger.error("Failed to send addList message:", err),
                     );
+            } catch (error) {
+                Logger.error("Error in addList event:", error);
             }
         });
 
+        // Queue finished: start inactivity timer
         this.distube.on("finish", (queue: Queue) => {
-            Logger.info(
-                `Queue finished for guild ${queue.id}. Starting inactivity timer.`,
-            );
             if (queue.voiceChannel) {
                 this.setInactivityTimer(
                     queue.id,
@@ -257,35 +241,25 @@ export class DistubeHandler {
                 );
             }
             try {
-                if (
-                    queue.textChannel &&
-                    typeof queue.textChannel.send === "function"
-                ) {
-                    queue.textChannel
-                        .send({
-                            embeds: [
-                                new EmbedBuilder()
-                                    .setColor("#2b2d31")
-                                    .setDescription("🏁 Queue finished!")
-                                    .setTimestamp(),
-                            ],
-                        })
-                        .catch((err) =>
-                            Logger.error(
-                                "Failed to send queue finished message:",
-                                err,
-                            ),
-                        );
-                }
+                queue.textChannel
+                    ?.send({
+                        embeds: [
+                            new EmbedBuilder()
+                                .setColor("#2b2d31")
+                                .setDescription("🏁 Queue finished!")
+                                .setTimestamp(),
+                        ],
+                    })
+                    .catch((err) =>
+                        Logger.error("Failed to send finish message:", err),
+                    );
             } catch (error) {
                 Logger.error("Error in finish event:", error);
             }
         });
 
+        // Voice channel empty: start inactivity timer
         this.distube.on("empty", (queue: Queue) => {
-            Logger.info(
-                `Voice channel ${queue.voiceChannel?.name} became empty in guild ${queue.id}. Starting inactivity timer.`,
-            );
             if (queue.voiceChannel) {
                 this.setInactivityTimer(
                     queue.id,
@@ -294,207 +268,120 @@ export class DistubeHandler {
                 );
             }
             try {
-                if (
-                    queue.textChannel &&
-                    typeof queue.textChannel.send === "function"
-                ) {
-                    queue.textChannel
-                        .send({
-                            embeds: [
-                                new EmbedBuilder()
-                                    .setColor("#2b2d31")
-                                    .setDescription(
-                                        `👋 Channel empty. I will leave soon if no one joins or plays music.`,
-                                    )
-                                    .setTimestamp(),
-                            ],
-                        })
-                        .catch((err) =>
-                            Logger.error(
-                                "Failed to send empty channel message:",
-                                err,
-                            ),
-                        );
-                }
+                queue.textChannel
+                    ?.send({
+                        embeds: [
+                            new EmbedBuilder()
+                                .setColor("#2b2d31")
+                                .setDescription(
+                                    "👋 Channel empty. I will leave soon if no one joins or plays music.",
+                                )
+                                .setTimestamp(),
+                        ],
+                    })
+                    .catch((err) =>
+                        Logger.error(
+                            "Failed to send empty channel message:",
+                            err,
+                        ),
+                    );
             } catch (error) {
-                Logger.error("Error in empty event message sending:", error);
+                Logger.error("Error in empty event:", error);
             }
         });
 
+        // Clean up on disconnect or queue deletion
         this.distube.on("disconnect", (queue: Queue) => {
-            Logger.info(
-                `Disconnected from voice channel in guild ${queue.id}. Clearing inactivity timer.`,
-            );
             this.clearInactivityTimer(queue.id);
         });
-
         this.distube.on("deleteQueue", (queue: Queue) => {
-            Logger.info(
-                `Queue deleted for guild ${queue.id}. Clearing inactivity timer.`,
-            );
             this.clearInactivityTimer(queue.id);
         });
 
+        // Error handling
         this.distube.on("error", (...args: any[]) => {
-            let eventChannel: TextChannel | undefined | null = null;
+            let eventChannel: TextChannel | undefined;
             let eventError: Error;
-            let queueIdForError: string | undefined = undefined;
+            let queueIdForError: string | undefined;
 
             if (args.length === 1 && args[0] instanceof Error) {
                 eventError = args[0];
-                if ((eventError as any).queue?.id)
-                    queueIdForError = (eventError as any).queue.id;
+                queueIdForError = (eventError as any).queue?.id;
             } else if (args.length === 2 && args[1] instanceof Error) {
-                if (args[0] && typeof args[0].send === "function") {
+                if ((args[0] as TextChannel).send) {
                     eventChannel = args[0] as TextChannel;
-                    if ((args[0] as TextChannel).guild?.id)
-                        queueIdForError = (args[0] as TextChannel).guild.id;
-                } else if (args[0] && (args[0] as Queue).id) {
-                    const errorQueue = args[0] as Queue;
-                    eventChannel = errorQueue.textChannel;
-                    queueIdForError = errorQueue.id;
+                    queueIdForError = eventChannel.guild?.id;
                 } else {
-                    Logger.warn(
-                        `DisTube 'error' event: Expected channel or queue as first arg, got ${typeof args[0]}`,
-                    );
+                    const errorQueue = args[0] as Queue;
+                    eventChannel = errorQueue.textChannel!;
+                    queueIdForError = errorQueue.id;
                 }
                 eventError = args[1];
             } else {
-                Logger.error(
-                    "DisTube error event received with unexpected arguments:",
-                    args,
+                eventError = new Error("Unknown DisTube error");
+                const maybeQueue = args.find((arg) => (arg as Queue)?.id);
+                queueIdForError = (maybeQueue as Queue)?.id;
+                const maybeChannel = args.find(
+                    (arg) => (arg as TextChannel)?.send,
                 );
-                const foundError = args.find((arg) => arg instanceof Error);
-                eventError =
-                    foundError ||
-                    new Error(
-                        `Unknown DisTube error. Args: ${JSON.stringify(args).substring(0, 250)}`,
-                    );
-                const foundChannelArg = args.find(
-                    (arg) => arg && typeof arg.send === "function",
-                );
-                if (foundChannelArg)
-                    eventChannel = foundChannelArg as TextChannel;
-                const foundQueueArg = args.find(
-                    (arg) => arg && (arg as Queue).id,
-                );
-                if (foundQueueArg) {
-                    queueIdForError = (foundQueueArg as Queue).id;
-                    if (!eventChannel)
-                        eventChannel = (foundQueueArg as Queue).textChannel;
-                }
+                eventChannel = maybeChannel as TextChannel;
             }
 
             Logger.error(
-                `DisTube error processed for guild ${queueIdForError || "unknown"}:`,
+                `DisTube error in guild ${queueIdForError}:`,
                 eventError,
             );
-
-            if (queueIdForError) {
-                this.clearInactivityTimer(queueIdForError);
-            }
+            if (queueIdForError) this.clearInactivityTimer(queueIdForError);
 
             try {
-                let targetChannel: TextChannel | undefined | null =
-                    eventChannel;
-                const queueFromError = (eventError as any).queue as
-                    | Queue
-                    | undefined;
-                if (
-                    (!targetChannel ||
-                        typeof targetChannel.send !== "function") &&
-                    queueFromError?.textChannel
-                ) {
-                    if (
-                        queueFromError.textChannel &&
-                        typeof queueFromError.textChannel.send === "function"
-                    ) {
-                        targetChannel = queueFromError.textChannel;
-                        Logger.info(
-                            "Using textChannel from error.queue for DisTube error message.",
-                        );
-                    }
-                }
-
-                if (targetChannel && typeof targetChannel.send === "function") {
-                    targetChannel
-                        .send({
-                            embeds: [
-                                new EmbedBuilder()
-                                    .setColor("#ff3838")
-                                    .setTitle("❌ Music Error")
-                                    .setDescription(
-                                        eventError.message ||
-                                            "An unknown error occurred with the music player.",
-                                    )
-                                    .setTimestamp(),
-                            ],
-                        })
-                        .catch((e) =>
-                            Logger.error(
-                                "Failed to send DisTube error message to determined channel:",
-                                e,
-                            ),
-                        );
-                } else {
-                    Logger.warn(
-                        "Could not determine a valid channel to send the DisTube error message. Error content: " +
-                            eventError.message,
+                eventChannel
+                    ?.send({
+                        embeds: [
+                            new EmbedBuilder()
+                                .setColor("#ff3838")
+                                .setTitle("❌ Music Error")
+                                .setDescription(eventError.message)
+                                .setTimestamp(),
+                        ],
+                    })
+                    .catch((e) =>
+                        Logger.error("Failed to send error embed:", e),
                     );
-                }
             } catch (e) {
-                Logger.error(
-                    "Critical error within the DisTube 'error' event handler's own try-catch block:",
-                    e,
-                );
+                Logger.error("Error in error event handler:", e);
             }
         });
 
+        // Search events (logging only)
         this.distube.on("searchResult", (message, result, query) => {
             Logger.info(
-                `Search for \"${query}\" found ${result.length} items. Sent by ${message.author.tag}`,
+                `Search for "${query}" returned ${result.length} items.`,
             );
         });
         this.distube.on("searchCancel", (message, query) => {
-            Logger.info(
-                `Search for \"${query}\" was canceled by ${message.author.tag}`,
-            );
-        });
-        this.distube.on("searchInvalidAnswer", (message, answer, query) => {
-            Logger.info(
-                `Invalid search answer \"${answer}\" for query \"${query}\" from ${message.author.tag}`,
-            );
+            Logger.info(`Search for "${query}" was canceled.`);
         });
         this.distube.on("searchNoResult", (message, query) => {
-            try {
-                const textChannel = message.channel as TextChannel;
-                if (textChannel && typeof textChannel.send === "function") {
-                    textChannel
-                        .send({
-                            embeds: [
-                                new EmbedBuilder()
-                                    .setColor("#ff3838")
-                                    .setDescription(
-                                        `❌ No results found for \`${query}\`!`,
-                                    )
-                                    .setTimestamp(),
-                            ],
-                        })
-                        .catch((e) =>
-                            Logger.error(
-                                "Failed to send 'searchNoResult' message:",
-                                e,
-                            ),
-                        );
-                }
-            } catch (error) {
-                Logger.error("Error in searchNoResult event:", error);
-            }
+            message.channel
+                .send({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor("#ff3838")
+                            .setDescription(
+                                `❌ No results found for \`${query}\`!`,
+                            )
+                            .setTimestamp(),
+                    ],
+                })
+                .catch((e) =>
+                    Logger.error("Failed to send no-result embed:", e),
+                );
+        });
+        this.distube.on("searchInvalidAnswer", (message, answer, query) => {
+            Logger.info(`Invalid search answer "${answer}" for "${query}".`);
         });
         this.distube.on("searchDone", (message, answer, query) => {
-            Logger.info(
-                `Search for \"${query}\" completed with answer \"${answer}\" by ${message.author.tag}`,
-            );
+            Logger.info(`Search "${query}" completed with choice "${answer}".`);
         });
     }
 }

@@ -1,17 +1,15 @@
-// ceo's response:
-// ts seems a lot broken when it remembers, ill removbe the json later
-
 import {
     ChatInputCommandInteraction,
     Message,
     SlashCommandBuilder,
     EmbedBuilder,
+    GuildMember,
 } from "discord.js";
 import type { Command } from "../../types/Command";
 import * as dotenv from "dotenv";
 import fs from "fs/promises";
 import path from "path";
-import { ProfaneDetect } from "@projectjam/profane-detect"; // Make sure you're using the latest version
+import { ProfaneDetect } from "@projectjam/profane-detect";
 import { searchDuckDuckGo } from "../../utils/searchInternet";
 import { Logger } from "../../utils/logger";
 
@@ -22,32 +20,20 @@ const CHUTES_API_TOKEN = process.env.CHUTES_API_TOKEN;
 if (!CHUTES_API_TOKEN)
     throw new Error("missing chutes api token in environment");
 
-// conversation persistenceg
 const DATA_DIR = path.resolve(__dirname, "../../data");
 const CONV_FILE = path.join(DATA_DIR, "conversations.json");
 
-// initialize profanity detector - based on the docs, lowercase the property names
 const detector = new ProfaneDetect({
-    enablereversedetection: true, // Enable reverse text detection for things like "reggin"
-    usefastlookup: true, // Use the fast lookup cache for better performance
+    enablereversedetection: true,
+    usefastlookup: true,
 });
 
-const profanityEmbed = new EmbedBuilder()
-    .setColor("#ff3838")
-    .setTitle("⚠️ Content warning")
-    .setDescription(
-        "Your search query has been flagged for inappropriate content. Please revise your query and try again.",
-    )
-    .setTimestamp();
-
-// store conversation history by user per channel
 const userConversations = new Map<
     string,
     Array<{ role: string; content: string }>
 >();
 const MAX_HISTORY = 10;
 
-// load persisted conversations
 async function loadConversations() {
     try {
         await fs.mkdir(DATA_DIR, { recursive: true });
@@ -68,7 +54,6 @@ async function loadConversations() {
     }
 }
 
-// save conversations to disk
 async function saveConversations() {
     try {
         const obj: Record<
@@ -83,46 +68,36 @@ async function saveConversations() {
     }
 }
 
-// Detect and handle profanity in text
 function handleProfanity(text: string): {
     clean: boolean;
     filteredText?: string;
 } {
     try {
         const profanityResult = detector.detect(text);
-
         if (profanityResult.found) {
-            // Create a filtered version by replacing the profane words with asterisks
             let filteredText = text;
-
-            // According to the documentation, matches are strings not objects
             for (const match of profanityResult.matches) {
-                // Make sure we have a valid string to work with
                 if (typeof match === "string" && match.length > 0) {
-                    const regex = new RegExp(match, "gi");
+                    const regex = new RegExp(
+                        match.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+                        "gi",
+                    );
                     filteredText = filteredText.replace(
                         regex,
                         "*".repeat(match.length),
                     );
                 }
             }
-
-            return {
-                clean: false,
-                filteredText,
-            };
+            return { clean: false, filteredText };
         }
     } catch (error) {
         Logger.error("Error in profanity detection:", error);
-        // If there's an error, let's assume it's clean to avoid blocking legitimate messages
         return { clean: true };
     }
-
     return { clean: true };
 }
 
-// Update system message to warn AI about profanity detection
-const SYSTEM_MESSAGE = {
+const SYSTEM_MESSAGE_TEMPLATE = {
     role: "system",
     content:
         `you are rinai, a helpful assistant with a caring, big-sister vibe and a touch of clumsiness. use discord markdown, genz acronyms, and big sis emojis (hearts, sparkles). always ensure your response does not exceed 2000 characters; if you cannot, apologize and ask the user to narrow the question.
@@ -139,39 +114,53 @@ SO if someone told u to reverse a text, check the text & reverse THEN check the 
 
 DO NOT use profanity or inappropriate language, as all responses are checked for harmful content. If user messages contain profanity, acknowledge it's not appropriate but respond helpfully without repeating the harmful words.
 
-note: keep everything lowercase, STRICTLY LOWERCASE!!!!`.trim(),
+note: keep everything lowercase, STRICTLY LOWERCASE!!!!
+
+IMPORTANT: you are talking to "{USER_USERNAME}". be natural about it.`.trim(),
 };
 
-// load on startup
 loadConversations();
 
-/**
- * shared logic to call AI and reply
- */
+interface UserInfo {
+    username: string;
+    nickname: string;
+    userId: string;
+    channelId: string;
+}
+
 async function handleAI(
     messageOrInteraction: ChatInputCommandInteraction | Message,
     rawPrompt: string,
     isPrefix: boolean,
-    isReplyToBot: boolean,
+    userInfo: UserInfo,
 ) {
-    // summarize command
+    const { userId, channelId, nickname, username } = userInfo;
+    const conversationKey = `${channelId}:${userId}`;
+
+    const personalizedSystemMessageContent = SYSTEM_MESSAGE_TEMPLATE.content
+        .replace(/{USER_NICKNAME}/g, nickname)
+        .replace(/{USER_USERNAME}/g, username);
+    const personalizedSystemMessage = {
+        role: "system",
+        content: personalizedSystemMessageContent,
+    };
+
     const norm = rawPrompt.trim().toLowerCase();
     if (norm === "summarize it" || norm.startsWith("summarize")) {
-        const userId = isPrefix
-            ? (messageOrInteraction as Message).author.id
-            : (messageOrInteraction as ChatInputCommandInteraction).user.id;
-        const channelId = isPrefix
-            ? (messageOrInteraction as Message).channelId
-            : (messageOrInteraction as ChatInputCommandInteraction).channelId;
-        const key = `${channelId}:${userId}`;
-        const history = userConversations.get(key) || [];
-        const summaryPrompt =
-            "summarize the previous conversation in lowercase bullet points, using markdown links as <[title](url)> when possible.";
-        const messages = [
-            SYSTEM_MESSAGE,
-            ...history,
-            { role: "user", content: summaryPrompt },
+        let currentHistory = userConversations.get(conversationKey) || [];
+        const messagesForSummary = [
+            personalizedSystemMessage,
+            ...(currentHistory.length > 0 &&
+            currentHistory[0]?.role === "system"
+                ? currentHistory.slice(1)
+                : currentHistory),
+            {
+                role: "user",
+                content:
+                    "summarize the previous conversation in lowercase bullet points, using markdown links as <[title](url)> when possible.",
+            },
         ];
+
         const resp = await fetch(CHUTES_API_URL, {
             method: "POST",
             headers: {
@@ -182,7 +171,7 @@ async function handleAI(
                 model:
                     process.env.CHUTES_MODEL ||
                     "chutesai/Llama-4-Scout-17B-16E-Instruct",
-                messages,
+                messages: messagesForSummary,
                 max_tokens: 2000,
             }),
         });
@@ -190,14 +179,13 @@ async function handleAI(
         const data = await resp.json();
         let aiSummary = data.choices?.[0]?.message?.content?.trim() || "";
 
-        // Check for profanity in AI response
         const profanityCheck = handleProfanity(aiSummary);
         if (!profanityCheck.clean) {
             aiSummary =
                 profanityCheck.filteredText ||
                 "Content filtered due to inappropriate language";
             Logger.warn(
-                `Profanity detected in AI summary, filtered response sent`,
+                `[${conversationKey}] (AI Summary by ${nickname}) Profanity detected, filtered response sent`,
             );
         }
 
@@ -210,7 +198,6 @@ async function handleAI(
               );
     }
 
-    // profanity check on user input
     const userProfanityCheck = handleProfanity(rawPrompt);
     if (!userProfanityCheck.clean) {
         const replyFn = isPrefix
@@ -219,8 +206,6 @@ async function handleAI(
                   (
                       messageOrInteraction as ChatInputCommandInteraction
                   ).editReply(m);
-
-        // Create a modified profanity embed with the filtered text
         const modifiedEmbed = new EmbedBuilder()
             .setColor("#ff3838")
             .setTitle("⚠️ Content warning")
@@ -230,23 +215,32 @@ async function handleAI(
                     "Please revise your message and try again.",
             )
             .setTimestamp();
-
+        Logger.warn(
+            `[${conversationKey}] Username: ${username}. Nickname: ${nickname}. Message (filtered due to profanity): ${userProfanityCheck.filteredText || "Content removed"}`,
+        );
         return replyFn({ embeds: [modifiedEmbed] });
     }
 
     const prompt = rawPrompt.trim();
     const lp = prompt.toLowerCase();
 
-    // search and summarize if prompt needs internet
+    if (prompt) {
+        Logger.info(
+            `[${conversationKey}] Username: ${username}. Nickname: ${nickname}. Message: ${prompt}`,
+        );
+    }
+
     if (lp.includes("discord") || lp.startsWith("search")) {
-        Logger.info(`[search] performing web search for: ${prompt}`);
+        Logger.info(
+            `[${conversationKey}] (${nickname}) [search] performing web search for: ${prompt}`,
+        );
         const results = await searchDuckDuckGo(prompt, 5);
         const formatted = results
             .map((r) => `<[${r.title}](${r.url})> — ${r.description}`)
             .join("\n");
         const searchSummaryPrompt = `summarize these search results about ${prompt} in concise lowercase bullet points:`;
         const messages = [
-            SYSTEM_MESSAGE,
+            personalizedSystemMessage,
             { role: "system", content: formatted },
             { role: "user", content: searchSummaryPrompt },
         ];
@@ -268,14 +262,13 @@ async function handleAI(
         const data = await resp.json();
         let aiReply = data.choices?.[0]?.message?.content?.trim() || "";
 
-        // Check for profanity in AI response
         const searchProfanityCheck = handleProfanity(aiReply);
         if (!searchProfanityCheck.clean) {
             aiReply =
                 searchProfanityCheck.filteredText ||
                 "Content filtered due to inappropriate language";
             Logger.warn(
-                `Profanity detected in search result summary, filtered response sent`,
+                `[${conversationKey}] (AI Search by ${nickname}) Profanity detected in search result summary, filtered response sent`,
             );
         }
 
@@ -287,27 +280,31 @@ async function handleAI(
               );
     }
 
-    // prepare history key
-    const userId = isPrefix
-        ? (messageOrInteraction as Message).author.id
-        : (messageOrInteraction as ChatInputCommandInteraction).user.id;
-    const channelId = isPrefix
-        ? (messageOrInteraction as Message).channelId
-        : (messageOrInteraction as ChatInputCommandInteraction).channelId;
-    const conversationKey = `${channelId}:${userId}`;
-
-    // load or init history
     let history = userConversations.get(conversationKey) || [];
 
-    // reset or continue
-    if (isReplyToBot && history.length) {
-        Logger.info(`[${conversationKey}] continuing existing conversation`);
+    if (history.length === 0) {
+        Logger.info(
+            `[${conversationKey}] (${nickname}) Starting new conversation.`,
+        );
+        history.push(personalizedSystemMessage);
     } else {
-        Logger.info(`[${conversationKey}] starting new conversation`);
-        history = [SYSTEM_MESSAGE];
+        Logger.info(
+            `[${conversationKey}] (${nickname}) Continuing conversation with ${history.length} messages.`,
+        );
+        if (
+            history[0]?.role !== "system" ||
+            history[0]?.content !== personalizedSystemMessage.content
+        ) {
+            Logger.warn(
+                `[${conversationKey}] (${nickname}) SYSTEM_MESSAGE in history is outdated or missing. Re-initializing.`,
+            );
+            while (history.length > 0 && history[0]?.role === "system") {
+                history.shift();
+            }
+            history.unshift(personalizedSystemMessage);
+        }
     }
 
-    // Add warning about profanity when needed
     let modifiedPrompt = prompt;
     if (
         prompt.toLowerCase().includes("bad word") ||
@@ -316,12 +313,23 @@ async function handleAI(
         modifiedPrompt = `${prompt}\n\n[System note: Remember that all content is checked for harmful language.]`;
     }
 
-    // append user
-    history.push({ role: "user", content: modifiedPrompt });
-    if (history.length > MAX_HISTORY + 1)
-        history = [history[0], ...history.slice(-MAX_HISTORY)];
+    if (modifiedPrompt) {
+        history.push({ role: "user", content: modifiedPrompt });
+    }
 
-    // call API
+    if (history.length > MAX_HISTORY + 1) {
+        history = [history[0], ...history.slice(-MAX_HISTORY)];
+    }
+
+    const messagesForAPI =
+        history.length > 1 ||
+        (history.length === 1 && history[0].role === "system" && !prompt)
+            ? history
+            : [
+                  personalizedSystemMessage,
+                  { role: "user", content: modifiedPrompt || "..." },
+              ];
+
     const resp2 = await fetch(CHUTES_API_URL, {
         method: "POST",
         headers: {
@@ -332,7 +340,7 @@ async function handleAI(
             model:
                 process.env.CHUTES_MODEL ||
                 "chutesai/Llama-4-Scout-17B-16E-Instruct",
-            messages: history,
+            messages: messagesForAPI,
             max_tokens: 2000,
         }),
     });
@@ -341,33 +349,25 @@ async function handleAI(
     const data2 = await resp2.json();
     let aiReply = data2.choices?.[0]?.message?.content?.trim() || "";
 
-    // Check for profanity in AI response
     const aiProfanityCheck = handleProfanity(aiReply);
     if (!aiProfanityCheck.clean) {
-        // Replace the response with filtered version
-        aiReply = aiProfanityCheck.filteredText || "";
+        aiReply =
+            aiProfanityCheck.filteredText ||
+            "Content filtered due to inappropriate language.";
         Logger.warn(
-            `Profanity detected in AI response, filtered response will be sent`,
+            `[${conversationKey}] (AI Response for ${nickname}) Profanity detected, filtered response will be sent`,
         );
-
-        // Add a warning to the AI about the filtered content
-        const warningMessage = {
-            role: "system",
-            content:
-                "Warning: Your previous response contained inappropriate language that has been filtered. Please be more careful with your language.",
-        };
-        history.push(warningMessage);
     }
 
-    // fallback search on ignorance
     const la = aiReply.toLowerCase();
     if (
-        la.includes("i don't know") ||
-        la.includes("i'm not sure") ||
-        la.includes("i cannot find")
+        prompt &&
+        (la.includes("i don't know") ||
+            la.includes("i'm not sure") ||
+            la.includes("i cannot find"))
     ) {
         Logger.info(
-            `[Search] ai replied unknown, performing web search for: ${prompt}`,
+            `[${conversationKey}] (${nickname}) [Search] ai replied unknown, performing web search for: ${prompt}`,
         );
         const results = await searchDuckDuckGo(prompt, 5);
         const formatted = results
@@ -375,7 +375,7 @@ async function handleAI(
             .join("\n");
         const fallbackPrompt = `summarize these search results in concise lowercase bullet points:`;
         const msg3 = [
-            SYSTEM_MESSAGE,
+            personalizedSystemMessage,
             { role: "system", content: formatted },
             { role: "user", content: fallbackPrompt },
         ];
@@ -396,30 +396,36 @@ async function handleAI(
         const data3 = await resp3.json();
         aiReply = data3.choices?.[0]?.message?.content?.trim() || "";
 
-        // Check for profanity in fallback search response
         const fallbackProfanityCheck = handleProfanity(aiReply);
         if (!fallbackProfanityCheck.clean) {
             aiReply =
                 fallbackProfanityCheck.filteredText ||
                 "Content filtered due to inappropriate language";
             Logger.warn(
-                `Profanity detected in fallback search response, filtered response sent`,
+                `[${conversationKey}] (AI Fallback Search for ${nickname}) Profanity detected, filtered response sent`,
             );
         }
     }
 
-    // truncate reply if exceeds Discord limit
     if (aiReply.length > 2000) aiReply = aiReply.slice(0, 1997) + "...";
+    if (!aiReply && prompt) {
+        aiReply =
+            "i'm not sure how to respond to that! can you try asking in a different way? ✨";
+    } else if (!aiReply && !prompt) {
+        aiReply = "yes? how can i help you today? 😊";
+    }
 
-    // log reply
-    Logger.info(`[${conversationKey}] ai reply: ${aiReply}`);
+    Logger.info(
+        `[${conversationKey}] (AI Reply to ${nickname}): ${aiReply.substring(0, 100)}${aiReply.length > 100 ? "..." : ""}`,
+    );
 
-    // save history
-    history.push({ role: "assistant", content: aiReply });
+    if (modifiedPrompt || aiReply) {
+        history.push({ role: "assistant", content: aiReply });
+    }
+
     userConversations.set(conversationKey, history);
     await saveConversations();
 
-    // send reply
     return isPrefix
         ? (messageOrInteraction as Message).reply(aiReply)
         : (messageOrInteraction as ChatInputCommandInteraction).editReply(
@@ -447,52 +453,113 @@ export const command: Command = {
         isPrefix = false,
     ) {
         try {
-            if (!isPrefix)
-                await (interaction as ChatInputCommandInteraction).deferReply();
-
             let rawPrompt = "";
-            let isReplyToBot = false;
+            let userInfo: UserInfo;
 
             if (isPrefix) {
                 const msg = interaction as Message;
                 const prefixStr = process.env.PREFIX || "jam!";
+                if (
+                    !msg.content
+                        .toLowerCase()
+                        .startsWith(prefixStr.toLowerCase())
+                )
+                    return;
+
                 const args = msg.content
                     .slice(prefixStr.length)
                     .trim()
-                    .split(/ +/)
-                    .slice(1);
+                    .split(/ +/);
+                const commandName = args.shift()?.toLowerCase();
+
+                if (
+                    !commandName ||
+                    !this.prefix!.aliases!.includes(commandName)
+                )
+                    return;
+
                 rawPrompt = args.join(" ");
 
-                if (!rawPrompt && msg.reference) {
-                    const ref = await msg.fetchReference();
-                    if (
-                        ref.author.id === msg.client.user?.id &&
-                        msg.content.trim()
-                    ) {
-                        isReplyToBot = true;
-                        rawPrompt = msg.content.trim();
+                userInfo = {
+                    username: msg.author.username,
+                    nickname: msg.member?.displayName || msg.author.username,
+                    userId: msg.author.id,
+                    channelId: msg.channelId,
+                };
+
+                const conversationKey = `${userInfo.channelId}:${userInfo.userId}`;
+                const existingConversation =
+                    userConversations.get(conversationKey);
+                const hasExistingConversation =
+                    existingConversation && existingConversation.length > 0;
+
+                if (!rawPrompt && !hasExistingConversation) {
+                    if (msg.reference) {
+                        const ref = await msg.fetchReference();
+                        if (ref.author.id === msg.client.user?.id) {
+                            // Continuation
+                        } else {
+                            return msg.reply(
+                                `❌ Please provide a question. Usage: \`${prefixStr}${commandName} <your question>\``,
+                            );
+                        }
+                    } else {
+                        return msg.reply(
+                            `❌ Please provide a question. Usage: \`${prefixStr}${commandName} <your question>\``,
+                        );
                     }
                 }
-
-                if (!rawPrompt)
-                    return msg.reply(
-                        `❌ Please provide a question or reply to rinai. usage: ${prefixStr}ai <your question>`,
-                    );
-
-                await handleAI(msg, rawPrompt, true, isReplyToBot);
+                await handleAI(msg, rawPrompt, true, userInfo);
             } else {
                 const slash = interaction as ChatInputCommandInteraction;
+                if (!slash.deferred) {
+                    await slash.deferReply();
+                }
                 rawPrompt = slash.options.getString("prompt", true);
-                await handleAI(slash, rawPrompt, false, false);
+
+                let member = slash.member;
+                let nickname = slash.user.username;
+
+                if (slash.inGuild() && member && "displayName" in member) {
+                    nickname = (member as GuildMember).displayName;
+                } else if (slash.inGuild() && member) {
+                    nickname = (member as any).nick || slash.user.username;
+                }
+
+                userInfo = {
+                    username: slash.user.username,
+                    nickname: nickname,
+                    userId: slash.user.id,
+                    channelId: slash.channelId!,
+                };
+                await handleAI(slash, rawPrompt, false, userInfo);
             }
         } catch (err: any) {
             Logger.error("rinai chat error:", err);
             const errMsg = `😢 oops, something went wrong: \`${err.message}\``;
-            if (isPrefix) await (interaction as Message).reply(errMsg);
-            else
+            if (
+                !isPrefix &&
+                (interaction as ChatInputCommandInteraction).deferred
+            ) {
                 await (interaction as ChatInputCommandInteraction).editReply(
                     errMsg,
                 );
+            } else if (
+                !isPrefix &&
+                !(interaction as ChatInputCommandInteraction).replied
+            ) {
+                try {
+                    await (interaction as ChatInputCommandInteraction).reply(
+                        errMsg,
+                    );
+                } catch {
+                    await (interaction as ChatInputCommandInteraction).followUp(
+                        { content: errMsg, ephemeral: true },
+                    );
+                }
+            } else if (isPrefix) {
+                await (interaction as Message).reply(errMsg);
+            }
         }
     },
 };

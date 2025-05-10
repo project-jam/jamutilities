@@ -31,6 +31,17 @@ export class CommandHandler {
         );
     }
 
+    private isUserOwner(userId: string): boolean {
+        return userId === process.env.OWNER_ID;
+    }
+
+    private isUserInTeam(userId: string): boolean {
+        const teamIds = (process.env.TEAM_ID || "")
+            .split(",")
+            .filter((id) => id.length > 0);
+        return teamIds.includes(userId);
+    }
+
     async loadCommands() {
         const commandsPath = join(__dirname, "..", "commands");
         const commandFolders = readdirSync(commandsPath, {
@@ -147,16 +158,34 @@ export class CommandHandler {
                 : interaction.commandName;
 
             if (this.isCommandDisabled(commandString)) {
-                if (interaction.user.id === process.env.OWNER_ID) {
+                const userId = interaction.user.id;
+                let canExecuteDisabled = false;
+
+                if (this.isUserOwner(userId)) {
+                    canExecuteDisabled = true;
+                } else if (this.isUserInTeam(userId)) {
+                    // Team members can use disabled commands, EXCEPT for 'shell'
+                    if (command.data.name.toLowerCase() !== "shell") {
+                        canExecuteDisabled = true;
+                    }
+                }
+
+                if (canExecuteDisabled) {
                     await command.execute(interaction);
                 } else {
+                    let replyMessage = "This command is currently disabled.";
+                    if (
+                        this.isUserInTeam(userId) &&
+                        command.data.name.toLowerCase() === "shell"
+                    ) {
+                        replyMessage =
+                            "The 'shell' command is restricted to the bot owner.";
+                    }
                     await interaction.reply({
                         embeds: [
                             new EmbedBuilder()
                                 .setColor("#ff3838")
-                                .setDescription(
-                                    "This command is currently disabled.",
-                                ),
+                                .setDescription(replyMessage),
                         ],
                         flags: MessageFlags.Ephemeral,
                     });
@@ -202,13 +231,12 @@ export class CommandHandler {
         if (!message.content.startsWith(prefix)) return;
 
         const args = message.content.slice(prefix.length).trim().split(/ +/);
-        const commandName = args.shift()?.toLowerCase();
-        if (!commandName) return;
+        const commandNameArg = args.shift()?.toLowerCase();
+        if (!commandNameArg) return;
 
-        // Get command from either direct name or alias
         const command =
-            this.commands.get(commandName) ||
-            this.commands.get(this.aliases.get(commandName) || "");
+            this.commands.get(commandNameArg) ||
+            this.commands.get(this.aliases.get(commandNameArg) || "");
 
         if (!command) {
             await message.channel.send({
@@ -216,7 +244,7 @@ export class CommandHandler {
                     new EmbedBuilder()
                         .setColor("#ff3838")
                         .setDescription(
-                            `❌ \`${message.content}\` command not found. Use \`${prefix}help\` to see all available commands.`,
+                            `❌ \`${message.content.split(" ")[0]}\` command not found. Use \`${prefix}help\` to see all available commands.`,
                         ),
                 ],
             });
@@ -224,25 +252,52 @@ export class CommandHandler {
         }
 
         // ✅ Check if command is disabled
-        if (
-            this.isCommandDisabled(command.data.name) &&
-            message.author.id !== process.env.OWNER_ID
-        ) {
-            await message.channel.send({
-                embeds: [
-                    new EmbedBuilder()
-                        .setColor("#ff3838")
-                        .setDescription("This command is currently disabled."),
-                ],
-            });
-            return;
+        const commandIdentifierForDisabledCheck = command.data.name; // Using base command name for consistency
+        if (this.isCommandDisabled(commandIdentifierForDisabledCheck)) {
+            const userId = message.author.id;
+            let canExecuteDisabled = false;
+
+            if (this.isUserOwner(userId)) {
+                canExecuteDisabled = true;
+            } else if (this.isUserInTeam(userId)) {
+                if (command.data.name.toLowerCase() !== "shell") {
+                    canExecuteDisabled = true;
+                }
+            }
+
+            if (canExecuteDisabled) {
+                // Proceed to execute
+            } else {
+                let replyMessage = "This command is currently disabled.";
+                if (
+                    this.isUserInTeam(userId) &&
+                    command.data.name.toLowerCase() === "shell"
+                ) {
+                    replyMessage =
+                        "The 'shell' command is restricted to the bot owner.";
+                }
+                await message.channel.send({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor("#ff3838")
+                            .setDescription(replyMessage),
+                    ],
+                });
+                return;
+            }
         }
 
-        // Special handling for commands with subcommands that need quotes
-        if (commandName === "image" && args[0] === "search") {
+        // Special handling for commands with subcommands that need quotes (example)
+        // Adjusted to use command.data.name for checking against 'image'
+        if (command.data.name === "image" && args[0] === "search") {
             const searchQuery = args.slice(1).join(" ");
-            args[0] = "search";
-            args[1] = searchQuery;
+            args[0] = "search"; // This assumes 'search' is the first arg after command name
+            // Ensure args array is structured as command expects, potentially args = ['search', searchQuery]
+            // Depending on how execute expects args, this might need adjustment
+            // For now, let's ensure args are [subcommand, ...options]
+            if (args.length > 1) args[1] = searchQuery;
+            else args.push(searchQuery);
+            args.splice(2); // Keep only 'search' and 'searchQuery'
         }
 
         // Handle cooldowns
@@ -283,12 +338,12 @@ export class CommandHandler {
 
         try {
             Logger.command(
-                `${message.author.tag} [${message.author.id}] used ${prefix}${commandName} in ${message.guild?.name || "DM"}`,
+                `${message.author.tag} [${message.author.id}] used ${prefix}${commandNameArg} in ${message.guild?.name || "DM"}`,
             );
-            await command.execute(message, true);
+            await command.execute(message, true, args); // Pass modified args
         } catch (error) {
             Logger.error(
-                `Error executing prefix command ${commandName}:`,
+                `Error executing prefix command ${commandNameArg}:`,
                 error,
             );
             await message.channel.send({
@@ -315,7 +370,10 @@ export class CommandHandler {
     }
 
     public isCommandDisabled(commandString: string): boolean {
-        return this.disabledCommands.has(commandString.toLowerCase());
+        // Check against base command name and full command string (e.g., command subcommand)
+        const commandParts = commandString.toLowerCase().split(" ");
+        if (this.disabledCommands.has(commandParts[0])) return true; // base command disabled
+        return this.disabledCommands.has(commandString.toLowerCase()); // full command string disabled
     }
 
     public getCommands(): Collection<string, Command> {
