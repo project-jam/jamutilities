@@ -1,14 +1,15 @@
+// index.ts
 import {
     Client,
     GatewayIntentBits,
     ActivityType,
     EmbedBuilder,
     MessageFlags,
+    Interaction,
 } from "discord.js";
 import { Logger } from "./src/utils/logger";
 import { CommandHandler } from "./src/handlers/commandHandler";
 import { BlacklistManager } from "./src/handlers/blacklistMembers";
-// import { DistubeHandler } from "./src/handlers/distubeHandler";
 import "dotenv/config";
 
 // Add CommandHandler to Client type
@@ -36,8 +37,8 @@ const client = new Client({
 const commandHandler = new CommandHandler(client);
 client.commandHandler = commandHandler;
 
-// Run distube w/ the client itself (no don't)
-// DistubeHandler.getInstance(client);
+// Initialize the webhook logger
+Logger.setWebhook(process.env.WEBHOOK_URL!);
 
 // Fun status messages with emojis
 const statusMessages = [
@@ -61,12 +62,12 @@ client.once("ready", async (c) => {
     const shardInfo = client.shard
         ? ` on shard [${client.shard.ids.join(", ")}]`
         : "";
-    Logger.startupBanner("JamUtilities", "2.0.0");
+    await Logger.startupBanner("JamUtilities", "2.0.0");
 
     BlacklistManager.getInstance();
-    Logger.info("Blacklist manager initialized");
+    await Logger.info("Blacklist manager initialized");
 
-    Logger.ready(
+    await Logger.ready(
         "BOT STATISTICS",
         [
             `🤖 Logged in as ${c.user.tag}${shardInfo}`,
@@ -85,22 +86,22 @@ client.once("ready", async (c) => {
     );
 
     updateStatus();
-    Logger.info(`Initial status set - Let the games begin!`);
+    await Logger.info(`Initial status set - Let the games begin!`);
 
     try {
         await client.commandHandler.loadCommands();
-        Logger.success(`Commands loaded successfully!`);
+        await Logger.success(`Commands loaded successfully!`);
 
         if (client.commandHandler.isSlashEnabled()) {
             await client.commandHandler.registerCommands();
-            Logger.success(`Commands registered with Discord API!`);
+            await Logger.success(`Commands registered with Discord API!`);
         }
     } catch (error) {
-        Logger.fatal("Failed to initialize commands: ", error);
+        await Logger.fatal("Failed to initialize commands: ", error);
         process.exit(1);
     }
 
-    Logger.ready("SYSTEM INFO", [
+    await Logger.ready("SYSTEM INFO", [
         `🖥️ Platform: ${process.platform}`,
         `⚙️ Architecture: ${process.arch}`,
         `🏃 PID: ${process.pid}`,
@@ -121,60 +122,16 @@ client.once("ready", async (c) => {
         "🌈 Ready to spread colorful destruction!",
     ];
 
-    Logger.event(
+    await Logger.event(
         chaosMessages[Math.floor(Math.random() * chaosMessages.length)],
     );
 });
 
 // Handle Slash Commands
-client.on("interactionCreate", async (interaction) => {
-    if (!interaction.isChatInputCommand()) return;
-
-    // Skip blacklist check for owner
-    if (interaction.user.id !== process.env.OWNER_ID) {
-        const blacklistManager = BlacklistManager.getInstance();
-        if (blacklistManager.isBlacklisted(interaction.user.id)) {
-            const blacklistInfo = blacklistManager.getBlacklistInfo(
-                interaction.user.id,
-            );
-            await interaction.reply({
-                embeds: [
-                    new EmbedBuilder()
-                        .setColor("#ff3838")
-                        .setTitle("Access Denied")
-                        .setDescription(
-                            "You are blacklisted from using this bot.",
-                        )
-                        .addFields(
-                            {
-                                name: "Username",
-                                value: blacklistInfo?.username || "Unknown",
-                                inline: true,
-                            },
-                            {
-                                name: "Reason",
-                                value:
-                                    blacklistInfo?.reason ||
-                                    "No reason provided",
-                                inline: true,
-                            },
-                            {
-                                name: "Blacklisted Since",
-                                value: `<t:${Math.floor(blacklistInfo!.timestamp)}:R>`,
-                                inline: true,
-                            },
-                        )
-                        .setFooter({
-                            text: "Contact the bot owner if you think this is a mistake",
-                        }),
-                ],
-                flags: MessageFlags.Ephemeral,
-            });
-            return;
-        }
+client.on("interactionCreate", async (interaction: Interaction) => {
+    if (interaction.isChatInputCommand()) {
+        await client.commandHandler.handleCommand(interaction);
     }
-
-    await client.commandHandler.handleCommand(interaction);
 });
 
 // Handle Prefix Commands

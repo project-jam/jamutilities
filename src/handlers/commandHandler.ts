@@ -7,11 +7,13 @@ import {
     Message,
     EmbedBuilder,
     MessageFlags,
+    Interaction,
 } from "discord.js";
 import { readdirSync } from "fs";
 import { join } from "path";
 import { Logger } from "../utils/logger";
 import type { Command } from "../types/Command";
+import { handlePasswordInteraction } from "./passwordHandler";
 
 export class CommandHandler {
     private commands: Collection<string, Command> = new Collection();
