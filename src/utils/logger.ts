@@ -1,7 +1,8 @@
 // src/utils/logger.ts
+import fs from "fs";
+import path from "path";
 import chalk from "chalk";
 import moment from "moment";
-import gradient from "gradient-string";
 import { WebhookLogger } from "../handlers/webhookLogger";
 
 enum LogLevel {
@@ -19,7 +20,6 @@ const BOX = {
     top: "╔════════════════════════════════════════════════════╗",
     bottom: "╚════════════════════════════════════════════════════╝",
     side: "║",
-    separator: "╠════════════════════════════════════════════════════╣",
 };
 
 export class Logger {
@@ -36,190 +36,129 @@ export class Logger {
 
     private static level: LogLevel = LogLevel.INFO;
     private static webhookLogger: WebhookLogger | null = null;
+    private static logFile = path.resolve(process.cwd(), "logs", "app.log");
 
     static setWebhook(webhookUrl: string) {
         Logger.webhookLogger = new WebhookLogger(webhookUrl);
-    }
-
-    private static async sendToWebhook(
-        level: string,
-        message: string,
-        error?: any,
-    ) {
-        if (Logger.webhookLogger) {
-            const formattedMessage = Logger.formatMessage(
-                level,
-                message,
-                error,
-            );
-            await Logger.webhookLogger.sendLog(formattedMessage, level);
-        }
-    }
-
-    private static formatMessage(
-        level: string,
-        message: string,
-        error?: any,
-    ): string {
-        const timestamp = moment().format("YYYY-MM-DD HH:mm:ss");
-        let output = `${BOX.side} [${timestamp}] `;
-
-        switch (level) {
-            case LogLevel.DEBUG:
-                output += chalk.gray(`[${level}] ${message}`);
-                break;
-            case LogLevel.INFO:
-                output += chalk.blue(`[${level}] ${message}`);
-                break;
-            case LogLevel.WARN:
-                output += chalk.yellow(`[${level}] ${message}`);
-                break;
-            case LogLevel.ERROR:
-                output += chalk.red(`[${level}] ${message}`);
-                break;
-            case LogLevel.FATAL:
-                output += chalk.bgRed.white(`[${level}] ${message}`);
-                break;
-            case LogLevel.COMMAND:
-                output += chalk.magenta(`[${level}] 🎮 ${message}`);
-                break;
-            case LogLevel.EVENT:
-                output += chalk.cyan(`[${level}] ${message}`);
-                break;
-            case LogLevel.READY:
-                output += chalk.green(`[${level}] ${message}`);
-                break;
-        }
-
-        output = output.padEnd(BOX.top.length - 2) + BOX.side;
-
-        if (error) {
-            const errorMessage =
-                `${BOX.side} ${chalk.red(error.stack || error.message)}`.padEnd(
-                    BOX.top.length - 2,
-                ) + BOX.side;
-            return `${BOX.top}\n${output}\n${BOX.separator}\n${errorMessage}\n${BOX.bottom}`;
-        }
-
-        return `${BOX.top}\n${output}\n${BOX.bottom}`;
     }
 
     static setLevel(level: LogLevel) {
         Logger.level = level;
     }
 
-    static async debug(message: string) {
-        if (
-            Logger.logLevels[Logger.level] <= Logger.logLevels[LogLevel.DEBUG]
-        ) {
-            console.log(Logger.formatMessage(LogLevel.DEBUG, message));
-            await Logger.sendToWebhook(LogLevel.DEBUG, message);
+    private static writeToFile(message: string) {
+        try {
+            fs.mkdirSync(path.dirname(Logger.logFile), { recursive: true });
+            fs.appendFileSync(Logger.logFile, message + "\n");
+        } catch (err) {
+            console.error("Failed to write log to file:", err);
         }
     }
 
-    static async info(message: string) {
-        if (Logger.logLevels[Logger.level] <= Logger.logLevels[LogLevel.INFO]) {
-            console.log(Logger.formatMessage(LogLevel.INFO, message));
-            await Logger.sendToWebhook(LogLevel.INFO, message);
+    private static async sendToWebhook(
+        level: LogLevel,
+        message: string,
+        error?: any,
+    ) {
+        if (!Logger.webhookLogger) return;
+        const embedLevels = new Set<LogLevel>([
+            LogLevel.READY,
+            LogLevel.FATAL,
+            LogLevel.ERROR,
+            LogLevel.WARN,
+            LogLevel.EVENT,
+            LogLevel.INFO,
+            LogLevel.COMMAND,
+        ]);
+        if (embedLevels.has(level)) {
+            const payload = error
+                ? `${message}\n\nError: ${error.stack || error.message}`
+                : message;
+            await Logger.webhookLogger.sendLog(payload, level);
         }
     }
 
-    static async warn(message: string) {
-        if (Logger.logLevels[Logger.level] <= Logger.logLevels[LogLevel.WARN]) {
-            console.log(Logger.formatMessage(LogLevel.WARN, message));
-            await Logger.sendToWebhook(LogLevel.WARN, message);
+    private static formatMessage(
+        level: LogLevel,
+        message: string,
+        error?: any,
+    ): string {
+        const timestamp = moment().format("YYYY-MM-DD HH:mm:ss");
+        let content = `[${timestamp}] [${level}] ${message}`;
+        if (error) {
+            content += `\nError: ${error.stack || error.message}`;
         }
-    }
 
-    static async error(message: string, error?: any) {
-        if (
-            Logger.logLevels[Logger.level] <= Logger.logLevels[LogLevel.ERROR]
-        ) {
-            console.error(Logger.formatMessage(LogLevel.ERROR, message, error));
-            await Logger.sendToWebhook(LogLevel.ERROR, message, error);
-        }
-    }
-
-    static async fatal(message: string, error?: any) {
-        if (
-            Logger.logLevels[Logger.level] <= Logger.logLevels[LogLevel.FATAL]
-        ) {
-            console.error(Logger.formatMessage(LogLevel.FATAL, message, error));
-            await Logger.sendToWebhook(LogLevel.FATAL, message, error);
-            process.exit(1);
-        }
-    }
-
-    static async command(message: string) {
-        if (
-            Logger.logLevels[Logger.level] <= Logger.logLevels[LogLevel.COMMAND]
-        ) {
-            console.log(Logger.formatMessage(LogLevel.COMMAND, message));
-            await Logger.sendToWebhook(LogLevel.COMMAND, message);
-        }
-    }
-
-    static async event(message: string) {
-        if (
-            Logger.logLevels[Logger.level] <= Logger.logLevels[LogLevel.EVENT]
-        ) {
-            console.log(Logger.formatMessage(LogLevel.EVENT, message));
-            await Logger.sendToWebhook(LogLevel.EVENT, message);
-        }
-    }
-
-    static async success(message: string) {
-        if (Logger.logLevels[Logger.level] <= Logger.logLevels[LogLevel.INFO]) {
-            console.log(Logger.formatMessage(LogLevel.READY, `✨ ${message}`));
-            await Logger.sendToWebhook(LogLevel.READY, `✨ ${message}`);
-        }
-    }
-
-    static async ready(title: string, messages: string[]) {
-        if (
-            Logger.logLevels[Logger.level] <= Logger.logLevels[LogLevel.READY]
-        ) {
-            const paddedLength = BOX.top.length - 2;
-            const centeredTitle = title
-                .padStart((paddedLength + title.length) / 2)
-                .padEnd(paddedLength);
-
-            console.log(gradient.pastel(BOX.top));
-            console.log(
-                gradient.passion(`${BOX.side} ${centeredTitle} ${BOX.side}`),
+        // Terminal decoration
+        const lines = content
+            .split("\n")
+            .map(
+                (line) =>
+                    `${BOX.side} ${line.padEnd(BOX.top.length - 4)} ${BOX.side}`,
             );
-            console.log(gradient.pastel(BOX.separator));
-
-            messages.forEach((msg) => {
-                const paddedMsg = msg.padEnd(paddedLength);
-                console.log(
-                    gradient.passion(`${BOX.side} ${paddedMsg} ${BOX.side}`),
-                );
-            });
-
-            console.log(gradient.pastel(BOX.bottom));
-
-            await Logger.sendToWebhook(
-                LogLevel.READY,
-                title,
-                messages.join("\n"),
-            );
-        }
+        return [BOX.top, ...lines, BOX.bottom].join("\n");
     }
 
-    static async startupBanner(botName: string, version: string) {
-        const banner = [
-            `${botName} v${version}`,
-            "Created by Project Jam",
-            "Now with 100% more chaos!",
-            "════════════════════════",
-            "Cmon! Hit me with your best shot!",
-        ];
+    private static stripAnsi(input: string): string {
+        return input.replace(/\u001b\[[0-9;]*m/g, "");
+    }
 
-        await Logger.ready("STARTUP", banner);
+    private static async log(level: LogLevel, message: string, error?: any) {
+        if (Logger.logLevels[Logger.level] > Logger.logLevels[level]) return;
+
+        const decorated = Logger.formatMessage(level, message, error);
+        if (level === LogLevel.ERROR || level === LogLevel.FATAL)
+            console.error(decorated);
+        else console.log(decorated);
+
+        Logger.writeToFile(Logger.stripAnsi(decorated));
+        await Logger.sendToWebhook(level, message, error);
+    }
+
+    static debug(message: string) {
+        return Logger.log(LogLevel.DEBUG, message);
+    }
+
+    static info(message: string) {
+        return Logger.log(LogLevel.INFO, message);
+    }
+
+    static warn(message: string) {
+        return Logger.log(LogLevel.WARN, message);
+    }
+
+    static error(message: string, error?: any) {
+        return Logger.log(LogLevel.ERROR, message, error);
+    }
+
+    static fatal(message: string, error?: any) {
+        return Logger.log(LogLevel.FATAL, message, error).then(() =>
+            process.exit(1),
+        );
+    }
+
+    static command(message: string) {
+        return Logger.log(LogLevel.COMMAND, message);
+    }
+
+    static event(message: string) {
+        return Logger.log(LogLevel.EVENT, message);
+    }
+
+    static success(message: string) {
+        return Logger.log(LogLevel.READY, `✨ ${message}`);
+    }
+
+    static startupBanner(botName: string, version: string) {
+        const msg = `✨ ${botName} v${version} ready to go!`;
+        return Logger.log(LogLevel.READY, msg);
+    }
+
+    static ready(title: string, messages: string[]) {
+        const combined = `${title}\n${messages.join("\n")}`;
+        return Logger.log(LogLevel.READY, combined);
     }
 }
 
 Logger.setLevel(LogLevel.DEBUG);
-
 export { LogLevel };

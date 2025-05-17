@@ -5,6 +5,11 @@ import {
     EmbedBuilder,
     Collection,
     ApplicationCommandOptionType,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    ButtonInteraction,
+    ComponentType,
 } from "discord.js";
 import type { Command } from "../../types/Command";
 import { readdirSync } from "fs";
@@ -83,7 +88,7 @@ export const command: Command = {
         const prefix = process.env.PREFIX || "jam!";
 
         if (isPrefix) {
-            const args = (interaction as Message).content.trim().split(" ");
+            const args = (interaction as Message).content.trim().split(/\s+/);
             const query = args[1]?.toLowerCase();
 
             if (query) {
@@ -124,7 +129,7 @@ export const command: Command = {
             }
         }
 
-        // Specific command help
+        // Detailed command help
         if (commandName) {
             const cmd = commands.get(commandName);
             if (!cmd) {
@@ -134,9 +139,7 @@ export const command: Command = {
                 } else {
                     await (
                         interaction as ChatInputCommandInteraction
-                    ).editReply({
-                        content: response,
-                    });
+                    ).editReply({ content: response });
                 }
                 return;
             }
@@ -160,13 +163,13 @@ export const command: Command = {
                     },
                 );
 
-            // Add slash command usage
+            // Add slash usage
             embed.addFields({
                 name: "Slash Command Usage",
                 value: `\`/${cmd.data.name}\``,
             });
 
-            // Add prefix command usage if available
+            // Add prefix usage
             if (cmd.prefix) {
                 const aliases = cmd.prefix.aliases
                     .map((alias) => `${prefix}${alias}`)
@@ -177,36 +180,39 @@ export const command: Command = {
                 });
             }
 
-            // Add subcommands if they exist
+            // Add subcommands
             const subcommands = cmd.data.options?.filter(
                 (opt) => opt.type === ApplicationCommandOptionType.Subcommand,
             );
             if (subcommands?.length) {
-                const subcommandList = subcommands
-                    .map(
-                        (sub) =>
-                            `• \`/${cmd.data.name} ${sub.name}\` - ${sub.description}`,
-                    )
-                    .join("\n");
-                embed.addFields({ name: "Subcommands", value: subcommandList });
+                embed.addFields({
+                    name: "Subcommands",
+                    value: subcommands
+                        .map(
+                            (sub) =>
+                                `• \`/${cmd.data.name} ${sub.name}\` - ${sub.description}`,
+                        )
+                        .join("\n"),
+                });
             }
 
-            // Add regular options if they exist
+            // Add options
             const options = cmd.data.options?.filter(
                 (opt) => opt.type !== ApplicationCommandOptionType.Subcommand,
             );
             if (options?.length) {
-                const optionsField = options
-                    .map((opt) => {
-                        const required = opt.required
-                            ? "*(required)*"
-                            : "*(optional)*";
-                        const type = getOptionTypeName(opt.type);
-                        return `• \`${opt.name}\`: ${opt.description} ${required}\n  Type: ${type}`;
-                    })
-                    .join("\n");
-
-                embed.addFields({ name: "Options", value: optionsField });
+                embed.addFields({
+                    name: "Options",
+                    value: options
+                        .map((opt) => {
+                            const required = opt.required
+                                ? "*(required)*"
+                                : "*(optional)*";
+                            const type = getOptionTypeName(opt.type);
+                            return `• \`${opt.name}\`: ${opt.description} ${required}\n  Type: ${type}`;
+                        })
+                        .join("\n"),
+                });
             }
 
             if (isPrefix) {
@@ -219,62 +225,117 @@ export const command: Command = {
             return;
         }
 
-        // Category specific help
+        // Category help with pagination
         if (category) {
-            const categoryCommands = commands.filter(
+            const filtered = commands.filter(
                 (cmd) =>
                     getCategoryForCommand(
                         cmd,
                         categoryFolders,
                     ).toLowerCase() === category.toLowerCase(),
             );
+            const list = Array.from(filtered.values());
+            const pageSize = 5;
+            let page = 0;
+            const totalPages = Math.ceil(list.length / pageSize);
 
-            const embed = new EmbedBuilder()
-                .setColor("#2b2d31")
-                .setTitle(
-                    `${categories[category].emoji} ${capitalize(category)} Commands`,
-                )
-                .setDescription(categories[category].description);
+            const makeEmbed = (): EmbedBuilder => {
+                const embed = new EmbedBuilder()
+                    .setColor("#2b2d31")
+                    .setTitle(
+                        `${categories[category].emoji} ${capitalize(category)} Commands (Page ${
+                            page + 1
+                        }/${totalPages})`,
+                    )
+                    .setDescription(categories[category].description);
 
-            categoryCommands.forEach((cmd) => {
-                let fieldValue = cmd.data.description;
+                list.slice(page * pageSize, page * pageSize + pageSize).forEach(
+                    (cmd) => {
+                        let fieldValue = cmd.data.description;
+                        if (cmd.prefix) {
+                            fieldValue +=
+                                "\n**Prefix:** " +
+                                cmd.prefix.aliases.join(", ");
+                        }
+                        if (cmd.data.options?.length) {
+                            fieldValue +=
+                                "\n**Options:** " +
+                                cmd.data.options
+                                    .map((o) => `\`${o.name}\``)
+                                    .join(", ");
+                        }
+                        embed.addFields({
+                            name: `/${cmd.data.name}`,
+                            value: fieldValue,
+                        });
+                    },
+                );
 
-                // Add prefix aliases if available
-                if (cmd.prefix) {
-                    const aliases = cmd.prefix.aliases
-                        .map((alias) => `${prefix}${alias}`)
-                        .join(", ");
-                    fieldValue += `\n**Prefix:** ${aliases}`;
-                }
+                return embed;
+            };
 
-                // Add options if available
-                if (cmd.data.options?.length) {
-                    fieldValue += `\n**Options:** ${cmd.data.options.map((opt) => `\`${opt.name}\``).join(", ")}`;
-                }
+            const makeRow = () =>
+                new ActionRowBuilder<ButtonBuilder>().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId("prev")
+                        .setLabel("⬅️ Previous")
+                        .setStyle(ButtonStyle.Primary)
+                        .setDisabled(page === 0),
+                    new ButtonBuilder()
+                        .setCustomId("next")
+                        .setLabel("Next ➡️")
+                        .setStyle(ButtonStyle.Primary)
+                        .setDisabled(page === totalPages - 1),
+                );
 
-                embed.addFields({
-                    name: `/${cmd.data.name}`,
-                    value: fieldValue,
+            // Send initial paginated embed
+            const replyMsg = isPrefix
+                ? await (interaction as Message).reply({
+                      embeds: [makeEmbed()],
+                      components: [makeRow()],
+                      fetchReply: true,
+                  })
+                : await (interaction as ChatInputCommandInteraction).editReply({
+                      embeds: [makeEmbed()],
+                      components: [makeRow()],
+                      fetchReply: true,
+                  });
+
+            const userId = isPrefix
+                ? (interaction as Message).author.id
+                : (interaction as ChatInputCommandInteraction).user.id;
+            const collector = replyMsg.createMessageComponentCollector({
+                filter: (btn: ButtonInteraction) => btn.user.id === userId,
+                componentType: ComponentType.Button,
+                time: 120_000,
+            });
+
+            collector.on("collect", async (btn) => {
+                if (btn.customId === "prev" && page > 0) page--;
+                if (btn.customId === "next" && page < totalPages - 1) page++;
+                await btn.update({
+                    embeds: [makeEmbed()],
+                    components: [makeRow()],
                 });
             });
 
-            if (isPrefix) {
-                await (interaction as Message).reply({ embeds: [embed] });
-            } else {
-                await (interaction as ChatInputCommandInteraction).editReply({
-                    embeds: [embed],
-                });
-            }
+            collector.on("end", () => {
+                const disabledRow =
+                    new ActionRowBuilder<ButtonBuilder>().addComponents(
+                        ...makeRow().components.map((b) => b.setDisabled(true)),
+                    );
+                replyMsg.edit({ components: [disabledRow] }).catch(() => null);
+            });
             return;
         }
 
-        // General help - show all categories
-        const embed = new EmbedBuilder()
+        // General help - list categories
+        const generalEmbed = new EmbedBuilder()
             .setColor("#2b2d31")
             .setTitle("📚 Command Categories")
             .setDescription(
-                `Use \`${prefix}help <category>\` or \`/help category:<category>\` for specific commands\n` +
-                    `Use \`${prefix}help <command>\` or \`/help command:<command>\` for detailed command info`,
+                `Use \`${prefix}help <category>\` or \`/help category:<category>\` for specific commands` +
+                    `\nUse \`${prefix}help <command>\` or \`/help command:<command>\` for detailed command info`,
             )
             .addFields(
                 Object.entries(categories).map(
@@ -298,10 +359,10 @@ export const command: Command = {
             });
 
         if (isPrefix) {
-            await (interaction as Message).reply({ embeds: [embed] });
+            await (interaction as Message).reply({ embeds: [generalEmbed] });
         } else {
             await (interaction as ChatInputCommandInteraction).editReply({
-                embeds: [embed],
+                embeds: [generalEmbed],
             });
         }
     },

@@ -13,7 +13,6 @@ import { readdirSync } from "fs";
 import { join } from "path";
 import { Logger } from "../utils/logger";
 import type { Command } from "../types/Command";
-import { handlePasswordInteraction } from "./passwordHandler";
 
 export class CommandHandler {
     private commands: Collection<string, Command> = new Collection();
@@ -104,10 +103,7 @@ export class CommandHandler {
                     const isDisabled = Array.from(this.disabledCommands).some(
                         (disabled) => disabled.startsWith(cmd.toLowerCase()),
                     );
-                    if (isDisabled) {
-                        return `${cmd} (disabled)`;
-                    }
-                    return cmd;
+                    return isDisabled ? `${cmd} (disabled)` : cmd;
                 })
                 .join(", ");
 
@@ -119,22 +115,45 @@ export class CommandHandler {
         );
     }
 
-    async registerCommands() {
+    async forceReregisterCommands() {
         try {
             const rest = new REST().setToken(process.env.DISCORD_TOKEN!);
+
+            // First, clear all existing global commands
+            Logger.info("Clearing all existing commands...");
+            await rest.put(Routes.applicationCommands(process.env.CLIENT_ID!), {
+                body: [],
+            });
+
+            // Then register your commands again
             const commandsData = Array.from(this.commands.values()).map(
-                (command) => command.data.toJSON(),
+                (command) => {
+                    const commandData = command.data.toJSON();
+                    // Ensure dm_permission is explicitly set
+                    if (commandData.dm_permission === undefined) {
+                        commandData.dm_permission = false;
+                    }
+
+                    Logger.info(
+                        `Registering command: ${commandData.name}, DM Permission: ${commandData.dm_permission}`,
+                    );
+                    return commandData;
+                },
             );
 
-            Logger.info(`Started refreshing application (/) commands.`);
+            Logger.info(
+                `Re-registering ${commandsData.length} application commands...`,
+            );
 
             await rest.put(Routes.applicationCommands(process.env.CLIENT_ID!), {
                 body: commandsData,
             });
 
-            Logger.success("Successfully registered application commands.");
+            Logger.success(
+                "Successfully re-registered all application commands.",
+            );
         } catch (error) {
-            Logger.error("Error registering commands:", error);
+            Logger.error("Error force re-registering commands:", error);
             throw error;
         }
     }
@@ -144,6 +163,24 @@ export class CommandHandler {
         if (!command) return;
 
         try {
+            // Get the command data to check permissions
+            const commandData = command.data.toJSON();
+
+            // If we're in a DM and the command doesn't allow DMs, block it
+            if (!interaction.guild && commandData.dm_permission === false) {
+                await interaction.reply({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor("#ff3838")
+                            .setDescription(
+                                "This command cannot be used in DMs.",
+                            ),
+                    ],
+                    ephemeral: true,
+                });
+                return;
+            }
+
             const commandName = interaction.commandName;
             const subCommand = interaction.options.getSubcommand(false);
             const fullCommand = subCommand
