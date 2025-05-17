@@ -1,7 +1,4 @@
 // src/utils/logger.ts
-import fs from "fs";
-import path from "path";
-import chalk from "chalk";
 import moment from "moment";
 import { WebhookLogger } from "../handlers/webhookLogger";
 
@@ -36,7 +33,6 @@ export class Logger {
 
     private static level: LogLevel = LogLevel.INFO;
     private static webhookLogger: WebhookLogger | null = null;
-    private static logFile = path.resolve(process.cwd(), "logs", "app.log");
 
     static setWebhook(webhookUrl: string) {
         Logger.webhookLogger = new WebhookLogger(webhookUrl);
@@ -44,15 +40,6 @@ export class Logger {
 
     static setLevel(level: LogLevel) {
         Logger.level = level;
-    }
-
-    private static writeToFile(message: string) {
-        try {
-            fs.mkdirSync(path.dirname(Logger.logFile), { recursive: true });
-            fs.appendFileSync(Logger.logFile, message + "\n");
-        } catch (err) {
-            console.error("Failed to write log to file:", err);
-        }
     }
 
     private static async sendToWebhook(
@@ -111,7 +98,6 @@ export class Logger {
             console.error(decorated);
         else console.log(decorated);
 
-        Logger.writeToFile(Logger.stripAnsi(decorated));
         await Logger.sendToWebhook(level, message, error);
     }
 
