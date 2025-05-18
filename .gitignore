@@ -179,6 +179,7 @@ package-lock.json
 yarn.lock
 bundle-lock.json
 bun.lockb
+bun.lock
 
 # Blacklists
 blacklist.env
