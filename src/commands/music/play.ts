@@ -14,7 +14,7 @@ export const command: Command = {
     data: new SlashCommandBuilder()
         .setName("play")
         .setDescription("Plays music in your voice channel")
-        .setDMPermission(true)
+        .setDMPermission(false)
         .addStringOption((option) =>
             option
                 .setName("query")
@@ -50,14 +50,13 @@ export const command: Command = {
                     return;
                 }
                 if (!message.member) {
-                     await message.reply(
+                    await message.reply(
                         "Could not identify you as a member of this server.",
                     );
                     return;
                 }
                 member = message.member;
                 textChannel = message.channel as TextChannel;
-
 
                 const args = message.content.trim().split(/ +/).slice(1);
                 if (!args.length) {
@@ -96,7 +95,9 @@ export const command: Command = {
                     embeds: [
                         new EmbedBuilder()
                             .setColor("#2b2d31")
-                            .setDescription(`▶️ Attempting to play \`${query}\`. Please wait...`),
+                            .setDescription(
+                                `▶️ Attempting to play \`${query}\`. Please wait...`,
+                            ),
                     ],
                 });
 
@@ -123,21 +124,28 @@ export const command: Command = {
                 // Handle slash command
                 const slashInteraction =
                     interaction as ChatInputCommandInteraction;
-                
+
                 if (!slashInteraction.guild) {
                     // deferReply might not have been called yet, so use reply or editReply based on state.
-                    const replyMethod = slashInteraction.deferred || slashInteraction.replied ? slashInteraction.editReply : slashInteraction.reply;
+                    const replyMethod =
+                        slashInteraction.deferred || slashInteraction.replied
+                            ? slashInteraction.editReply
+                            : slashInteraction.reply;
                     await replyMethod.call(slashInteraction, {
                         content: "This command can only be used in a server!",
-                        ephemeral: true // Good for errors before deferral
+                        ephemeral: true, // Good for errors before deferral
                     });
                     return;
                 }
-                 if (!slashInteraction.channel) {
-                    const replyMethod = slashInteraction.deferred || slashInteraction.replied ? slashInteraction.editReply : slashInteraction.reply;
-                     await replyMethod.call(slashInteraction, {
-                        content: "Could not determine the channel for this command.",
-                        ephemeral: true
+                if (!slashInteraction.channel) {
+                    const replyMethod =
+                        slashInteraction.deferred || slashInteraction.replied
+                            ? slashInteraction.editReply
+                            : slashInteraction.reply;
+                    await replyMethod.call(slashInteraction, {
+                        content:
+                            "Could not determine the channel for this command.",
+                        ephemeral: true,
                     });
                     return;
                 }
@@ -172,7 +180,9 @@ export const command: Command = {
                     embeds: [
                         new EmbedBuilder()
                             .setColor("#2b2d31")
-                            .setDescription(`▶️ Attempting to play \`${query}\`. Please wait...`),
+                            .setDescription(
+                                `▶️ Attempting to play \`${query}\`. Please wait...`,
+                            ),
                     ],
                 });
 
@@ -187,17 +197,20 @@ export const command: Command = {
                 } catch (error: any) {
                     Logger.error("Error calling distube.play (slash):", error);
                     // Ensure we edit the reply, as it's already deferred.
-                    if (!slashInteraction.replied && !slashInteraction.deferred) {
+                    if (
+                        !slashInteraction.replied &&
+                        !slashInteraction.deferred
+                    ) {
                         // This case should ideally not happen if deferReply was successful
                         await slashInteraction.reply({
-                             embeds: [
+                            embeds: [
                                 new EmbedBuilder()
                                     .setColor("#ff3838")
                                     .setDescription(
                                         `❌ Error playing \`${query}\`: ${error.message || "Unknown error"}. Check permissions or query.`,
                                     ),
                             ],
-                            ephemeral: true
+                            ephemeral: true,
                         });
                     } else {
                         await slashInteraction.editReply({
@@ -224,12 +237,16 @@ export const command: Command = {
             if (isPrefix) {
                 await (interaction as Message).reply({ embeds: [errorEmbed] });
             } else {
-                const slashInteraction = interaction as ChatInputCommandInteraction;
+                const slashInteraction =
+                    interaction as ChatInputCommandInteraction;
                 // Handle cases where interaction might already be replied to or deferred
                 if (slashInteraction.replied || slashInteraction.deferred) {
                     await slashInteraction.editReply({ embeds: [errorEmbed] });
                 } else {
-                    await slashInteraction.reply({ embeds: [errorEmbed], ephemeral: true });
+                    await slashInteraction.reply({
+                        embeds: [errorEmbed],
+                        ephemeral: true,
+                    });
                 }
             }
         }
