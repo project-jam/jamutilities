@@ -15,16 +15,39 @@ import { searchDuckDuckGo, SearchResult } from "../../utils/searchInternet";
 
 const detector = new ProfaneDetect();
 
-// Decode URL-encoded strings
-function decodeUrl(path: string): string {
-    return decodeURIComponent(path);
+// Decode both URL-encoded strings and HTML entities
+function decodeText(text: string): string {
+    // First decode URL encoding
+    text = decodeURIComponent(text);
+
+    // Then decode HTML entities
+    return text
+        .replace(/&amp;/g, "&")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&rsquo;/g, "'")
+        .replace(/&lsquo;/g, "'")
+        .replace(/&rdquo;/g, "\"")
+        .replace(/&ldquo;/g, "\"")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&ndash;/g, "–")
+        .replace(/&mdash;/g, "—")
+        .replace(/&trade;/g, "™")
+        .replace(/&copy;/g, "©")
+        .replace(/&reg;/g, "®")
+        .replace(/&#x([0-9a-f]+);/gi, (_match: string, hex: string) => String.fromCharCode(parseInt(hex, 16)))
+        .replace(/&#(\d+);/g, (_match: string, dec: string) => String.fromCharCode(parseInt(dec, 10)));
 }
 
 export const command: Command = {
     data: new SlashCommandBuilder()
         .setName("websearch")
         .setDMPermission(true)
-        .setDescription("🔍 Search the internet (via DuckDuckGo HTML)")
+        .setDescription(
+            "🔍 Search the internet (via DuckDuckGo, fuck you Google! fuck you Bing!)",
+        )
         .addStringOption((opt) =>
             opt
                 .setName("query")
@@ -114,11 +137,12 @@ export const command: Command = {
         // 5) Build embed for current page
         const makeEmbed = (): EmbedBuilder => {
             const { title: rawTitle, url, description } = allResults[page];
-            const title = decodeUrl(rawTitle);
-            const link = decodeUrl(url);
+            const title = decodeText(rawTitle);
+            const link = decodeText(url);
+            const decodedDescription = decodeText(description);
             return new EmbedBuilder()
                 .setDescription(
-                    `🔗 [${title}](${link}) (Page ${page + 1}/${totalPages})\n\n${description}`,
+                    `🔗 [${title}](${link}) (Page ${page + 1}/${totalPages})\n\n${decodedDescription}`,
                 )
                 .setTimestamp();
         };
