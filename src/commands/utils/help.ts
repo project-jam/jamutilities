@@ -110,9 +110,7 @@ export const command: Command = {
         // Load commands from files
         const commands = new Collection<string, Command>();
         const commandsPath = join(__dirname, "..", "..");
-        const categoryFolders = readdirSync(
-            join(commandsPath, "commands"),
-        ).filter((folder) => folder !== "owner");
+        const categoryFolders = readdirSync(join(commandsPath, "commands"));
 
         for (const folder of categoryFolders) {
             const commandFiles = readdirSync(
@@ -129,17 +127,46 @@ export const command: Command = {
             }
         }
 
+        // Check if the user is the owner or part of the team
+        const userId = isPrefix
+            ? (interaction as Message).author.id
+            : (interaction as ChatInputCommandInteraction).user.id;
+
+        const isOwner = userId === process.env.OWNER_ID;
+        const isTeamMember = (process.env.TEAM_ID || "")
+            .split(",")
+            .includes(userId);
+
+        // Restrict access to owner commands
+        if (category === "owner" && !isOwner && !isTeamMember) {
+            const response = new EmbedBuilder()
+                .setColor("#ff3838")
+                .setDescription("❌ Category `owner` not found.");
+            if (isPrefix) {
+                await (interaction as Message).reply({ embeds: [response] });
+            } else {
+                await (interaction as ChatInputCommandInteraction).editReply({
+                    embeds: [response],
+                });
+            }
+            return;
+        }
+
         // Detailed command help
         if (commandName) {
             const cmd = commands.get(commandName);
             if (!cmd) {
-                const response = `❌ Command \`${commandName}\` not found.`;
+                const response = new EmbedBuilder()
+                    .setColor("#ff3838")
+                    .setDescription(`❌ Command \`${commandName}\` not found.`);
                 if (isPrefix) {
-                    await (interaction as Message).reply({ content: response });
+                    await (interaction as Message).reply({
+                        embeds: [response],
+                    });
                 } else {
                     await (
                         interaction as ChatInputCommandInteraction
-                    ).editReply({ content: response });
+                    ).editReply({ embeds: [response] });
                 }
                 return;
             }
@@ -301,9 +328,6 @@ export const command: Command = {
                       fetchReply: true,
                   });
 
-            const userId = isPrefix
-                ? (interaction as Message).author.id
-                : (interaction as ChatInputCommandInteraction).user.id;
             const collector = replyMsg.createMessageComponentCollector({
                 filter: (btn: ButtonInteraction) => btn.user.id === userId,
                 componentType: ComponentType.Button,

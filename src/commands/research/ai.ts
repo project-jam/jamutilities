@@ -9,8 +9,6 @@ import type { Command } from "../../types/Command";
 import * as dotenv from "dotenv";
 import fs from "fs/promises";
 import path from "path";
-import { ProfaneDetect } from "@projectjam/profane-detect";
-import { searchDuckDuckGo } from "../../utils/searchInternet";
 import { Logger } from "../../utils/logger";
 
 dotenv.config();
@@ -22,11 +20,6 @@ if (!CHUTES_API_TOKEN)
 
 const DATA_DIR = path.resolve(__dirname, "../../data");
 const CONV_FILE = path.join(DATA_DIR, "conversations.json");
-
-const detector = new ProfaneDetect({
-    enablereversedetection: true,
-    usefastlookup: true,
-});
 
 const userConversations = new Map<
     string,
@@ -68,39 +61,10 @@ async function saveConversations() {
     }
 }
 
-function handleProfanity(text: string): {
-    clean: boolean;
-    filteredText?: string;
-} {
-    try {
-        const profanityResult = detector.detect(text);
-        if (profanityResult.found) {
-            let filteredText = text;
-            for (const match of profanityResult.matches) {
-                if (typeof match === "string" && match.length > 0) {
-                    const regex = new RegExp(
-                        match.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-                        "gi",
-                    );
-                    filteredText = filteredText.replace(
-                        regex,
-                        "*".repeat(match.length),
-                    );
-                }
-            }
-            return { clean: false, filteredText };
-        }
-    } catch (error) {
-        Logger.error("Error in profanity detection:", error);
-        return { clean: true };
-    }
-    return { clean: true };
-}
-
 const SYSTEM_MESSAGE_TEMPLATE = {
     role: "system",
     content:
-        `you are rinai, a helpful assistant with a caring, big-sister vibe and a touch of clumsiness. use discord markdown, gen alpha acronyms, and big sis emojis (hearts, sparkles). always ensure your response does not exceed 2000 characters; if you cannot, apologize and ask the user to narrow the question.
+        `you are rinai, a helpful assistant with a caring, big-sister vibe and a touch of clumsiness, means that u have the right vibes as a japanese girl so yeah, and u're a girl btw. use discord markdown, gen alpha acronyms, and big sis emojis (hearts, sparkles). always ensure your response does not exceed 2000 characters; if you cannot, apologize and ask the user to narrow the question.
 
 **list of gen alpha slangs:**
 aura, ate (and left no crumbs ahahahaha), bet, bussin', cap, cheugy, clapback, cringe, drip, fam, flex, for the plot, gaslight, goat, hits different, iykyk, lit, main character energy, mid, no cap, period/periodt, pink flag, pop‑off, rent‑free, rizz, simp, sksksk, slaps, slay, snatched, stan, sus, sussy baka, tea, vibe, woke, yolo 💖✨
@@ -118,6 +82,8 @@ SO if someone told u to reverse a text, check the text & reverse THEN check the 
 DO NOT use profanity or inappropriate language, as all responses are checked for harmful content. if user messages contain profanity, acknowledge it's not appropriate but respond helpfully without repeating the harmful words.
 
 note: keep everything lowercase, STRICTLY LOWERCASE!!!!
+
+note 2: u can ping a user using <@user_id> if the userid is mentioned in the message, don't mix THE username aka {USER_USERNAME} WITH THE <@user_id>
 
 IMPORTANT: you are talking to "{USER_USERNAME}". be natural about it.`.trim(),
 };
@@ -140,26 +106,6 @@ async function handleAI(
     const { userId, channelId, nickname, username } = userInfo;
     const conversationKey = `${channelId}:${userId}`;
 
-    //— FILTER USER INPUT
-    const userCheck = handleProfanity(rawPrompt);
-    if (!userCheck.clean) {
-        const filtered = userCheck.filteredText || "filtered content";
-        const embed = new EmbedBuilder()
-            .setColor("#ff3838")
-            .setTitle("⚠️ Content warning")
-            .setDescription(
-                `i've filtered the following from your message:\n\n` +
-                    `\`\`\`\n${filtered}\n\`\`\`` +
-                    `\nplease revise and try again.`,
-            )
-            .setTimestamp();
-        return isPrefix
-            ? (messageOrInteraction as Message).reply({ embeds: [embed] })
-            : (messageOrInteraction as ChatInputCommandInteraction).editReply({
-                  embeds: [embed],
-              });
-    }
-
     //— BUILD MESSAGE HISTORY (same as before)—
     let history = userConversations.get(conversationKey) || [];
     const systemMsg = {
@@ -172,6 +118,22 @@ async function handleAI(
     else if (history[0].content !== systemMsg.content) {
         history = [systemMsg, ...history.filter((m) => m.role !== "system")];
     }
+
+    //— CHECK FOR PINGING EVERYONE —
+    if (rawPrompt.includes("@everyone") || rawPrompt.includes("@here")) {
+        const pingWarning = "it is not allowed to ping everyone!";
+        history.push({ role: "user", content: rawPrompt.trim() });
+        history.push({ role: "assistant", content: pingWarning });
+        userConversations.set(conversationKey, history);
+        await saveConversations();
+
+        return isPrefix
+            ? (messageOrInteraction as Message).reply(pingWarning)
+            : (messageOrInteraction as ChatInputCommandInteraction).editReply(
+                  pingWarning,
+              );
+    }
+
     history.push({ role: "user", content: rawPrompt.trim() });
     if (history.length > MAX_HISTORY + 1)
         history = [history[0], ...history.slice(-MAX_HISTORY)];
