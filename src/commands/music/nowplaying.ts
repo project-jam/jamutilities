@@ -12,8 +12,7 @@ import { DistubeHandler } from "../../handlers/distubeHandler";
 export const command: Command = {
     data: new SlashCommandBuilder()
         .setName("nowplaying")
-        .setDescription("Shows detailed information about the current song")
-        .setDMPermission(false),
+        .setDescription("Shows detailed information about the current song"),
 
     prefix: {
         aliases: ["nowplaying", "np", "current"],

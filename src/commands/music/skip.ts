@@ -15,7 +15,6 @@ export const command: Command = {
         .setDescription(
             "Skips the current song or skips to a specific position in queue",
         )
-        .setDMPermission(false)
         .addIntegerOption((option) =>
             option
                 .setName("position")

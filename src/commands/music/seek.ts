@@ -13,7 +13,6 @@ export const command: Command = {
     data: new SlashCommandBuilder()
         .setName("seek")
         .setDescription("Seeks to a specific position in the current song")
-        .setDMPermission(false)
         .addStringOption((option) =>
             option
                 .setName("timestamp")

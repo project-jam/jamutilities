@@ -14,7 +14,6 @@ export const command: Command = {
     data: new SlashCommandBuilder()
         .setName("loop")
         .setDescription("Toggle loop mode for the current song or queue")
-        .setDMPermission(false)
         .addStringOption((option) =>
             option
                 .setName("mode")

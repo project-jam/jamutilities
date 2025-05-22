@@ -13,8 +13,7 @@ import { DistubeHandler } from "../../handlers/distubeHandler";
 export const command: Command = {
     data: new SlashCommandBuilder()
         .setName("stop")
-        .setDescription("Stops playing music and clears the queue.")
-        .setDMPermission(false),
+        .setDescription("Stops playing music and clears the queue."),
     prefix: {
         aliases: ["stop", "end"],
         usage: "",

@@ -12,7 +12,6 @@ export const command: Command = {
     data: new SlashCommandBuilder()
         .setName("queue")
         .setDescription("Shows the current music queue")
-        .setDMPermission(false)
         .addIntegerOption((option) =>
             option
                 .setName("page")

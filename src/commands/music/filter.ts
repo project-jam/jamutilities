@@ -38,7 +38,6 @@ export const command: Command = {
     data: new SlashCommandBuilder()
         .setName("filter")
         .setDescription("Applies or clears audio filters for the music.")
-        .setDMPermission(false)
         .addStringOption((option) =>
             option
                 .setName("name")

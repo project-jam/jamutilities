@@ -13,8 +13,7 @@ import { DistubeHandler } from "../../handlers/distubeHandler";
 export const command: Command = {
     data: new SlashCommandBuilder()
         .setName("join")
-        .setDescription("Makes the bot join your voice channel")
-        .setDMPermission(false),
+        .setDescription("Makes the bot join your voice channel"),
 
     prefix: {
         aliases: ["join", "connect"],

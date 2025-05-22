@@ -14,7 +14,6 @@ export const command: Command = {
     data: new SlashCommandBuilder()
         .setName("play")
         .setDescription("Plays music in your voice channel")
-        .setDMPermission(false)
         .addStringOption((option) =>
             option
                 .setName("query")

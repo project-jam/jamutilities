@@ -13,7 +13,6 @@ export const command: Command = {
     data: new SlashCommandBuilder()
         .setName("remove")
         .setDescription("Removes a specific song from the queue")
-        .setDMPermission(false)
         .addIntegerOption((option) =>
             option
                 .setName("position")

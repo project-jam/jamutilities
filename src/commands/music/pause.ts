@@ -12,8 +12,7 @@ import { DistubeHandler } from "../../handlers/distubeHandler";
 export const command: Command = {
     data: new SlashCommandBuilder()
         .setName("pause")
-        .setDescription("Pauses the currently playing music")
-        .setDMPermission(false),
+        .setDescription("Pauses the currently playing music"),
     prefix: {
         aliases: ["pause", "ps"],
         usage: "",

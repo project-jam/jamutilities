@@ -45,7 +45,6 @@ export const command: Command = {
         .setDescription(
             "Searches for YouTube videos and lets you select one to play.",
         )
-        .setDMPermission(false)
         .addStringOption((option) =>
             option
                 .setName("query")

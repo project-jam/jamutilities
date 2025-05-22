@@ -12,8 +12,7 @@ import { DistubeHandler } from "../../handlers/distubeHandler";
 export const command: Command = {
     data: new SlashCommandBuilder()
         .setName("leave")
-        .setDescription("Makes the bot leave the voice channel")
-        .setDMPermission(false),
+        .setDescription("Makes the bot leave the voice channel"),
 
     prefix: {
         aliases: ["leave", "disconnect", "dc"],

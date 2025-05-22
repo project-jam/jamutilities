@@ -13,11 +13,12 @@ export const command: Command = {
     data: new SlashCommandBuilder()
         .setName("volume")
         .setDescription("Sets or shows the music volume.")
-        .setDMPermission(false)
         .addIntegerOption((option) =>
             option
                 .setName("level")
-                .setDescription("The volume level (0-200). Leave empty to see current volume.")
+                .setDescription(
+                    "The volume level (0-200). Leave empty to see current volume.",
+                )
                 .setRequired(false)
                 .setMinValue(0)
                 .setMaxValue(200),
@@ -56,7 +57,11 @@ export const command: Command = {
                 const args = message.content.trim().split(/ +/).slice(1);
                 if (args.length > 0) {
                     const parsedLevel = parseInt(args[0]);
-                    if (isNaN(parsedLevel) || parsedLevel < 0 || parsedLevel > 200) {
+                    if (
+                        isNaN(parsedLevel) ||
+                        parsedLevel < 0 ||
+                        parsedLevel > 200
+                    ) {
                         await replyFunction({
                             embeds: [
                                 new EmbedBuilder()
@@ -64,7 +69,10 @@ export const command: Command = {
                                     .setDescription(
                                         "❌ Invalid volume level! Please provide a number between 0 and 200.",
                                     )
-                                    .addFields({ name: "Usage", value: `${process.env.PREFIX || "jam!"}volume [0-200]` }),
+                                    .addFields({
+                                        name: "Usage",
+                                        value: `${process.env.PREFIX || "jam!"}volume [0-200]`,
+                                    }),
                             ],
                         });
                         return;
@@ -84,14 +92,17 @@ export const command: Command = {
                 }
                 member = slashInteraction.member as GuildMember;
                 volumeLevel = slashInteraction.options.getInteger("level");
-                
+
                 // Defer reply if a volume level is being set, otherwise reply directly for current volume
                 if (volumeLevel !== null) {
-                    deferReplyFunction = slashInteraction.deferReply.bind(slashInteraction);
+                    deferReplyFunction =
+                        slashInteraction.deferReply.bind(slashInteraction);
                     await deferReplyFunction();
-                    replyFunction = slashInteraction.editReply.bind(slashInteraction);
+                    replyFunction =
+                        slashInteraction.editReply.bind(slashInteraction);
                 } else {
-                    replyFunction = slashInteraction.reply.bind(slashInteraction);
+                    replyFunction =
+                        slashInteraction.reply.bind(slashInteraction);
                 }
             }
 
@@ -104,7 +115,7 @@ export const command: Command = {
                                 "❌ You need to be in a voice channel to use this command!",
                             ),
                     ],
-                    ephemeral: volumeLevel === null && !isPrefix // ephemeral if just checking volume with slash
+                    ephemeral: volumeLevel === null && !isPrefix, // ephemeral if just checking volume with slash
                 });
                 return;
             }
@@ -119,7 +130,7 @@ export const command: Command = {
                                 "❌ There is no music playing right now!",
                             ),
                     ],
-                     ephemeral: volumeLevel === null && !isPrefix
+                    ephemeral: volumeLevel === null && !isPrefix,
                 });
                 return;
             }
@@ -134,7 +145,7 @@ export const command: Command = {
                                 `🔊 Current volume is: **${queue.volume}%**`,
                             ),
                     ],
-                     ephemeral: !isPrefix // ephemeral if slash cmd checking volume
+                    ephemeral: !isPrefix, // ephemeral if slash cmd checking volume
                 });
             } else {
                 // Set new volume

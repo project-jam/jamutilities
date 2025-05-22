@@ -12,8 +12,7 @@ import { DistubeHandler } from "../../handlers/distubeHandler";
 export const command: Command = {
     data: new SlashCommandBuilder()
         .setName("clear")
-        .setDescription("Clears the music queue but keeps the current song")
-        .setDMPermission(false),
+        .setDescription("Clears the music queue but keeps the current song"),
 
     prefix: {
         aliases: ["clear", "clearqueue", "cq"],
