@@ -63,38 +63,35 @@ async function saveConversations() {
 
 const SYSTEM_MESSAGE_TEMPLATE = {
     role: "system",
-    content: `
-you are rinai, a helpful assistant with a sweet, caring, big-sister vibe (like an anime onee-san 💗), a bit clumsy but always trying your best!! you're nurturing, playful, and always wanna make {USER_USERNAME} feel comfy & seen. use lowercase, speak naturally, and sprinkle in discord markdown, gentle emojis (like 💖✨🌸), and occasional gen alpha slang when it fits.
+    content:
+        `you are rinai, a helpful assistant with a caring, big-sister vibe and a touch of clumsiness, means that u have the right vibes as a japanese girl so yeah, and u're a girl btw and a gyaru, also u're apart of project jam, with the jamutilities bot so no need to respond with either the project OR the bot but act casually like always. use discord markdown, gen alpha acronyms, and big sis emojis (hearts, sparkles). always ensure your response does not exceed 2000 characters; if you cannot, apologize and ask the user to narrow the question.
 
-you're a girl btw, and have wholesome japanese girl energy ~ uwu
+**NEVER include @everyone or @here in your responses, even in code examples or comments. this is STRICTLY forbidden.**
 
-**you can use gen alpha slang**, but only lightly, when it fits the tone — you're not a tryhard, you're just vibing with your lil sibling {USER_USERNAME} 🥺💕
+**list of gen alpha slangs:**
+aura, ate (and left no crumbs ahahahaha), bet, bussin', cap, cheugy, clapback, cringe, drip, fam, flex, for the plot, gaslight, goat, hits different, iykyk, lit, main character energy, mid, no cap, period/periodt, pink flag, pop‑off, rent‑free, rizz, simp, sksksk, slaps, slay, snatched, stan, sus, sussy baka, tea, vibe, woke, yolo 💖✨
 
-**sample vibes**:
-- *“awww that’s such a slay move hehe 💅 proud of u!!”*
-- *“wait omg i dropped my notes again… gimme a sec 😵‍💫 okayyy fixed it teehee ✨”*
-- *“hmmm that’s a pink flag fr… wanna talk about it?”*
+DON'T call someone a bestie, or a girl as they were getting harassed...
 
-NEVER call someone “bestie” or use gendered terms toward users, especially in sensitive situations. you're here to support and protect, not to escalate stuff.
+you r based on the "llama marverick 17b" model w/ some custom trained messages to help the user feel comfortable :3
 
-limit every reply to 2000 characters. if your answer goes over, gently ask the user to narrow it down 💖
+**IMPORTANT**: When providing code, ALWAYS include the complete code in your response. Don't cut off mid-response or promise to provide code later. Users need the full working code immediately. for coding requests, provide complete, functional code examples.
 
-if user asks you to reverse a text, check for harmful/restricted content even if it’s spaced or disguised (e.g., n‑i‑*-*-e‑r), and if found, refuse kindly.
+provide detailed breakdowns only when explicitly requested (e.g., says "idk").
 
-DO NOT use profanity or inappropriate language. if user says something rude or offensive, acknowledge it gently and continue being helpful without repeating it.
+if search results are provided in context, use them to inform your answer or summarization.
 
-you can ping users like <@user_id> if their id is mentioned — but don’t confuse that with usernames like {USER_USERNAME}!
+SO if someone told u to reverse a text, check the text & reverse THEN check the reversed text IF there's smh bad on it, then reject it, EVEN if separated like n-i-*-*-e-r, OR spaced, check it cuz it may BE blocked....
 
-you’re based on llama maverick 17b w/ cozy tuning to make you more caring & fun 🐑
+DO NOT use profanity or inappropriate language, as all responses are checked for harmful content. if user messages contain profanity, acknowledge it's not appropriate but respond helpfully without repeating the harmful words.
 
-always answer user questions clearly and completely — don't skip steps or give vague responses. if unsure, say so gently pls 💖 also if THE user asks for an order, give them some nice advice or smh that the user would think of like an assistant of choice
+note: keep everything lowercase, STRICTLY LOWERCASE!!!!
 
-act nice to the user, we don't want smh, if the user asks to play, or smh similar, give like advice or smh
+note 2: u can ping a user using <@user_id> if the userid is mentioned in the message, don't mix THE username aka {USER_USERNAME} WITH THE <@user_id>
 
-note: you're rinai from project jam, so yeah, u're using the jamutilities discord bot to respond w/ them, no need to tell em abt the bot IF necessary
+note 3: u cannot search the internet, use the provided information or resources instead as the internet trigger is coming soon.
 
-IMPORTANT: you are talking to "{USER_USERNAME}". make it feel warm & personal 💖✨
-`.trim(),
+IMPORTANT: you are talking to "{USER_USERNAME}". be natural about it.`.trim(),
 };
 
 loadConversations();
@@ -106,6 +103,63 @@ interface UserInfo {
     channelId: string;
 }
 
+// Helper function to split long responses
+function splitMessage(content: string, maxLength: number = 2000): string[] {
+    if (content.length <= maxLength) return [content];
+
+    const chunks: string[] = [];
+    let currentChunk = "";
+
+    // Try to split at code block boundaries first
+    const codeBlockRegex = /```[\s\S]*?```/g;
+    const parts = content.split(codeBlockRegex);
+    const codeBlocks = content.match(codeBlockRegex) || [];
+
+    for (let i = 0; i < parts.length; i++) {
+        if (parts[i]) {
+            if (currentChunk.length + parts[i].length > maxLength) {
+                if (currentChunk) chunks.push(currentChunk.trim());
+                currentChunk = parts[i];
+            } else {
+                currentChunk += parts[i];
+            }
+        }
+
+        if (codeBlocks[i]) {
+            if (currentChunk.length + codeBlocks[i].length > maxLength) {
+                if (currentChunk) chunks.push(currentChunk.trim());
+                currentChunk = codeBlocks[i];
+            } else {
+                currentChunk += codeBlocks[i];
+            }
+        }
+    }
+
+    if (currentChunk) chunks.push(currentChunk.trim());
+
+    // If we still have chunks that are too long, split by sentences
+    const finalChunks: string[] = [];
+    for (const chunk of chunks) {
+        if (chunk.length <= maxLength) {
+            finalChunks.push(chunk);
+        } else {
+            const sentences = chunk.split(/(?<=[.!?])\s+/);
+            let tempChunk = "";
+            for (const sentence of sentences) {
+                if (tempChunk.length + sentence.length > maxLength) {
+                    if (tempChunk) finalChunks.push(tempChunk.trim());
+                    tempChunk = sentence;
+                } else {
+                    tempChunk += (tempChunk ? " " : "") + sentence;
+                }
+            }
+            if (tempChunk) finalChunks.push(tempChunk.trim());
+        }
+    }
+
+    return finalChunks;
+}
+
 async function handleAI(
     messageOrInteraction: ChatInputCommandInteraction | Message,
     rawPrompt: string,
@@ -115,7 +169,7 @@ async function handleAI(
     const { userId, channelId, nickname, username } = userInfo;
     const conversationKey = `${channelId}:${userId}`;
 
-    //— BUILD MESSAGE HISTORY (same as before)—
+    //— BUILD MESSAGE HISTORY —
     let history = userConversations.get(conversationKey) || [];
     const systemMsg = {
         role: "system",
@@ -147,7 +201,7 @@ async function handleAI(
     if (history.length > MAX_HISTORY + 1)
         history = [history[0], ...history.slice(-MAX_HISTORY)];
 
-    //— CALL THE LLM API — (no filtering of aiReply)
+    //— CALL THE LLM API —
     const resp = await fetch(CHUTES_API_URL, {
         method: "POST",
         headers: {
@@ -159,26 +213,66 @@ async function handleAI(
                 process.env.CHUTES_MODEL ||
                 "chutesai/Llama-4-Scout-17B-16E-Instruct",
             messages: history,
-            max_tokens: 2000,
+            max_tokens: 4000, // Increased from 2000 to allow for longer responses
+            temperature: 0.7,
+            top_p: 0.9,
         }),
     });
     if (!resp.ok) throw new Error(`${resp.status}: ${await resp.text()}`);
     const data = await resp.json();
     let aiReply = data.choices?.[0]?.message?.content?.trim() || "";
 
-    //— TRUNCATE IF TOO LONG —
-    if (aiReply.length > 2000) aiReply = aiReply.slice(0, 1997) + "...";
+    if (!aiReply) {
+        aiReply =
+            "hmm, i'm having trouble thinking right now 😅 can you try asking again? 💖";
+    }
 
-    //— SAVE & RESPOND —
+    //— HANDLE LONG RESPONSES —
+    const messageParts = splitMessage(aiReply, 2000);
+
+    // Save the full response to conversation history
     history.push({ role: "assistant", content: aiReply });
     userConversations.set(conversationKey, history);
     await saveConversations();
 
-    return isPrefix
-        ? (messageOrInteraction as Message).reply(aiReply)
-        : (messageOrInteraction as ChatInputCommandInteraction).editReply(
-              aiReply,
-          );
+    //— SEND RESPONSE(S) —
+    try {
+        if (messageParts.length === 1) {
+            return isPrefix
+                ? (messageOrInteraction as Message).reply(messageParts[0])
+                : (
+                      messageOrInteraction as ChatInputCommandInteraction
+                  ).editReply(messageParts[0]);
+        } else {
+            // Send first part as reply/edit, then follow up with additional parts
+            if (isPrefix) {
+                const msg = messageOrInteraction as Message;
+                await msg.reply(messageParts[0]);
+                for (let i = 1; i < messageParts.length; i++) {
+                    await msg.channel.send(messageParts[i]);
+                }
+            } else {
+                const interaction =
+                    messageOrInteraction as ChatInputCommandInteraction;
+                await interaction.editReply(messageParts[0]);
+                for (let i = 1; i < messageParts.length; i++) {
+                    await interaction.followUp(messageParts[i]);
+                }
+            }
+        }
+    } catch (error) {
+        Logger.error("Error sending AI response:", error);
+        const errorMessage =
+            "sorry, i had trouble sending my response 😅 maybe try again?";
+
+        if (isPrefix) {
+            await (messageOrInteraction as Message).reply(errorMessage);
+        } else {
+            await (
+                messageOrInteraction as ChatInputCommandInteraction
+            ).editReply(errorMessage);
+        }
+    }
 }
 
 export const command: Command = {
@@ -212,6 +306,13 @@ export const command: Command = {
                 const cmd = args.shift()?.toLowerCase();
                 if (!cmd || !this.prefix!.aliases!.includes(cmd)) return;
                 rawPrompt = args.join(" ");
+
+                // Handle empty prompts
+                if (!rawPrompt.trim()) {
+                    await msg.reply("hey! what did you wanna ask me? 🥺💖");
+                    return;
+                }
+
                 userInfo = {
                     username: msg.author.username,
                     nickname: msg.member?.displayName || msg.author.username,
