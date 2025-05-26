@@ -5,8 +5,6 @@ import {
     EmbedBuilder,
 } from "discord.js";
 import type { Command } from "../../types/Command";
-// Assuming the package is installed and available in the project's node_modules
-// Correctly importing textToMorse and morseToText
 import { textToMorse, morseToText } from "@projectjam/morse-translate";
 
 // Regex to check if a string consists only of Morse code characters (dots, dashes, spaces, slashes)
