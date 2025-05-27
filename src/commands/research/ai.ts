@@ -2,7 +2,6 @@ import {
     ChatInputCommandInteraction,
     Message,
     SlashCommandBuilder,
-    EmbedBuilder,
     GuildMember,
 } from "discord.js";
 import type { Command } from "../../types/Command";
@@ -15,8 +14,9 @@ dotenv.config();
 
 const CHUTES_API_URL = "https://llm.chutes.ai/v1/chat/completions";
 const CHUTES_API_TOKEN = process.env.CHUTES_API_TOKEN;
-if (!CHUTES_API_TOKEN)
+if (!CHUTES_API_TOKEN) {
     throw new Error("missing chutes api token in environment");
+}
 
 const DATA_DIR = path.resolve(__dirname, "../../data");
 const CONV_FILE = path.join(DATA_DIR, "conversations.json");
@@ -35,8 +35,9 @@ async function loadConversations() {
             string,
             Array<{ role: string; content: string }>
         >;
-        for (const [key, conv] of Object.entries(obj))
+        for (const [key, conv] of Object.entries(obj)) {
             userConversations.set(key, conv);
+        }
         Logger.info(
             `loaded ${userConversations.size} conversation(s) from disk`,
         );
@@ -93,8 +94,63 @@ note 3: u cannot search the internet, use the provided information or resources 
 
 and note 4: u can use emojis in your responses, but avoid using too many or inappropriate ones. use emojis sparingly and appropriately, and keep ur vibe, casual, big sis vibe, we don't want ppl calling u bad
 
-IMPORTANT: you are talking to "{USER_USERNAME}". be natural about it.`.trim(),
+IMPORTANT: you are talking to "{USER_USERNAME}". be natural about it.
+
+IMPORTANT 2: PROVIDE WITH A FUCKING FULL AND COMPLETE RESPONSE!!!!!! IT ISN'T FUNNY!!!!`.trim(),
 };
+
+function sanitizeMentions(text: string): string {
+    return text
+        .replace(/@everyone/g, "@\u200Beveryone")
+        .replace(/@here/g, "@\u200Bhere");
+}
+
+function splitMessage(content: string, maxLength: number = 2000): string[] {
+    if (content.length <= maxLength) return [content];
+    const chunks: string[] = [];
+    let current = "";
+    const codeBlockRegex = /```[\s\S]*?```/g;
+    const parts = content.split(codeBlockRegex);
+    const blocks = content.match(codeBlockRegex) || [];
+
+    for (let i = 0; i < parts.length; i++) {
+        if (parts[i]) {
+            if (current.length + parts[i].length > maxLength) {
+                chunks.push(current.trim());
+                current = parts[i];
+            } else {
+                current += parts[i];
+            }
+        }
+        if (blocks[i]) {
+            if (current.length + blocks[i].length > maxLength) {
+                chunks.push(current.trim());
+                current = blocks[i];
+            } else {
+                current += blocks[i];
+            }
+        }
+    }
+    if (current) chunks.push(current.trim());
+
+    // Fallback split by sentence
+    return chunks.flatMap((chunk) => {
+        if (chunk.length <= maxLength) return [chunk];
+        const sentences = chunk.split(/(?<=[.!?])\s+/);
+        let temp = "";
+        const out: string[] = [];
+        for (const s of sentences) {
+            if (temp.length + s.length > maxLength) {
+                out.push(temp.trim());
+                temp = s;
+            } else {
+                temp += (temp ? " " : "") + s;
+            }
+        }
+        if (temp) out.push(temp.trim());
+        return out;
+    });
+}
 
 loadConversations();
 
@@ -103,63 +159,6 @@ interface UserInfo {
     nickname: string;
     userId: string;
     channelId: string;
-}
-
-// Helper function to split long responses
-function splitMessage(content: string, maxLength: number = 2000): string[] {
-    if (content.length <= maxLength) return [content];
-
-    const chunks: string[] = [];
-    let currentChunk = "";
-
-    // Try to split at code block boundaries first
-    const codeBlockRegex = /```[\s\S]*?```/g;
-    const parts = content.split(codeBlockRegex);
-    const codeBlocks = content.match(codeBlockRegex) || [];
-
-    for (let i = 0; i < parts.length; i++) {
-        if (parts[i]) {
-            if (currentChunk.length + parts[i].length > maxLength) {
-                if (currentChunk) chunks.push(currentChunk.trim());
-                currentChunk = parts[i];
-            } else {
-                currentChunk += parts[i];
-            }
-        }
-
-        if (codeBlocks[i]) {
-            if (currentChunk.length + codeBlocks[i].length > maxLength) {
-                if (currentChunk) chunks.push(currentChunk.trim());
-                currentChunk = codeBlocks[i];
-            } else {
-                currentChunk += codeBlocks[i];
-            }
-        }
-    }
-
-    if (currentChunk) chunks.push(currentChunk.trim());
-
-    // If we still have chunks that are too long, split by sentences
-    const finalChunks: string[] = [];
-    for (const chunk of chunks) {
-        if (chunk.length <= maxLength) {
-            finalChunks.push(chunk);
-        } else {
-            const sentences = chunk.split(/(?<=[.!?])\s+/);
-            let tempChunk = "";
-            for (const sentence of sentences) {
-                if (tempChunk.length + sentence.length > maxLength) {
-                    if (tempChunk) finalChunks.push(tempChunk.trim());
-                    tempChunk = sentence;
-                } else {
-                    tempChunk += (tempChunk ? " " : "") + sentence;
-                }
-            }
-            if (tempChunk) finalChunks.push(tempChunk.trim());
-        }
-    }
-
-    return finalChunks;
 }
 
 async function handleAI(
@@ -171,7 +170,7 @@ async function handleAI(
     const { userId, channelId, nickname, username } = userInfo;
     const conversationKey = `${channelId}:${userId}`;
 
-    //— BUILD MESSAGE HISTORY —
+    // build history
     let history = userConversations.get(conversationKey) || [];
     const systemMsg = {
         role: "system",
@@ -179,31 +178,19 @@ async function handleAI(
             .replace(/{USER_NICKNAME}/g, nickname)
             .replace(/{USER_USERNAME}/g, username),
     };
-    if (history.length === 0) history.push(systemMsg);
+    if (!history.length) history.push(systemMsg);
     else if (history[0].content !== systemMsg.content) {
         history = [systemMsg, ...history.filter((m) => m.role !== "system")];
     }
 
-    //— CHECK FOR PINGING EVERYONE —
-    if (rawPrompt.includes("@everyone") || rawPrompt.includes("@here")) {
-        const pingWarning = "it is not allowed to ping everyone!";
-        history.push({ role: "user", content: rawPrompt.trim() });
-        history.push({ role: "assistant", content: pingWarning });
-        userConversations.set(conversationKey, history);
-        await saveConversations();
-
-        return isPrefix
-            ? (messageOrInteraction as Message).reply(pingWarning)
-            : (messageOrInteraction as ChatInputCommandInteraction).editReply(
-                  pingWarning,
-              );
+    // sanitize user input
+    const prompt = sanitizeMentions(rawPrompt);
+    history.push({ role: "user", content: prompt.trim() });
+    if (history.length > MAX_HISTORY + 1) {
+        history = [history[0], ...history.slice(-MAX_HISTORY)];
     }
 
-    history.push({ role: "user", content: rawPrompt.trim() });
-    if (history.length > MAX_HISTORY + 1)
-        history = [history[0], ...history.slice(-MAX_HISTORY)];
-
-    //— CALL THE LLM API —
+    // call LLM
     const resp = await fetch(CHUTES_API_URL, {
         method: "POST",
         headers: {
@@ -215,7 +202,7 @@ async function handleAI(
                 process.env.CHUTES_MODEL ||
                 "chutesai/Llama-4-Scout-17B-16E-Instruct",
             messages: history,
-            max_tokens: 4000, // Increased from 2000 to allow for longer responses
+            max_tokens: 4000,
             temperature: 0.7,
             top_p: 0.9,
         }),
@@ -223,56 +210,37 @@ async function handleAI(
     if (!resp.ok) throw new Error(`${resp.status}: ${await resp.text()}`);
     const data = await resp.json();
     let aiReply = data.choices?.[0]?.message?.content?.trim() || "";
-
     if (!aiReply) {
         aiReply =
             "hmm, i'm having trouble thinking right now 😅 can you try asking again? 💖";
     }
 
-    //— HANDLE LONG RESPONSES —
-    const messageParts = splitMessage(aiReply, 2000);
-
-    // Save the full response to conversation history
+    // sanitize AI output
+    aiReply = sanitizeMentions(aiReply);
     history.push({ role: "assistant", content: aiReply });
     userConversations.set(conversationKey, history);
     await saveConversations();
 
-    //— SEND RESPONSE(S) —
-    try {
-        if (messageParts.length === 1) {
-            return isPrefix
-                ? (messageOrInteraction as Message).reply(messageParts[0])
-                : (
-                      messageOrInteraction as ChatInputCommandInteraction
-                  ).editReply(messageParts[0]);
-        } else {
-            // Send first part as reply/edit, then follow up with additional parts
-            if (isPrefix) {
-                const msg = messageOrInteraction as Message;
-                await msg.reply(messageParts[0]);
-                for (let i = 1; i < messageParts.length; i++) {
-                    await msg.channel.send(messageParts[i]);
-                }
-            } else {
-                const interaction =
-                    messageOrInteraction as ChatInputCommandInteraction;
-                await interaction.editReply(messageParts[0]);
-                for (let i = 1; i < messageParts.length; i++) {
-                    await interaction.followUp(messageParts[i]);
-                }
-            }
-        }
-    } catch (error) {
-        Logger.error("Error sending AI response:", error);
-        const errorMessage =
-            "sorry, i had trouble sending my response 😅 maybe try again?";
-
+    // split & send
+    const parts = splitMessage(aiReply);
+    if (parts.length === 1) {
         if (isPrefix) {
-            await (messageOrInteraction as Message).reply(errorMessage);
+            (messageOrInteraction as Message).reply(parts[0]);
         } else {
-            await (
-                messageOrInteraction as ChatInputCommandInteraction
-            ).editReply(errorMessage);
+            (messageOrInteraction as ChatInputCommandInteraction).editReply(
+                parts[0],
+            );
+        }
+    } else {
+        const [first, ...rest] = parts;
+        if (isPrefix) {
+            const msg = messageOrInteraction as Message;
+            msg.reply(first);
+            rest.forEach((p) => msg.channel.send(p));
+        } else {
+            const ic = messageOrInteraction as ChatInputCommandInteraction;
+            ic.editReply(first);
+            rest.forEach((p) => ic.followUp(p));
         }
     }
 }
@@ -280,7 +248,7 @@ async function handleAI(
 export const command: Command = {
     data: new SlashCommandBuilder()
         .setName("chat")
-        .setDescription("Ask rinai anything!")
+        .setDescription("ask rinai anything!")
         .addStringOption((opt) =>
             opt
                 .setName("prompt")
@@ -299,22 +267,19 @@ export const command: Command = {
 
             if (isPrefix) {
                 const msg = interaction as Message;
-                const prefixStr = process.env.PREFIX || "jam!";
-                if (!msg.content.toLowerCase().startsWith(prefixStr)) return;
+                const prefix = process.env.PREFIX || "jam!";
+                if (!msg.content.toLowerCase().startsWith(prefix)) return;
                 const args = msg.content
-                    .slice(prefixStr.length)
+                    .slice(prefix.length)
                     .trim()
                     .split(/ +/);
                 const cmd = args.shift()?.toLowerCase();
                 if (!cmd || !this.prefix!.aliases!.includes(cmd)) return;
                 rawPrompt = args.join(" ");
-
-                // Handle empty prompts
                 if (!rawPrompt.trim()) {
                     await msg.reply("hey! what did you wanna ask me? 🥺💖");
                     return;
                 }
-
                 userInfo = {
                     username: msg.author.username,
                     nickname: msg.member?.displayName || msg.author.username,
@@ -346,15 +311,9 @@ export const command: Command = {
                 !isPrefix &&
                 (interaction as ChatInputCommandInteraction).deferred
             ) {
-                await (interaction as ChatInputCommandInteraction).editReply(
-                    errMsg,
-                );
-            } else if (isPrefix) {
-                await (interaction as Message).reply(errMsg);
+                (interaction as ChatInputCommandInteraction).editReply(errMsg);
             } else {
-                await (interaction as ChatInputCommandInteraction).reply(
-                    errMsg,
-                );
+                (interaction as Message).reply(errMsg);
             }
         }
     },
