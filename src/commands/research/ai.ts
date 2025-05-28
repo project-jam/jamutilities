@@ -170,6 +170,9 @@ async function handleAI(
     const { userId, channelId, nickname, username } = userInfo;
     const conversationKey = `${channelId}:${userId}`;
 
+    // Log the user's request
+    Logger.info(`User ${nickname} (${userId}) requested: ${rawPrompt}`);
+
     // build history
     let history = userConversations.get(conversationKey) || [];
     const systemMsg = {
@@ -214,6 +217,9 @@ async function handleAI(
         aiReply =
             "hmm, i'm having trouble thinking right now 😅 can you try asking again? 💖";
     }
+
+    // Log the AI's response
+    Logger.info(`AI response for user ${nickname} (${userId}): ${aiReply}`);
 
     // sanitize AI output
     aiReply = sanitizeMentions(aiReply);
