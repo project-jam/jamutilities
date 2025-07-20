@@ -12,7 +12,6 @@ import { Logger } from "../../utils/logger";
 
 dotenv.config();
 
-// Mistral Large 2 API URL and token env variable
 const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";
 const MISTRAL_API_TOKEN = process.env.MISTRAL_API_TOKEN;
 if (!MISTRAL_API_TOKEN) {
@@ -194,10 +193,7 @@ async function handleAI(
         history = [history[0], ...history.slice(-MAX_HISTORY)];
     }
 
-    // Prepare messages for Mistral API — Mistral expects {role, content} format
-    // They use roles: system, user, assistant — same as yours, so direct pass is okay.
-
-    // Call Mistral API
+    // call Mistral API
     const resp = await fetch(MISTRAL_API_URL, {
         method: "POST",
         headers: {
@@ -205,7 +201,7 @@ async function handleAI(
             "Content-Type": "application/json",
         },
         body: JSON.stringify({
-            model: process.env.MISTRAL_MODEL || "mistral-large-2",
+            model: process.env.MISTRAL_MODEL || "mistral-large-latest",
             messages: history,
             max_tokens: 2000,
             temperature: 0.7,
@@ -215,7 +211,6 @@ async function handleAI(
     if (!resp.ok) throw new Error(`${resp.status}: ${await resp.text()}`);
     const data = await resp.json();
 
-    // Extract AI reply
     let aiReply = data.choices?.[0]?.message?.content?.trim() || "";
     if (!aiReply) {
         aiReply =
