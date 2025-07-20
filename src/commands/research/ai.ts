@@ -12,10 +12,11 @@ import { Logger } from "../../utils/logger";
 
 dotenv.config();
 
-const CHUTES_API_URL = "https://llm.chutes.ai/v1/chat/completions";
-const CHUTES_API_TOKEN = process.env.CHUTES_API_TOKEN;
-if (!CHUTES_API_TOKEN) {
-    throw new Error("missing chutes api token in environment");
+// Mistral Large 2 API URL and token env variable
+const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";
+const MISTRAL_API_TOKEN = process.env.MISTRAL_API_TOKEN;
+if (!MISTRAL_API_TOKEN) {
+    throw new Error("missing mistral api token in environment");
 }
 
 const DATA_DIR = path.resolve(__dirname, "../../data");
@@ -96,7 +97,9 @@ and note 4: u can use emojis in your responses, but avoid using too many or inap
 
 IMPORTANT: you are talking to "{USER_USERNAME}". be natural about it.
 
-IMPORTANT 2: PROVIDE WITH A FUCKING FULL AND COMPLETE RESPONSE!!!!!! IT ISN'T FUNNY!!!!`.trim(),
+IMPORTANT 2: PROVIDE WITH A FUCKING FULL AND COMPLETE RESPONSE!!!!!! IT ISN'T FUNNY!!!!
+
+IMPORTANT 3: AGAIN, FULL RESPONSE U IDIOT!`.trim(),
 };
 
 function sanitizeMentions(text: string): string {
@@ -170,7 +173,6 @@ async function handleAI(
     const { userId, channelId, nickname, username } = userInfo;
     const conversationKey = `${channelId}:${userId}`;
 
-    // Log the user's request
     Logger.info(`User ${nickname} (${userId}) requested: ${rawPrompt}`);
 
     // build history
@@ -186,48 +188,47 @@ async function handleAI(
         history = [systemMsg, ...history.filter((m) => m.role !== "system")];
     }
 
-    // sanitize user input
     const prompt = sanitizeMentions(rawPrompt);
     history.push({ role: "user", content: prompt.trim() });
     if (history.length > MAX_HISTORY + 1) {
         history = [history[0], ...history.slice(-MAX_HISTORY)];
     }
 
-    // call LLM
-    const resp = await fetch(CHUTES_API_URL, {
+    // Prepare messages for Mistral API — Mistral expects {role, content} format
+    // They use roles: system, user, assistant — same as yours, so direct pass is okay.
+
+    // Call Mistral API
+    const resp = await fetch(MISTRAL_API_URL, {
         method: "POST",
         headers: {
-            Authorization: `Bearer ${CHUTES_API_TOKEN}`,
+            Authorization: `Bearer ${MISTRAL_API_TOKEN}`,
             "Content-Type": "application/json",
         },
         body: JSON.stringify({
-            model:
-                process.env.CHUTES_MODEL ||
-                "chutesai/Llama-4-Scout-17B-16E-Instruct",
+            model: process.env.MISTRAL_MODEL || "mistral-large-2",
             messages: history,
-            max_tokens: 4000,
+            max_tokens: 2000,
             temperature: 0.7,
             top_p: 0.9,
         }),
     });
     if (!resp.ok) throw new Error(`${resp.status}: ${await resp.text()}`);
     const data = await resp.json();
+
+    // Extract AI reply
     let aiReply = data.choices?.[0]?.message?.content?.trim() || "";
     if (!aiReply) {
         aiReply =
             "hmm, i'm having trouble thinking right now 😅 can you try asking again? 💖";
     }
 
-    // Log the AI's response
     Logger.info(`AI response for user ${nickname} (${userId}): ${aiReply}`);
 
-    // sanitize AI output
     aiReply = sanitizeMentions(aiReply);
     history.push({ role: "assistant", content: aiReply });
     userConversations.set(conversationKey, history);
     await saveConversations();
 
-    // split & send
     const parts = splitMessage(aiReply);
     if (parts.length === 1) {
         if (isPrefix) {
@@ -324,3 +325,4 @@ export const command: Command = {
         }
     },
 };
+
