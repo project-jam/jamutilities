@@ -71,18 +71,15 @@ export const command: Command = {
     isPrefix = false,
   ) {
     let query: string;
-    let amount: number = 10;
+    let amount = 10;
 
-    // Handle prefix command parsing
+    // Parse command
     if (isPrefix) {
       const args = (interaction as Message).content.split(" ").slice(1);
       if (!args.length) {
-        return await (interaction as Message).reply(
-          "Please provide a search term!",
-        );
+        return await (interaction as Message).reply("Please provide a search term!");
       }
 
-      // Check if last argument is a number for amount
       const lastArg = args[args.length - 1];
       if (/^\d+$/.test(lastArg)) {
         amount = Math.min(Math.max(parseInt(lastArg), 1), 50);
@@ -100,123 +97,101 @@ export const command: Command = {
     // Profanity check
     const profanityResult = profanityDetector.detect(query);
     if (profanityResult.found) {
-      const profanityEmbed = new EmbedBuilder()
+      const embed = new EmbedBuilder()
         .setColor("#ff3838")
         .setTitle("⚠️ Content Warning")
         .setDescription(
-          "Your search query has been flagged for inappropriate content.\nPlease revise your query and try again.",
+          "Your search query has been flagged for inappropriate content.\nPlease revise your query and try again."
         )
         .setTimestamp();
-
-      if (isPrefix) {
-        return await (interaction as Message).reply({
-          embeds: [profanityEmbed],
-        });
-      } else {
-        return await (interaction as ChatInputCommandInteraction).editReply({
-          embeds: [profanityEmbed],
-        });
-      }
+      return isPrefix
+        ? await (interaction as Message).reply({ embeds: [embed] })
+        : await (interaction as ChatInputCommandInteraction).editReply({ embeds: [embed] });
     }
 
     try {
-      // Initial progress message
       const progressEmbed = new EmbedBuilder()
         .setColor("#2b2d31")
         .setDescription("🔍 Searching for images...");
 
       const progressMsg = isPrefix
         ? await (interaction as Message).reply({ embeds: [progressEmbed] })
-        : await (interaction as ChatInputCommandInteraction).editReply({
-            embeds: [progressEmbed],
-          });
+        : await (interaction as ChatInputCommandInteraction).editReply({ embeds: [progressEmbed] });
 
-      // Make the API request
-      const response = await axios.get<SameEnergyResponse>(
-        `https://imageapi.same.energy/search`,
-        {
-          params: {
-            text: query,
-            n: amount,
-          },
-        },
-      );
+      // Polling Same Energy API
+      let images: SameEnergyImage[] = [];
+      for (let attempt = 0; attempt < 20; attempt++) {
+        const res = await axios.get<SameEnergyResponse>("https://imageapi.same.energy/search", {
+          params: { text: query, n: amount },
+        });
 
-      if (response.data.kind !== "success" || !response.data.payload) {
-        throw new Error("Failed to fetch images");
+        if (res.data.kind === "success" && res.data.payload) {
+          images = res.data.payload.images;
+          break;
+        }
+
+        if (res.data.kind === "error") {
+          throw new Error(res.data.message || "Failed to fetch images");
+        }
+
+        await new Promise((r) => setTimeout(r, 1000));
       }
 
-      const images = response.data.payload.images;
-
-      if (images.length === 0) {
-        const noResultsEmbed = new EmbedBuilder()
+      if (!images.length) {
+        const embed = new EmbedBuilder()
           .setColor("#ff3838")
           .setDescription("❌ No images found for your search.");
-
-        if (isPrefix) {
-          return await progressMsg.edit({ embeds: [noResultsEmbed] });
-        } else {
-          return await (interaction as ChatInputCommandInteraction).editReply({
-            embeds: [noResultsEmbed],
-          });
-        }
+        return isPrefix
+          ? await progressMsg.edit({ embeds: [embed] })
+          : await (interaction as ChatInputCommandInteraction).editReply({ embeds: [embed] });
       }
 
       let currentPage = 0;
 
-      const createEmbed = (pageIndex: number) => {
-        const image = images[pageIndex];
-        const imageUrl = `https://i.same.energy/${image.prefix}/${image.id}`;
+      const createEmbed = (index: number) => {
+        const img = images[index];
+        const imageUrl = `https://i.same.energy/${img.prefix}/${img.id}`;
 
         return new EmbedBuilder()
           .setColor("#2b2d31")
-          .setTitle(`🖼️ ${image.metadata.title || "Untitled"}`)
+          .setTitle(`🖼️ ${img.metadata.title || "Untitled"}`)
           .setDescription(
-            [
-              `📍 Source: ${image.metadata.source}`,
-              `🔍 [View Original](${image.metadata.post_url || image.metadata.original_url})`,
-            ].join("\n"),
+            `📍 Source: ${img.metadata.source}\n🔍 [View Original](${img.metadata.post_url || img.metadata.original_url})`
           )
           .setImage(imageUrl)
           .setFooter({
-            text: `Image ${pageIndex + 1}/${images.length} • Query: ${query}`,
+            text: `Image ${index + 1}/${images.length} • Query: ${query}`,
             iconURL: isPrefix
               ? (interaction as Message).author.displayAvatarURL()
-              : (
-                  interaction as ChatInputCommandInteraction
-                ).user.displayAvatarURL(),
+              : (interaction as ChatInputCommandInteraction).user.displayAvatarURL(),
           });
       };
 
-      const createButtons = (pageIndex: number) => {
-        return new ActionRowBuilder<ButtonBuilder>().addComponents(
+      const createButtons = (index: number) =>
+        new ActionRowBuilder<ButtonBuilder>().addComponents(
           new ButtonBuilder()
             .setCustomId("same_first")
             .setEmoji("⏮️")
             .setStyle(ButtonStyle.Secondary)
-            .setDisabled(pageIndex === 0),
+            .setDisabled(index === 0),
           new ButtonBuilder()
             .setCustomId("same_prev")
             .setEmoji("◀️")
             .setStyle(ButtonStyle.Secondary)
-            .setDisabled(pageIndex === 0),
+            .setDisabled(index === 0),
           new ButtonBuilder()
             .setCustomId("same_next")
             .setEmoji("▶️")
             .setStyle(ButtonStyle.Secondary)
-            .setDisabled(pageIndex === images.length - 1),
+            .setDisabled(index === images.length - 1),
           new ButtonBuilder()
             .setCustomId("same_last")
             .setEmoji("⏭️")
             .setStyle(ButtonStyle.Secondary)
-            .setDisabled(pageIndex === images.length - 1),
+            .setDisabled(index === images.length - 1)
         );
-      };
 
-      await progressMsg.edit({
-        embeds: [createEmbed(currentPage)],
-        components: [createButtons(currentPage)],
-      });
+      await progressMsg.edit({ embeds: [createEmbed(currentPage)], components: [createButtons(currentPage)] });
 
       const collector = progressMsg.createMessageComponentCollector({
         componentType: ComponentType.Button,
@@ -224,16 +199,8 @@ export const command: Command = {
       });
 
       collector.on("collect", async (i) => {
-        if (
-          i.user.id !==
-          (isPrefix
-            ? (interaction as Message).author.id
-            : (interaction as ChatInputCommandInteraction).user.id)
-        ) {
-          await i.reply({
-            content: "❌ These buttons aren't for you!",
-            ephemeral: true,
-          });
+        if (i.user.id !== (isPrefix ? (interaction as Message).author.id : (interaction as ChatInputCommandInteraction).user.id)) {
+          await i.reply({ content: "❌ These buttons aren't for you!", ephemeral: true });
           return;
         }
 
@@ -252,27 +219,19 @@ export const command: Command = {
             break;
         }
 
-        await i.update({
-          embeds: [createEmbed(currentPage)],
-          components: [createButtons(currentPage)],
-        });
+        await i.update({ embeds: [createEmbed(currentPage)], components: [createButtons(currentPage)] });
       });
 
-      collector.on("end", () => {
-        progressMsg.edit({ components: [] }).catch(() => {});
-      });
+      collector.on("end", () => progressMsg.edit({ components: [] }).catch(() => {}));
     } catch (error) {
       Logger.error("Error in same image search:", error);
-      const errorEmbed = new EmbedBuilder()
+      const embed = new EmbedBuilder()
         .setColor("#ff3838")
         .setDescription("❌ An error occurred while processing your request.");
-
       if (isPrefix) {
-        return await (interaction as Message).reply({ embeds: [errorEmbed] });
+        await (interaction as Message).reply({ embeds: [embed] });
       } else {
-        return await (interaction as ChatInputCommandInteraction).editReply({
-          embeds: [errorEmbed],
-        });
+        await (interaction as ChatInputCommandInteraction).editReply({ embeds: [embed] });
       }
     }
   },
