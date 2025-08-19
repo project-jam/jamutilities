@@ -16,7 +16,7 @@ export interface SearchResponse {
 }
 
 /**
- * Fetch search results from JamAPI
+ * Fetch search results from JamAPI and log the query + response
  */
 export async function searchInternet(
   query: string,
@@ -27,10 +27,21 @@ export async function searchInternet(
     query,
   )}&lang=${encodeURIComponent(lang)}&num=${num}`;
 
+  console.log(`🔍 searching JamAPI for: "${query}" (lang=${lang}, num=${num})`);
+
   const res = await fetch(apiUrl, {
     headers: { "Accept-Language": lang },
   });
-  if (!res.ok) throw new Error(`API responded with ${res.status}`);
-  return res.json() as Promise<SearchResponse>;
+
+  if (!res.ok) {
+    console.error(`❌ search failed with status ${res.status}`);
+    throw new Error(`API responded with ${res.status}`);
+  }
+
+  const data = (await res.json()) as SearchResponse;
+
+  console.log(`✅ search results for "${query}":`, JSON.stringify(data, null, 2));
+
+  return data;
 }
 
