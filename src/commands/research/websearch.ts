@@ -54,7 +54,7 @@ const LANGUAGES = [
 export const command: Command = {
   data: new SlashCommandBuilder()
     .setName("websearch")
-    .setDescription("🔍 Search the internet (via JamAPI, fuck Google/Bing!)")
+    .setDescription("🔍 Search the internet (via JamAPI, fuck Bing!)")
     .setDMPermission(true)
     .addStringOption((opt) =>
       opt.setName("query").setDescription("Your search query").setRequired(true),
