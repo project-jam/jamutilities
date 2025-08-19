@@ -1,3 +1,7 @@
+/////////////////////////////////////////////////////
+// WARNING: the internet function is still in beta //
+/////////////////////////////////////////////////////
+
 import {
     ChatInputCommandInteraction,
     Message,
@@ -19,6 +23,7 @@ if (!MISTRAL_API_TOKEN) throw new Error("missing mistral api token in environmen
 
 const DATA_DIR = path.resolve(__dirname, "../../data");
 const CONV_FILE = path.join(DATA_DIR, "conversations.json");
+const SEARCH_LOG_FILE = path.join(DATA_DIR, "search_logs.json");
 
 const userConversations = new Map<string, Array<{ role: string; content: string }>>();
 const MAX_HISTORY = 10;
@@ -47,6 +52,35 @@ async function saveConversations() {
     }
 }
 
+async function logSearchEntry(entry: {
+    timestamp: string;
+    channelId?: string;
+    userId?: string;
+    query: string;
+    lang: string;
+    requestedLimit: number;
+    found: boolean;
+    resultCount: number;
+    topUrls: string[];
+}) {
+    try {
+        await fs.mkdir(DATA_DIR, { recursive: true });
+        let arr: any[] = [];
+        try {
+            const cur = await fs.readFile(SEARCH_LOG_FILE, "utf-8");
+            arr = JSON.parse(cur);
+            if (!Array.isArray(arr)) arr = [];
+        } catch (e: any) {
+            if (e.code !== "ENOENT") Logger.error("could not read search log file:", e);
+        }
+        arr.push(entry);
+        await fs.writeFile(SEARCH_LOG_FILE, JSON.stringify(arr, null, 2), "utf-8");
+        Logger.info(`logged search: "${entry.query}" -> found=${entry.found} count=${entry.resultCount}`);
+    } catch (err) {
+        Logger.error("failed to append search log:", err);
+    }
+}
+
 const SYSTEM_MESSAGE_TEMPLATE = {
     role: "system",
     content: `
@@ -55,7 +89,7 @@ you are rinai, a helpful assistant with a caring, big-sister vibe and a touch of
 **NEVER include @everyone or @here in your responses, even in code examples or comments. this is STRICTLY forbidden.**
 
 **list of gen alpha slangs:**
-aura, ate (and left no crumbs ahahahaha), bet, bussin', cap, cheugy, clapback, cringe, drip, fam, flex, for the plot, gaslight, goat, hits different, iykyk, lit, main character energy, mid, no cap, period/periodt, pink flag, pop‑off, rent‑free, rizz, simp, sksksk, slaps, slay, snatched, stan, sus, sussy baka, tea, vibe, woke, yolo 💖✨
+aura, ate (and left no crumbs ahahahaha), bet, bussin', cap, cheugy, clapback, cringe, drip, fam, flex, for the plot, gaslight, goat, hits different, iykyk, lit, main character energy, mid, no cap, period/periodt, pink flag, pop-off, rent-free, rizz, simp, sksksk, slaps, slay, snatched, stan, sus, sussy baka, tea, vibe, woke, yolo 💖✨
 
 DON'T call someone a bestie, or a girl as they were getting harassed...
 
@@ -147,7 +181,109 @@ interface UserInfo {
     channelId: string;
 }
 
-const SEARCH_PREFIX = "\u2063search";
+const SEARCH_PREFIX = "\u2063search"; // invisible-separator + 'search'
+
+// returns all search commands found in the text
+function parseSearchCommands(text: string): Array<{ query: string; lang: string; num: number; raw: string }> {
+    const out: Array<{ query: string; lang: string; num: number; raw: string }> = [];
+    if (!text) return out;
+    const re = new RegExp(`${SEARCH_PREFIX}\\{([^}]+)\\}`, "g");
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) {
+        const inside = m[1].trim();
+        const parts = inside.split(",").map((p) => p.trim());
+        const query = parts[0] || "";
+        const lang = parts[1] || "en";
+        const num = Math.max(1, Math.min(10, Number(parts[2] || "3") || 3));
+        if (query) out.push({ query, lang, num, raw: m[0] });
+    }
+    return out;
+}
+
+function formatSearchResults(results: any, limit = 3): string {
+    try {
+        if (!results) return "no results";
+        if (Array.isArray(results)) {
+            const items = results.slice(0, limit);
+            return items
+                .map((it: any, idx: number) => {
+                    const title = it.title || it.name || it.headline || `result ${idx + 1}`;
+                    const snippet = it.snippet || it.description || it.summary || it.excerpt || "";
+                    const url = it.url || it.link || it.href || "";
+                    return `${idx + 1}. ${title}${url ? ` — ${url}` : ""}${snippet ? `\n${snippet}` : ""}`;
+                })
+                .join("\n\n");
+        }
+        if (results.items && Array.isArray(results.items)) {
+            return results.items
+                .slice(0, limit)
+                .map((it: any, idx: number) => `${idx + 1}. ${it.title || it.name || ""} — ${it.link || it.url || ""}\n${it.snippet || ""}`)
+                .join("\n\n");
+        }
+        if (results.results && Array.isArray(results.results)) {
+            return results.results
+                .slice(0, limit)
+                .map((it: any, idx: number) => `${idx + 1}. ${it.title || ""} — ${it.url || it.link || ""}\n${it.snippet || it.description || ""}`)
+                .join("\n\n");
+        }
+        if (results["result-contents"] && Array.isArray(results["result-contents"])) {
+            return (results["result-contents"] as any[])
+                .slice(0, limit)
+                .map((it: any, idx: number) => `${idx + 1}. ${it.title || it.name || ""} — ${it.url || it.link || ""}\n${it.description || it.snippet || ""}`)
+                .join("\n\n");
+        }
+        const s = typeof results === "string" ? results : JSON.stringify(results);
+        return s.length > 1500 ? s.slice(0, 1500) + " …(truncated)" : s;
+    } catch (err) {
+        return "unable to format search results";
+    }
+}
+
+function extractResultCountAndUrls(results: any): { count: number; urls: string[] } {
+    try {
+        if (!results) return { count: 0, urls: [] };
+        if (Array.isArray(results)) {
+            return { count: results.length, urls: results.slice(0, 5).map((r: any) => r.url || r.link || r.href).filter(Boolean) };
+        }
+        if (results.items && Array.isArray(results.items)) {
+            return { count: results.items.length, urls: results.items.slice(0, 5).map((r: any) => r.link || r.url).filter(Boolean) };
+        }
+        if (results.results && Array.isArray(results.results)) {
+            return { count: results.results.length, urls: results.results.slice(0, 5).map((r: any) => r.url || r.link).filter(Boolean) };
+        }
+        if (results["result-contents"] && Array.isArray(results["result-contents"])) {
+            return { count: results["result-contents"].length, urls: results["result-contents"].slice(0, 5).map((r: any) => r.url || r.link).filter(Boolean) };
+        }
+        return { count: 0, urls: [] };
+    } catch {
+        return { count: 0, urls: [] };
+    }
+}
+
+async function callMistral(messages: Array<{ role: string; content: string }>) {
+    const resp = await fetch(MISTRAL_API_URL, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${MISTRAL_API_TOKEN}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            model: process.env.MISTRAL_MODEL || "mistral-large-latest",
+            messages,
+            max_tokens: 2000,
+            temperature: 0.4,
+            top_p: 0.8,
+        }),
+    });
+
+    if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(`${resp.status}: ${text}`);
+    }
+    const data = await resp.json();
+    const aiReply = data.choices?.[0]?.message?.content?.trim() || "";
+    return { raw: data, aiReply };
+}
 
 async function handleAI(
     messageOrInteraction: ChatInputCommandInteraction | Message,
@@ -158,131 +294,6 @@ async function handleAI(
     const { userId, channelId, nickname, username } = userInfo;
     const conversationKey = `${channelId}:${userId}`;
     Logger.info(`User ${nickname} (${userId}) requested: ${rawPrompt}`);
-
-    let searchResults: SearchResponse | null = null;
-    let processedPrompt = rawPrompt;
-
-    // Check if the message contains a search command from the AI
-    const aiSearchMatch = rawPrompt.match(/⁣search\{(.+?)(?:,(\w+))?(?:,(\d+))?\}/);
-    if (aiSearchMatch) {
-        try {
-            const query = aiSearchMatch[1];
-            const lang = aiSearchMatch[2] || "en";
-            const count = Math.min(parseInt(aiSearchMatch[3] || "3", 10), 5);
-
-            Logger.info(`AI requested search for: ${query}`);
-            searchResults = await searchInternet(query, lang, count);
-
-            if (searchResults && searchResults["result-contents"] && searchResults["result-contents"].length > 0) {
-                // Format search results for the AI
-                const formattedResults = searchResults["result-contents"]
-                    .map((result, index) => 
-                        `SEARCH RESULT ${index + 1}:\n` +
-                        `Title: ${result.title}\n` +
-                        `URL: ${result.url}\n` +
-                        `Description: ${result.description}\n` +
-                        `---`
-                    )
-                    .join("\n\n");
-
-                processedPrompt = `The user asked: "${rawPrompt.replace(/⁣search\{.+?\}/, '').trim()}"\n\n` +
-                    `You requested to search for: "${query}"\n\n` +
-                    `Here are the search results:\n\n` +
-                    `${formattedResults}\n\n` +
-                    `Now answer the user's question using ONLY the information from these search results.`;
-
-                Logger.info(`AI search successful, found ${searchResults["result-contents"].length} results`);
-            } else {
-                processedPrompt = `The user asked: "${rawPrompt.replace(/⁣search\{.+?\}/, '').trim()}"\n\n` +
-                    `You requested to search for: "${query}" but no results were found.\n\n` +
-                    `Respond that you couldn't find information about this topic.`;
-                
-                Logger.info(`AI search found no results for: ${query}`);
-            }
-        } catch (err: any) {
-            Logger.error("AI search failed:", err);
-            processedPrompt = `The user asked: "${rawPrompt.replace(/⁣search\{.+?\}/, '').trim()}"\n\n` +
-                `You requested to search but it failed with error: ${err.message}\n\n` +
-                `Respond that the search failed and suggest trying again.`;
-        }
-    }
-
-    // Handle user-requested searches
-    const searchMatch = rawPrompt.match(/search\{(.+?)(?:,(\w+))?(?:,(\d+))?\}/);
-    const isSearchRequest = /search|find|look up|what.*about|tell me about|latest.*on|latest.*news|recent.*news|new.*about|update.*on|did.*leave|is.*still|what.*happened|when.*did|why.*did/i.test(rawPrompt);
-    
-    if ((searchMatch || isSearchRequest) && !aiSearchMatch) {
-        try {
-            let query: string;
-            let lang = "en";
-            let count = 3;
-
-            if (searchMatch) {
-                // Hidden prefix search
-                query = searchMatch[1];
-                lang = searchMatch[2] || "en";
-                count = Math.min(parseInt(searchMatch[3] || "3", 10), 5);
-            } else {
-                // Extract search terms from natural language
-                if (rawPrompt.toLowerCase().includes('latest news')) {
-                    // For "latest news" requests, use the previous context
-                    const prevHistory = userConversations.get(conversationKey) || [];
-                    const lastUserMessage = prevHistory.slice().reverse().find(m => m.role === 'user' && !m.content.includes('latest news'));
-                    if (lastUserMessage) {
-                        // Extract topic from previous message
-                        const topicMatch = lastUserMessage.content.match(/about (.+?)(?:\?|$)/i) || 
-                                         lastUserMessage.content.match(/situation.*?between (.+?)(?:\?|$)/i) ||
-                                         lastUserMessage.content.match(/(.+?)(?:\?|$)/i);
-                        query = topicMatch ? `${topicMatch[1]} latest news 2024` : 'latest news';
-                    } else {
-                        query = 'latest news';
-                    }
-                } else {
-                    query = rawPrompt.replace(/search|find|look up|what.*about|tell me about|latest.*on|latest.*news|recent.*news|new.*about|update.*on|did.*|is.*|what.*happened|when.*did|why.*did/i, '').trim();
-                    if (query.length < 3) {
-                        query = rawPrompt; // Use full prompt if extraction failed
-                    }
-                }
-            }
-
-            Logger.info(`Searching for: ${query}`);
-            searchResults = await searchInternet(query, lang, count);
-
-            if (searchResults && searchResults["result-contents"] && searchResults["result-contents"].length > 0) {
-                // Format search results for the AI
-                const formattedResults = searchResults["result-contents"]
-                    .map((result, index) => 
-                        `SEARCH RESULT ${index + 1}:\n` +
-                        `Title: ${result.title}\n` +
-                        `URL: ${result.url}\n` +
-                        `Description: ${result.description}\n` +
-                        `---`
-                    )
-                    .join("\n\n");
-
-                processedPrompt = `The user asked: "${rawPrompt}"\n\n` +
-                    `Here are the search results you must use to answer their question:\n\n` +
-                    `${formattedResults}\n\n` +
-                    `IMPORTANT: Base your response ONLY on the information provided in these search results. ` +
-                    `Do not add fictional details or make assumptions. If the search results don't contain ` +
-                    `enough information to fully answer the question, say so honestly.`;
-
-                Logger.info(`Search successful, found ${searchResults["result-contents"].length} results`);
-            } else {
-                processedPrompt = `The user asked: "${rawPrompt}"\n\n` +
-                    `Search results: No results found or search failed.\n\n` +
-                    `You should respond that you couldn't find information about this topic and suggest ` +
-                    `the user try a more specific search term.`;
-                
-                Logger.info(`Search found no results for: ${query}`);
-            }
-        } catch (err: any) {
-            Logger.error("Search failed:", err);
-            processedPrompt = `The user asked: "${rawPrompt}"\n\n` +
-                `Search failed with error: ${err.message}\n\n` +
-                `You should respond that the search failed and suggest trying again.`;
-        }
-    }
 
     // Build conversation history
     let history = userConversations.get(conversationKey) || [];
@@ -297,7 +308,7 @@ async function handleAI(
         history = [systemMsg, ...history.filter((m) => m.role !== "system")];
     }
 
-    const prompt = sanitizeMentions(processedPrompt);
+    const prompt = sanitizeMentions(rawPrompt);
     history.push({ role: "user", content: prompt.trim() });
 
     // Trim if too long
@@ -308,49 +319,121 @@ async function handleAI(
 
     if (history.length > MAX_HISTORY + 1) history = [history[0], ...history.slice(-MAX_HISTORY)];
 
-    // Call Mistral API
-    const resp = await fetch(MISTRAL_API_URL, {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${MISTRAL_API_TOKEN}`,
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            model: process.env.MISTRAL_MODEL || "mistral-large-latest",
-            messages: history,
-            max_tokens: 2000,
-            temperature: 0.4, // Lower temperature for more factual responses
-            top_p: 0.8,
-        }),
-    });
+    try {
+        // initial call to Mistral
+        const { aiReply: firstReplyRaw } = await callMistral(history);
+        let aiReply = firstReplyRaw || "hmm, i'm having trouble thinking right now 😅 can you try asking again? 💖";
+        Logger.info(`first AI response for user ${nickname} (${userId}): ${aiReply.substring(0, 200)}...`);
+        aiReply = sanitizeMentions(aiReply);
 
-    if (!resp.ok) throw new Error(`${resp.status}: ${await resp.text()}`);
-    const data = await resp.json();
+        // detect all search commands (if any)
+        const commands = parseSearchCommands(aiReply);
 
-    let aiReply = data.choices?.[0]?.message?.content?.trim() || "";
-    if (!aiReply) aiReply = "hmm, i'm having trouble thinking right now 😅 can you try asking again? 💖";
+        // NOTE: no automatic search creation from the user's prompt and no re-prompting of the model.
+        // we only perform searches if the model itself emitted the explicit SEARCH token.
+        if (commands.length > 0) {
+            // IMPORTANT: do NOT keep any placeholder or pre-search assistant text the model emitted.
+            const cleanedReply = aiReply.replace(new RegExp(`${SEARCH_PREFIX}\\{[^}]+\\}`, "g"), "").trim();
+            if (cleanedReply) {
+                Logger.info("model emitted search tokens; discarding any pre-search placeholder text.");
+            }
 
-    Logger.info(`AI response for user ${nickname} (${userId}): ${aiReply.substring(0, 100)}...`);
-    aiReply = sanitizeMentions(aiReply);
+            // perform each search and inject as system messages, and log results
+            for (const cmd of commands) {
+                Logger.info(`performing search for: "${cmd.query}" (lang=${cmd.lang}, limit=${cmd.num})`);
+                let searchResults: SearchResponse | any = null;
+                try {
+                    // flexible calling attempts - adapt if your util has a specific signature
+                    try {
+                        searchResults = await (searchInternet as any)(cmd.query, cmd.lang, cmd.num);
+                    } catch {
+                        try {
+                            searchResults = await (searchInternet as any)(cmd.query, cmd.num, cmd.lang);
+                        } catch {
+                            searchResults = await (searchInternet as any)(cmd.query);
+                        }
+                    }
+                } catch (err: any) {
+                    Logger.error("searchInternet error:", err);
+                    const errMsg = `search failed for "${cmd.query}": ${err.message || String(err)}`;
+                    history.push({ role: "system", content: errMsg });
+                    await logSearchEntry({
+                        timestamp: new Date().toISOString(),
+                        channelId,
+                        userId,
+                        query: cmd.query,
+                        lang: cmd.lang,
+                        requestedLimit: cmd.num,
+                        found: false,
+                        resultCount: 0,
+                        topUrls: [],
+                    });
+                    continue;
+                }
 
-    history.push({ role: "assistant", content: aiReply });
-    userConversations.set(conversationKey, history);
-    await saveConversations();
+                // analyze results and log
+                const { count, urls } = extractResultCountAndUrls(searchResults);
+                const found = count > 0;
+                Logger.info(`search result for "${cmd.query}": found=${found} count=${count}`);
+                await logSearchEntry({
+                    timestamp: new Date().toISOString(),
+                    channelId,
+                    userId,
+                    query: cmd.query,
+                    lang: cmd.lang,
+                    requestedLimit: cmd.num,
+                    found,
+                    resultCount: count,
+                    topUrls: urls,
+                });
 
-    const parts = splitMessage(aiReply);
-    if (parts.length === 1) {
-        if (isPrefix) (messageOrInteraction as Message).reply(parts[0]);
-        else (messageOrInteraction as ChatInputCommandInteraction).editReply(parts[0]);
-    } else {
-        const [first, ...rest] = parts;
-        if (isPrefix) {
-            const msg = messageOrInteraction as Message;
-            msg.reply(first);
-            rest.forEach(p => msg.channel.send(p));
+                // inject formatted results as a system message
+                const formatted = formatSearchResults(searchResults, cmd.num);
+                const systemSearchMsg = `search results for "${cmd.query}" (lang=${cmd.lang}, limit=${cmd.num}):\n\n${formatted}`;
+                if (!found) {
+                    history.push({ role: "system", content: `search performed for "${cmd.query}" but returned no results.` });
+                } else {
+                    history.push({ role: "system", content: systemSearchMsg });
+                }
+            }
+
+            // request a follow-up completion from the model with the injected results
+            const { aiReply: followUp } = await callMistral(history);
+            aiReply = sanitizeMentions(followUp || "i got the search results but couldn't form a reply, sorry!");
+            history.push({ role: "assistant", content: aiReply });
         } else {
-            const ic = messageOrInteraction as ChatInputCommandInteraction;
-            ic.editReply(first);
-            rest.forEach(p => ic.followUp(p));
+            // normal path: AI did not ask for a search. add assistant reply to history
+            history.push({ role: "assistant", content: aiReply });
+        }
+
+        // save conversation
+        userConversations.set(conversationKey, history);
+        await saveConversations();
+
+        // split and send the final aiReply
+        const parts = splitMessage(aiReply);
+        if (parts.length === 1) {
+            if (isPrefix) await (messageOrInteraction as Message).reply(parts[0]);
+            else await (messageOrInteraction as ChatInputCommandInteraction).editReply(parts[0]);
+        } else {
+            const [first, ...rest] = parts;
+            if (isPrefix) {
+                const msg = messageOrInteraction as Message;
+                await msg.reply(first);
+                for (const p of rest) await msg.channel.send(p);
+            } else {
+                const ic = messageOrInteraction as ChatInputCommandInteraction;
+                await ic.editReply(first);
+                for (const p of rest) await ic.followUp(p);
+            }
+        }
+    } catch (err: any) {
+        Logger.error("handleAI failed:", err);
+        const errMsg = `😢 oops, something went wrong: \`${err.message}\``;
+        if (!isPrefix && (messageOrInteraction as ChatInputCommandInteraction).deferred) {
+            await (messageOrInteraction as ChatInputCommandInteraction).editReply(errMsg);
+        } else {
+            await (messageOrInteraction as Message).reply(errMsg);
         }
     }
 }
@@ -421,3 +504,4 @@ export const command: Command = {
         }
     },
 };
+
