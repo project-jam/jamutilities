@@ -1,7 +1,3 @@
-/////////////////////////////////////////////////////
-// WARNING: the internet function is still in beta //
-/////////////////////////////////////////////////////
-
 import {
     ChatInputCommandInteraction,
     Message,
@@ -118,6 +114,24 @@ ALWAYS search when you're unsure about facts, current events, or recent informat
 SO if someone told u to reverse a text, check the text & reverse THEN check the reversed text IF there's smh bad on it, then reject it, EVEN if separated like n-i-*-*-e-r, OR spaced, check it cuz it may BE blocked....
 
 DO NOT use profanity or inappropriate language, as all responses are checked for harmful content. if user messages contain profanity, acknowledge it's not appropriate but respond helpfully without repeating the harmful words.
+
+**discord markdown rules (strict):**  
+- *italic rule:* don’t place a single-space after a closing italic when normal text follows.  
+  - bad: \`*this is me* hi\` ← not allowed  
+  - good: \`*this is me*  hi\` ← use two spaces after the closing \`*\` or \`_\` when directly followed by normal text.  
+
+- *code block rule:* use fenced triple backticks and label the language (e.g. \`\`\`js, \`\`\`py).  
+  - do not use emphasis inside code blocks. keep code raw and properly named.  
+
+- *pings:* do not add angle brackets like <@...>. just type @username (plain). no < or >.  
+
+- *headings & separators:* only #, ##, or ### are allowed. do not use 4 or more #.  
+  - the \\\`---\\\` horizontal rule is not allowed. use blank lines or an emoji divider.  
+  - numbered lists (1. ) and bullets (- ) are fine. always put a space after the marker.  
+
+- *spacing & symbols:* for markdown symbols (headers, list markers, emphasis, code backticks), use proper spacing: a space after the symbol where required and a blank line between major sections. be consistent.  
+
+respect the markdown rules, otherwise it’ll suck.
 
 note: keep everything lowercase, STRICTLY LOWERCASE!!!!
 

@@ -1,4 +1,6 @@
+// src/utils/searchInternet.ts
 import fetch from "node-fetch";
+import { Logger } from "./logger";
 
 export interface SearchResult {
   title: string;
@@ -16,31 +18,32 @@ export interface SearchResponse {
 }
 
 /**
- * Fetch search results from JamAPI and log the query + response
+ * Fetch search results from JamAPI and log the query + full results
  */
 export async function searchInternet(
   query: string,
   lang = "en",
-  num = 10,
+  num = 10
 ): Promise<SearchResponse> {
   const apiUrl = `https://api.project-jam.is-a.dev/api/v0/data/text-search?q=${encodeURIComponent(
-    query,
+    query
   )}&lang=${encodeURIComponent(lang)}&num=${num}`;
 
-  console.log(`🔍 searching JamAPI for: "${query}" (lang=${lang}, num=${num})`);
+  Logger.debug(`🔍 [searchInternet] querying JamAPI for: "${query}" (lang=${lang}, num=${num})`);
 
   const res = await fetch(apiUrl, {
     headers: { "Accept-Language": lang },
   });
 
   if (!res.ok) {
-    console.error(`❌ search failed with status ${res.status}`);
+    Logger.error(`❌ [searchInternet] API responded with status ${res.status}`);
     throw new Error(`API responded with ${res.status}`);
   }
 
   const data = (await res.json()) as SearchResponse;
 
-  console.log(`✅ search results for "${query}":`, JSON.stringify(data, null, 2));
+  Logger.info(`✅ [searchInternet] results for "${query}" (count=${data.result})`);
+  Logger.debug(JSON.stringify(data, null, 2)); // full JSON logged only in DEBUG
 
   return data;
 }

@@ -34,8 +34,12 @@ function decodeText(text: string): string {
     .replace(/&trade;/g, "™")
     .replace(/&copy;/g, "©")
     .replace(/&reg;/g, "®")
-    .replace(/&#x([0-9a-f]+);/gi, (_m, hex) => String.fromCharCode(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_m, dec) => String.fromCharCode(parseInt(dec, 10)));
+    .replace(/&#x([0-9a-f]+);/gi, (_m, hex) =>
+      String.fromCharCode(parseInt(hex, 16)),
+    )
+    .replace(/&#(\d+);/g, (_m, dec) =>
+      String.fromCharCode(parseInt(dec, 10)),
+    );
 }
 
 const LANGUAGES = [
@@ -57,7 +61,10 @@ export const command: Command = {
     .setDescription("🔍 Search the internet (via JamAPI, fuck Bing!)")
     .setDMPermission(true)
     .addStringOption((opt) =>
-      opt.setName("query").setDescription("Your search query").setRequired(true),
+      opt
+        .setName("query")
+        .setDescription("Your search query")
+        .setRequired(true),
     )
     .addIntegerOption((opt) =>
       opt
@@ -75,11 +82,14 @@ export const command: Command = {
     ),
 
   prefix: {
-    aliases: ["websearch", "duckduckgo", "web"],
+    aliases: ["websearch", "google", "web"],
     usage: "<query> [--limit=10] [--lang=en]",
   },
 
-  async execute(interaction: ChatInputCommandInteraction | Message, isPrefix = false) {
+  async execute(
+    interaction: ChatInputCommandInteraction | Message,
+    isPrefix = false,
+  ) {
     let query: string;
     let limit = 10;
     let lang = "en";
@@ -88,9 +98,16 @@ export const command: Command = {
       const msg = interaction as Message;
       const parts = msg.content.split(/\s+/).slice(1);
 
-      query = parts.find((p) => !p.startsWith("--")) || "";
+      // ✅ collect all words not starting with --
+      const queryParts = parts.filter((p) => !p.startsWith("--"));
+      query = queryParts.join(" ").trim();
+
       const limitArg = parts.find((p) => p.startsWith("--limit="));
-      if (limitArg) limit = Math.min(Math.max(parseInt(limitArg.split("=")[1], 10), 1), 50);
+      if (limitArg)
+        limit = Math.min(
+          Math.max(parseInt(limitArg.split("=")[1], 10), 1),
+          50,
+        );
 
       const langArg = parts.find((p) => p.startsWith("--lang="));
       if (langArg) lang = langArg.split("=")[1];
@@ -109,11 +126,16 @@ export const command: Command = {
       const warning = new EmbedBuilder()
         .setColor("#ff3838")
         .setTitle("⚠️ Content Warning")
-        .setDescription("Your search query is flagged for inappropriate content. Revise and try again.")
+        .setDescription(
+          "Your search query is flagged for inappropriate content. Revise and try again.",
+        )
         .setTimestamp();
       return isPrefix
         ? (interaction as Message).reply({ embeds: [warning] })
-        : (interaction as ChatInputCommandInteraction).reply({ embeds: [warning], ephemeral: true });
+        : (interaction as ChatInputCommandInteraction).reply({
+            embeds: [warning],
+            ephemeral: true,
+          });
     }
 
     // Fetch results
@@ -127,14 +149,18 @@ export const command: Command = {
       const errMsg = `❌ Search failed: ${(err as Error).message}`;
       return isPrefix
         ? (interaction as Message).reply(errMsg)
-        : (interaction as ChatInputCommandInteraction).editReply({ content: errMsg });
+        : (interaction as ChatInputCommandInteraction).editReply({
+            content: errMsg,
+          });
     }
 
     if (results.length === 0) {
       const none = `❓ No results found for: \`${query}\``;
       return isPrefix
         ? (interaction as Message).reply(none)
-        : (interaction as ChatInputCommandInteraction).editReply({ content: none });
+        : (interaction as ChatInputCommandInteraction).editReply({
+            content: none,
+          });
     }
 
     // Pagination
@@ -147,21 +173,35 @@ export const command: Command = {
       const link = decodeText(url);
       const desc = decodeText(description);
       return new EmbedBuilder()
-        .setDescription(`🔗 [${title}](${link}) (Page ${page + 1}/${totalPages})\n\n${desc}`)
+        .setDescription(
+          `🔗 [${title}](${link}) (Page ${page + 1}/${totalPages})\n\n${desc}`,
+        )
         .setFooter({
           text: suggestion
             ? `Did you mean: ${suggestion}`
             : `Requested by ${
-                isPrefix ? (interaction as Message).author.username : (interaction as ChatInputCommandInteraction).user.username
-              } | Language: ${LANGUAGES.find((l) => l.value === lang)?.name ?? lang}`,
+                isPrefix
+                  ? (interaction as Message).author.username
+                  : (interaction as ChatInputCommandInteraction).user.username
+              } | Language: ${
+                LANGUAGES.find((l) => l.value === lang)?.name ?? lang
+              }`,
         })
         .setTimestamp();
     };
 
     const makeRow = () =>
       new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder().setCustomId("prev").setLabel("⬅️ Previous").setStyle(ButtonStyle.Primary).setDisabled(page === 0),
-        new ButtonBuilder().setCustomId("next").setLabel("Next ➡️").setStyle(ButtonStyle.Primary).setDisabled(page === totalPages - 1),
+        new ButtonBuilder()
+          .setCustomId("prev")
+          .setLabel("⬅️ Previous")
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(page === 0),
+        new ButtonBuilder()
+          .setCustomId("next")
+          .setLabel("Next ➡️")
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(page === totalPages - 1),
       );
 
     let replyMsg: Message;
@@ -179,7 +219,9 @@ export const command: Command = {
       });
     }
 
-    const userId = isPrefix ? (interaction as Message).author.id : (interaction as ChatInputCommandInteraction).user.id;
+    const userId = isPrefix
+      ? (interaction as Message).author.id
+      : (interaction as ChatInputCommandInteraction).user.id;
     const collector = replyMsg.createMessageComponentCollector({
       filter: (btn: ButtonInteraction) => btn.user.id === userId,
       componentType: ComponentType.Button,
@@ -189,7 +231,10 @@ export const command: Command = {
     collector.on("collect", async (btn: ButtonInteraction) => {
       if (btn.customId === "prev" && page > 0) page--;
       if (btn.customId === "next" && page < totalPages - 1) page++;
-      await btn.update({ embeds: [makeEmbed()], components: [makeRow()] });
+      await btn.update({
+        embeds: [makeEmbed()],
+        components: [makeRow()],
+      });
     });
 
     collector.on("end", () => {
