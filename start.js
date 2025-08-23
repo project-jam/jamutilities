@@ -1,5 +1,9 @@
 const { spawn } = require('child_process');
 
+//////////////////////////////////////////////
+// This fixes the arm64 sharp package, yeah //
+//////////////////////////////////////////////
+
 console.log("Starting sharp installation fix...");
 
 const install = spawn('npm', ['install', '--os=linux', '--cpu=arm64', 'sharp', '--include=optional']);
